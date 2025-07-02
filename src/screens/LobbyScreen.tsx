@@ -44,7 +44,7 @@ export default function LobbyScreen() {
             return;
         }
         startGame();
-        navigation.navigate('Game');
+        navigation.navigate('RuleWriting');
     };
 
     return (

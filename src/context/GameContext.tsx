@@ -6,7 +6,9 @@ interface GameContextType {
     currentPlayer: Player | null;
     dispatch: React.Dispatch<GameAction>;
     joinLobby: (code: string, playerName: string) => void;
-    createLobby: (playerName: string) => void;
+    createLobby: (playerName: string, numRules?: number, numPrompts?: number, startingPoints?: number) => void;
+    setNumRules: (num: number) => void;
+    setNumPrompts: (num: number) => void;
     addPrompt: (text: string, category?: string) => void;
     addRule: (text: string) => void;
     startGame: () => void;
@@ -29,7 +31,9 @@ type GameAction =
     | { type: 'SPIN_WHEEL'; payload: StackItem[] }
     | { type: 'UPDATE_POINTS'; payload: { playerId: string; points: number } }
     | { type: 'SET_CURRENT_PLAYER'; payload: string }
-    | { type: 'RESET_GAME' };
+    | { type: 'RESET_GAME' }
+    | { type: 'SET_NUM_RULES'; payload: number }
+    | { type: 'SET_NUM_PROMPTS'; payload: number };
 
 const initialState: GameState = {
     id: '',
@@ -41,6 +45,8 @@ const initialState: GameState = {
     isWheelSpinning: false,
     currentStack: [],
     roundNumber: 0,
+    numRules: 3,
+    numPrompts: 3,
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -111,6 +117,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         case 'RESET_GAME':
             return initialState;
 
+        case 'SET_NUM_RULES':
+            return { ...state, numRules: action.payload };
+        case 'SET_NUM_PROMPTS':
+            return { ...state, numPrompts: action.payload };
+
         default:
             return state;
     }
@@ -137,12 +148,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_CURRENT_PLAYER', payload: player.id });
     };
 
-    const createLobby = (playerName: string) => {
+    const createLobby = (playerName: string, numRules = 3, numPrompts = 3, startingPoints = 20) => {
         const code = Math.random().toString(36).substr(2, 6).toUpperCase();
         const player: Player = {
             id: Math.random().toString(36).substr(2, 9),
             name: playerName,
-            points: 20,
+            points: startingPoints,
             rules: [],
             isHost: true,
         };
@@ -153,9 +164,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             code,
             players: [player],
             currentPlayer: player.id,
+            numRules,
+            numPrompts,
         };
 
         dispatch({ type: 'SET_GAME_STATE', payload: newGameState });
+    };
+
+    const setNumRules = (num: number) => {
+        dispatch({ type: 'SET_NUM_RULES', payload: num });
+    };
+    const setNumPrompts = (num: number) => {
+        dispatch({ type: 'SET_NUM_PROMPTS', payload: num });
     };
 
     const addPrompt = (text: string, category?: string) => {
@@ -257,6 +277,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch,
         joinLobby,
         createLobby,
+        setNumRules,
+        setNumPrompts,
         addPrompt,
         addRule,
         startGame,

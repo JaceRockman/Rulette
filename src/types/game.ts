@@ -30,6 +30,8 @@ export interface GameState {
     isWheelSpinning: boolean;
     currentStack: StackItem[];
     roundNumber: number;
+    numRules: number;
+    numPrompts: number;
 }
 
 export interface StackItem {

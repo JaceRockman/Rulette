@@ -7,15 +7,18 @@ import HomeScreen from './src/screens/HomeScreen';
 import LobbyScreen from './src/screens/LobbyScreen';
 import GameScreen from './src/screens/GameScreen';
 import WheelScreen from './src/screens/WheelScreen';
+import RuleWritingScreen from './src/screens/RuleWritingScreen';
+import PromptWritingScreen from './src/screens/PromptWritingScreen';
 import { GameProvider } from './src/context/GameContext';
 import OutlinedText from './src/components/OutlinedText';
-
 
 export type RootStackParamList = {
     Home: undefined;
     Lobby: { code: string };
     Game: undefined;
     Wheel: undefined;
+    RuleWriting: undefined;
+    PromptWriting: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -73,6 +76,22 @@ export default function App() {
                             component={WheelScreen}
                             options={{
                                 headerTitle: () => <OutlinedText>Spin the Wheel!</OutlinedText>,
+                                headerTitleAlign: 'center',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="RuleWriting"
+                            component={RuleWritingScreen}
+                            options={{
+                                headerTitle: () => <OutlinedText>Write Rules</OutlinedText>,
+                                headerTitleAlign: 'center',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="PromptWriting"
+                            component={PromptWritingScreen}
+                            options={{
+                                headerTitle: () => <OutlinedText>Write Prompts</OutlinedText>,
                                 headerTitleAlign: 'center',
                             }}
                         />
