@@ -10,11 +10,12 @@ import {
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
+import StripedBackground from '../components/StripedBackground';
+import shared from '../styles/shared';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -51,22 +52,16 @@ export default function HomeScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.keyboardView}
-            >
-                <LinearGradient
-                    colors={['#6366f1', '#8b5cf6', '#ec4899']}
-                    style={styles.gradient}
+        <StripedBackground>
+            <SafeAreaView style={styles.container}>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={styles.keyboardView}
                 >
                     <View style={styles.content}>
-                        <Text style={styles.title}>Spin That Wheel</Text>
-                        <Text style={styles.subtitle}>Create or join a game lobby</Text>
-
                         <View style={styles.inputContainer}>
                             <TextInput
-                                style={styles.input}
+                                style={shared.input}
                                 placeholder="Enter your name"
                                 placeholderTextColor="#9ca3af"
                                 value={playerName}
@@ -75,13 +70,15 @@ export default function HomeScreen() {
                             />
                         </View>
 
+                        <View style={styles.spacer} />
+
                         <View style={styles.buttonContainer}>
                             <TouchableOpacity
-                                style={[styles.button, styles.createButton]}
+                                style={[shared.button, styles.createButton]}
                                 onPress={handleCreateLobby}
                                 disabled={isCreating}
                             >
-                                <Text style={styles.buttonText}>
+                                <Text style={[shared.buttonText, styles.createButtonText]}>
                                     {isCreating ? 'Creating...' : 'Create Lobby'}
                                 </Text>
                             </TouchableOpacity>
@@ -94,7 +91,7 @@ export default function HomeScreen() {
 
                             <View style={styles.joinSection}>
                                 <TextInput
-                                    style={styles.input}
+                                    style={[shared.input, styles.lobbyCodeInput]}
                                     placeholder="Enter lobby code"
                                     placeholderTextColor="#9ca3af"
                                     value={lobbyCode}
@@ -103,20 +100,20 @@ export default function HomeScreen() {
                                     autoCapitalize="characters"
                                 />
                                 <TouchableOpacity
-                                    style={[styles.button, styles.joinButton]}
+                                    style={[shared.button, styles.joinButton]}
                                     onPress={handleJoinLobby}
                                     disabled={isJoining}
                                 >
-                                    <Text style={styles.buttonText}>
+                                    <Text style={shared.buttonText}>
                                         {isJoining ? 'Joining...' : 'Join Lobby'}
                                     </Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
                     </View>
-                </LinearGradient>
-            </KeyboardAvoidingView>
-        </SafeAreaView>
+                </KeyboardAvoidingView>
+            </SafeAreaView>
+        </StripedBackground>
     );
 }
 
@@ -127,59 +124,27 @@ const styles = StyleSheet.create({
     keyboardView: {
         flex: 1,
     },
-    gradient: {
-        flex: 1,
-    },
     content: {
         flex: 1,
-        justifyContent: 'center',
+        justifyContent: 'flex-start',
         alignItems: 'center',
         paddingHorizontal: 20,
-    },
-    title: {
-        fontSize: 32,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 10,
-        textAlign: 'center',
-    },
-    subtitle: {
-        fontSize: 16,
-        color: '#e5e7eb',
-        marginBottom: 40,
-        textAlign: 'center',
+        paddingTop: 100,
     },
     inputContainer: {
         width: '100%',
         marginBottom: 30,
     },
-    input: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
-        color: '#1f2937',
-        textAlign: 'center',
+    spacer: {
+        height: 150,
     },
     buttonContainer: {
         width: '100%',
     },
-    button: {
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        marginBottom: 16,
-    },
     createButton: {
-        backgroundColor: '#10b981',
-    },
-    joinButton: {
-        backgroundColor: '#3b82f6',
-    },
-    buttonText: {
-        color: '#ffffff',
-        fontSize: 16,
-        fontWeight: 'bold',
+        paddingVertical: 32,
+        borderRadius: 30,
+        borderWidth: 8
     },
     divider: {
         flexDirection: 'row',
@@ -199,5 +164,22 @@ const styles = StyleSheet.create({
     },
     joinSection: {
         width: '100%',
+    },
+    joinButton: {
+        borderTopRightRadius: 0,
+        borderTopLeftRadius: 0,
+        borderWidth: 2,
+        marginTop: 0,
+    },
+    lobbyCodeInput: {
+        borderBottomRightRadius: 0,
+        borderBottomLeftRadius: 0,
+        borderBottomWidth: 0,
+        borderWidth: 2,
+        marginBottom: 0,
+    },
+    createButtonText: {
+        fontWeight: 'bold',
+        fontSize: 22,
     },
 }); 

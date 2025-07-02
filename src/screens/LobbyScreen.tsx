@@ -9,12 +9,14 @@ import {
     Alert,
     SafeAreaView,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import * as Clipboard from 'expo-clipboard';
+import StripedBackground from '../components/StripedBackground';
+import shared from '../styles/shared';
+import OutlinedText from '../components/OutlinedText';
 
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -22,11 +24,11 @@ type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 export default function LobbyScreen() {
     const navigation = useNavigation<LobbyScreenNavigationProp>();
     const route = useRoute<LobbyScreenRouteProp>();
-    const { gameState, currentPlayer, addPrompt, addRule, startGame } = useGame();
+    const { gameState, currentPlayer, startGame } = useGame();
 
-    const [newPrompt, setNewPrompt] = useState('');
-    const [newRule, setNewRule] = useState('');
-    const [selectedPlayer, setSelectedPlayer] = useState('');
+    const [startingPoints, setStartingPoints] = useState('20');
+    const [numRules, setNumRules] = useState('3');
+    const [numPrompts, setNumPrompts] = useState('3');
 
     const isHost = currentPlayer?.isHost;
     const lobbyCode = gameState?.code || route.params.code;
@@ -36,31 +38,9 @@ export default function LobbyScreen() {
         Alert.alert('Copied!', 'Lobby code copied to clipboard');
     };
 
-    const handleAddPrompt = () => {
-        if (!newPrompt.trim()) {
-            Alert.alert('Error', 'Please enter a prompt');
-            return;
-        }
-        addPrompt(newPrompt.trim());
-        setNewPrompt('');
-    };
-
-    const handleAddRule = () => {
-        if (!newRule.trim()) {
-            Alert.alert('Error', 'Please enter a rule');
-            return;
-        }
-        addRule(newRule.trim());
-        setNewRule('');
-    };
-
     const handleStartGame = () => {
-        if (!gameState?.prompts.length) {
-            Alert.alert('Error', 'Please add at least one prompt before starting');
-            return;
-        }
-        if (!gameState?.rules.length) {
-            Alert.alert('Error', 'Please add at least one rule before starting');
+        if (!gameState?.players.length) {
+            Alert.alert('Error', 'Need at least one player to start');
             return;
         }
         startGame();
@@ -68,109 +48,93 @@ export default function LobbyScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <LinearGradient
-                colors={['#6366f1', '#8b5cf6']}
-                style={styles.gradient}
-            >
-                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        <StripedBackground>
+            <SafeAreaView style={styles.container}>
+                <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
                     {/* Lobby Code Section */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Lobby Code</Text>
-                        <TouchableOpacity style={styles.codeContainer} onPress={copyLobbyCode}>
-                            <Text style={styles.lobbyCode}>{lobbyCode}</Text>
+                        <OutlinedText>Lobby Code</OutlinedText>
+                        <TouchableOpacity style={shared.button} onPress={copyLobbyCode}>
+                            <Text style={shared.buttonText}>{lobbyCode}</Text>
                             <Text style={styles.copyText}>Tap to copy</Text>
                         </TouchableOpacity>
                     </View>
 
                     {/* Players Section */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Players ({gameState?.players.length || 0})</Text>
+                        <OutlinedText>Players ({gameState?.players.length || 0})</OutlinedText>
                         {gameState?.players.map((player) => (
                             <View key={player.id} style={styles.playerItem}>
                                 <Text style={styles.playerName}>
                                     {player.name} {player.isHost ? '(Host)' : ''}
                                 </Text>
-                                <Text style={styles.playerPoints}>{player.points} pts</Text>
                             </View>
                         ))}
                     </View>
 
-                    {/* Add Prompts Section */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Add Prompts</Text>
-                        <View style={styles.inputRow}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter a prompt..."
-                                placeholderTextColor="#9ca3af"
-                                value={newPrompt}
-                                onChangeText={setNewPrompt}
-                                multiline
-                            />
-                            <TouchableOpacity style={styles.addButton} onPress={handleAddPrompt}>
-                                <Text style={styles.addButtonText}>Add</Text>
-                            </TouchableOpacity>
-                        </View>
-                        {gameState?.prompts.map((prompt) => (
-                            <View key={prompt.id} style={styles.itemCard}>
-                                <Text style={styles.itemText}>{prompt.text}</Text>
-                            </View>
-                        ))}
-                    </View>
+                    {/* Host Settings Section */}
+                    {isHost && (
+                        <View style={styles.section}>
+                            <OutlinedText>Game Settings</OutlinedText>
 
-                    {/* Add Rules Section */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Add Rules</Text>
-                        <Text style={styles.sectionSubtitle}>Rules will be assigned to players when they spin the wheel</Text>
-                        <View style={styles.inputRow}>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter a rule..."
-                                placeholderTextColor="#9ca3af"
-                                value={newRule}
-                                onChangeText={setNewRule}
-                                multiline
-                            />
-                            <TouchableOpacity style={styles.addButton} onPress={handleAddRule}>
-                                <Text style={styles.addButtonText}>Add</Text>
-                            </TouchableOpacity>
-                        </View>
-                        {gameState?.rules.map((rule) => (
-                            <View key={rule.id} style={styles.itemCard}>
-                                <Text style={styles.itemText}>{rule.text}</Text>
-                                {rule.assignedTo && (
-                                    <Text style={styles.assignedText}>
-                                        Assigned to: {gameState.players.find(p => p.id === rule.assignedTo)?.name}
-                                    </Text>
-                                )}
+                            <View style={styles.settingRow}>
+                                <OutlinedText>Starting Points:</OutlinedText>
+                                <TextInput
+                                    style={shared.input}
+                                    value={startingPoints}
+                                    onChangeText={setStartingPoints}
+                                    keyboardType="numeric"
+                                    placeholder="20"
+                                    placeholderTextColor="#9ca3af"
+                                />
                             </View>
-                        ))}
-                    </View>
+
+                            <View style={styles.settingRow}>
+                                <OutlinedText>Number of Rules:</OutlinedText>
+                                <TextInput
+                                    style={shared.input}
+                                    value={numRules}
+                                    onChangeText={setNumRules}
+                                    keyboardType="numeric"
+                                    placeholder="3"
+                                    placeholderTextColor="#9ca3af"
+                                />
+                            </View>
+
+                            <View style={styles.settingRow}>
+                                <OutlinedText>Number of Prompts:</OutlinedText>
+                                <TextInput
+                                    style={shared.input}
+                                    value={numPrompts}
+                                    onChangeText={setNumPrompts}
+                                    keyboardType="numeric"
+                                    placeholder="3"
+                                    placeholderTextColor="#9ca3af"
+                                />
+                            </View>
+                        </View>
+                    )}
 
                     {/* Start Game Button */}
                     {isHost && (
                         <View style={styles.section}>
                             <TouchableOpacity
-                                style={styles.startButton}
+                                style={shared.button}
                                 onPress={handleStartGame}
-                                disabled={!gameState?.prompts.length || !gameState?.rules.length}
+                                disabled={!gameState?.players.length}
                             >
-                                <Text style={styles.startButtonText}>Start Game</Text>
+                                <Text style={shared.buttonText}>Start Game</Text>
                             </TouchableOpacity>
                         </View>
                     )}
                 </ScrollView>
-            </LinearGradient>
-        </SafeAreaView>
+            </SafeAreaView>
+        </StripedBackground>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-    },
-    gradient: {
         flex: 1,
     },
     scrollView: {
@@ -179,27 +143,26 @@ const styles = StyleSheet.create({
     },
     section: {
         marginBottom: 30,
+
     },
     sectionTitle: {
         fontSize: 20,
         fontWeight: 'bold',
         color: '#ffffff',
         marginBottom: 15,
-    },
-    sectionSubtitle: {
-        fontSize: 14,
-        color: '#e5e7eb',
-        marginBottom: 15,
-        fontStyle: 'italic',
+        textAlign: 'center',
     },
     codeContainer: {
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 12,
-        padding: 20,
+        paddingVertical: 3,
+        paddingHorizontal: 16,
         alignItems: 'center',
+        alignSelf: 'center',
+        width: '50%'
     },
     lobbyCode: {
-        fontSize: 24,
+        fontSize: 18,
         fontWeight: 'bold',
         color: '#1f2937',
         letterSpacing: 2,
@@ -214,8 +177,6 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         padding: 12,
         marginBottom: 8,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
     },
     playerName: {
@@ -223,79 +184,27 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: '#1f2937',
     },
-    playerPoints: {
-        fontSize: 14,
-        color: '#6b7280',
-    },
-    inputRow: {
+    settingRow: {
         flexDirection: 'row',
-        alignItems: 'flex-end',
-        marginBottom: 10,
+        alignItems: 'center',
+        marginBottom: 15,
     },
-    input: {
+    settingLabel: {
+        fontSize: 16,
+        color: '#ffffff',
+        marginRight: 15,
+        minWidth: 120,
+    },
+    settingInput: {
         flex: 1,
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 8,
         padding: 12,
         fontSize: 14,
         color: '#1f2937',
-        marginRight: 10,
-        minHeight: 40,
-    },
-    addButton: {
-        backgroundColor: '#10b981',
-        borderRadius: 8,
-        padding: 12,
-        minWidth: 60,
-        alignItems: 'center',
-    },
-    addButtonText: {
-        color: '#ffffff',
-        fontWeight: 'bold',
-    },
-    playerSelector: {
-        marginBottom: 10,
-    },
-    selectorLabel: {
-        fontSize: 14,
-        color: '#ffffff',
-        marginBottom: 8,
-    },
-    playerChip: {
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        marginRight: 8,
-    },
-    selectedChip: {
-        backgroundColor: '#ffffff',
-    },
-    chipText: {
-        color: '#ffffff',
-        fontSize: 14,
-    },
-    selectedChipText: {
-        color: '#1f2937',
-    },
-    itemCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 8,
-    },
-    itemText: {
-        fontSize: 14,
-        color: '#1f2937',
-        marginBottom: 4,
-    },
-    assignedText: {
-        fontSize: 12,
-        color: '#6b7280',
-        fontStyle: 'italic',
     },
     startButton: {
-        backgroundColor: '#ef4444',
+        backgroundColor: '#cba84b',
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',

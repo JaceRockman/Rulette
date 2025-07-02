@@ -9,21 +9,22 @@ import {
     SafeAreaView,
     Modal,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import { Player, Rule } from '../types/game';
+import StripedBackground from '../components/StripedBackground';
+import shared from '../styles/shared';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentPlayer, updatePoints, swapRules, assignRule } = useGame();
-    const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-    const [showRuleModal, setShowRuleModal] = useState(false);
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
+    const [selectedPlayer1, setSelectedPlayer1] = useState<Player | null>(null);
+    const [selectedPlayer2, setSelectedPlayer2] = useState<Player | null>(null);
 
     const handleSpinWheel = () => {
         navigation.navigate('Wheel');
@@ -36,47 +37,48 @@ export default function GameScreen() {
 
     const handleSwapRules = (player1: Player, player2: Player) => {
         swapRules(player1.id, player2.id);
-        Alert.alert('Rules Swapped!', `Rules have been swapped between ${player1.name} and ${player2.name}`);
+        setSelectedPlayer1(null);
+        setSelectedPlayer2(null);
     };
 
     const handleAssignRule = (rule: Rule, playerId: string) => {
         assignRule(rule.id, playerId);
-        setShowRuleModal(false);
         setSelectedRule(null);
     };
 
     const openRuleModal = (rule: Rule) => {
         setSelectedRule(rule);
-        setShowRuleModal(true);
     };
 
-    if (!gameState) {
+    if (!gameState || !currentPlayer) {
         return (
-            <SafeAreaView style={styles.container}>
-                <Text style={styles.errorText}>No game state found</Text>
-            </SafeAreaView>
+            <StripedBackground>
+                <SafeAreaView style={styles.container}>
+                    <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
+                        <View style={styles.content}>
+                            <Text style={styles.errorText}>Loading game...</Text>
+                        </View>
+                    </ScrollView>
+                </SafeAreaView>
+            </StripedBackground>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <LinearGradient
-                colors={['#6366f1', '#8b5cf6', '#ec4899']}
-                style={styles.gradient}
-            >
-                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                    {/* Game Info */}
+        <StripedBackground>
+            <SafeAreaView style={styles.container}>
+                <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Round {gameState.roundNumber}</Text>
+                        <Text style={styles.sectionTitle}>Game Room</Text>
                         <Text style={styles.gameStatus}>
-                            {gameState.isWheelSpinning ? 'Wheel is spinning...' : 'Ready to spin!'}
+                            {currentPlayer.isHost ? 'You are the host' : 'Waiting for host to start...'}
                         </Text>
                     </View>
 
-                    {/* Players and Scores */}
+                    {/* Players Section */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Players & Scores</Text>
-                        {gameState.players.map((player: Player) => (
+                        <Text style={styles.sectionTitle}>Players</Text>
+                        {gameState.players.map((player) => (
                             <View key={player.id} style={styles.playerCard}>
                                 <View style={styles.playerHeader}>
                                     <Text style={styles.playerName}>
@@ -85,126 +87,156 @@ export default function GameScreen() {
                                     <Text style={styles.playerPoints}>{player.points} pts</Text>
                                 </View>
 
-                                <View style={styles.pointControls}>
-                                    <TouchableOpacity
-                                        style={styles.pointButton}
-                                        onPress={() => handleUpdatePoints(player.id, player.points, 2)}
-                                    >
-                                        <Text style={styles.pointButtonText}>+2</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.pointButton, styles.minusButton]}
-                                        onPress={() => handleUpdatePoints(player.id, player.points, -1)}
-                                    >
-                                        <Text style={styles.pointButtonText}>-1</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                {currentPlayer.isHost && (
+                                    <View style={styles.pointControls}>
+                                        <TouchableOpacity
+                                            style={[shared.button]}
+                                            onPress={() => handleUpdatePoints(player.id, player.points, -5)}
+                                        >
+                                            <Text style={shared.buttonText}>-5</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[shared.button]}
+                                            onPress={() => handleUpdatePoints(player.id, player.points, -1)}
+                                        >
+                                            <Text style={shared.buttonText}>-1</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={shared.button}
+                                            onPress={() => handleUpdatePoints(player.id, player.points, 1)}
+                                        >
+                                            <Text style={shared.buttonText}>+1</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={shared.button}
+                                            onPress={() => handleUpdatePoints(player.id, player.points, 5)}
+                                        >
+                                            <Text style={shared.buttonText}>+5</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
 
-                                {/* Player's Rules */}
-                                <View style={styles.rulesContainer}>
-                                    <Text style={styles.rulesTitle}>Rules:</Text>
-                                    {gameState.rules
-                                        .filter((rule: Rule) => rule.assignedTo === player.id)
-                                        .map((rule: Rule) => (
-                                            <TouchableOpacity
-                                                key={rule.id}
-                                                style={styles.ruleItem}
-                                                onPress={() => openRuleModal(rule)}
-                                            >
+                                {player.rules.length > 0 && (
+                                    <View style={styles.rulesContainer}>
+                                        <Text style={styles.rulesTitle}>Rules:</Text>
+                                        {player.rules.map((rule) => (
+                                            <View key={rule.id} style={styles.ruleItem}>
                                                 <Text style={styles.ruleText}>{rule.text}</Text>
-                                                <Text style={styles.ruleAction}>Tap to reassign</Text>
-                                            </TouchableOpacity>
+                                                {currentPlayer.isHost && (
+                                                    <TouchableOpacity
+                                                        onPress={() => openRuleModal(rule)}
+                                                    >
+                                                        <Text style={styles.ruleAction}>Tap to reassign</Text>
+                                                    </TouchableOpacity>
+                                                )}
+                                            </View>
                                         ))}
-                                </View>
+                                    </View>
+                                )}
                             </View>
                         ))}
                     </View>
 
-                    {/* Rule Swap Section */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Swap Rules</Text>
-                        <Text style={styles.sectionSubtitle}>Select two players to swap their rules</Text>
-                        <View style={styles.swapContainer}>
-                            {gameState.players.map((player: Player) => (
+                    {/* Rule Swap Section (Host Only) */}
+                    {currentPlayer.isHost && gameState.players.length >= 2 && (
+                        <View style={styles.section}>
+                            <Text style={styles.sectionTitle}>Swap Rules Between Players</Text>
+                            <Text style={styles.sectionSubtitle}>Select two players to swap their rules</Text>
+
+                            <View style={styles.swapContainer}>
+                                {gameState.players.map((player) => (
+                                    <TouchableOpacity
+                                        key={player.id}
+                                        style={[
+                                            styles.swapChip,
+                                            (selectedPlayer1?.id === player.id || selectedPlayer2?.id === player.id) && styles.selectedSwapChip
+                                        ]}
+                                        onPress={() => {
+                                            if (!selectedPlayer1) {
+                                                setSelectedPlayer1(player);
+                                            } else if (!selectedPlayer2 && selectedPlayer1.id !== player.id) {
+                                                setSelectedPlayer2(player);
+                                            } else if (selectedPlayer1?.id === player.id) {
+                                                setSelectedPlayer1(null);
+                                            } else if (selectedPlayer2?.id === player.id) {
+                                                setSelectedPlayer2(null);
+                                            }
+                                        }}
+                                    >
+                                        <Text style={[
+                                            styles.swapChipText,
+                                            (selectedPlayer1?.id === player.id || selectedPlayer2?.id === player.id) && styles.selectedSwapChipText
+                                        ]}>
+                                            {player.name}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+
+                            {selectedPlayer1 && selectedPlayer2 && (
                                 <TouchableOpacity
-                                    key={player.id}
-                                    style={[
-                                        styles.swapChip,
-                                        selectedPlayer?.id === player.id && styles.selectedSwapChip
-                                    ]}
-                                    onPress={() => {
-                                        if (selectedPlayer && selectedPlayer.id !== player.id) {
-                                            handleSwapRules(selectedPlayer, player);
-                                            setSelectedPlayer(null);
-                                        } else {
-                                            setSelectedPlayer(player);
-                                        }
-                                    }}
+                                    style={styles.spinButton}
+                                    onPress={() => handleSwapRules(selectedPlayer1, selectedPlayer2)}
                                 >
-                                    <Text style={[
-                                        styles.swapChipText,
-                                        selectedPlayer?.id === player.id && styles.selectedSwapChipText
-                                    ]}>
-                                        {player.name}
+                                    <Text style={styles.spinButtonText}>
+                                        Swap Rules: {selectedPlayer1.name} ↔ {selectedPlayer2.name}
                                     </Text>
                                 </TouchableOpacity>
-                            ))}
-                        </View>
-                        {selectedPlayer && (
+                            )}
+
                             <Text style={styles.swapHint}>
-                                Now select another player to swap rules with {selectedPlayer.name}
+                                Tap players to select them, then tap "Swap Rules" to exchange their rules
                             </Text>
-                        )}
-                    </View>
+                        </View>
+                    )}
 
                     {/* Spin Wheel Button */}
                     <View style={styles.section}>
                         <TouchableOpacity
                             style={styles.spinButton}
                             onPress={handleSpinWheel}
-                            disabled={gameState.isWheelSpinning}
                         >
-                            <Text style={styles.spinButtonText}>
-                                {gameState.isWheelSpinning ? 'Wheel Spinning...' : 'Spin the Wheel!'}
-                            </Text>
+                            <Text style={styles.spinButtonText}>Spin the Wheel!</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
 
                 {/* Rule Assignment Modal */}
                 <Modal
-                    visible={showRuleModal}
+                    visible={selectedRule !== null}
                     transparent={true}
-                    animationType="slide"
-                    onRequestClose={() => setShowRuleModal(false)}
+                    animationType="fade"
+                    onRequestClose={() => setSelectedRule(null)}
                 >
                     <View style={styles.modalOverlay}>
                         <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Reassign Rule</Text>
+                            <Text style={styles.modalTitle}>Assign Rule</Text>
                             <Text style={styles.modalRuleText}>{selectedRule?.text}</Text>
-                            <Text style={styles.modalSubtitle}>Assign to:</Text>
+
+                            <Text style={styles.modalSubtitle}>Select a player to assign this rule to:</Text>
                             <ScrollView style={styles.modalPlayerList}>
-                                {gameState.players.map((player: Player) => (
+                                {gameState.players.map((player) => (
                                     <TouchableOpacity
                                         key={player.id}
                                         style={styles.modalPlayerItem}
-                                        onPress={() => handleAssignRule(selectedRule!, player.id)}
+                                        onPress={() => selectedRule && handleAssignRule(selectedRule, player.id)}
                                     >
                                         <Text style={styles.modalPlayerName}>{player.name}</Text>
                                     </TouchableOpacity>
                                 ))}
                             </ScrollView>
+
                             <TouchableOpacity
                                 style={styles.modalCancelButton}
-                                onPress={() => setShowRuleModal(false)}
+                                onPress={() => setSelectedRule(null)}
                             >
                                 <Text style={styles.modalCancelText}>Cancel</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
                 </Modal>
-            </LinearGradient>
-        </SafeAreaView>
+            </SafeAreaView>
+        </StripedBackground>
     );
 }
 
@@ -212,12 +244,14 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    gradient: {
-        flex: 1,
-    },
     scrollView: {
         flex: 1,
         padding: 20,
+    },
+    content: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     section: {
         marginBottom: 30,
@@ -259,27 +293,11 @@ const styles = StyleSheet.create({
     playerPoints: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#10b981',
+        color: '#d08d4b',
     },
     pointControls: {
         flexDirection: 'row',
         marginBottom: 12,
-    },
-    pointButton: {
-        backgroundColor: '#10b981',
-        borderRadius: 8,
-        padding: 8,
-        marginRight: 8,
-        minWidth: 40,
-        alignItems: 'center',
-    },
-    minusButton: {
-        backgroundColor: '#ef4444',
-    },
-    pointButtonText: {
-        color: '#ffffff',
-        fontWeight: 'bold',
-        fontSize: 14,
     },
     rulesContainer: {
         borderTopWidth: 1,
@@ -336,7 +354,7 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     spinButton: {
-        backgroundColor: '#f59e0b',
+        backgroundColor: '#cba84b',
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
@@ -347,7 +365,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     errorText: {
-        color: '#ef4444',
+        color: '#9b2f4d',
         textAlign: 'center',
         marginTop: 50,
     },

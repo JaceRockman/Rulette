@@ -8,6 +8,8 @@ import LobbyScreen from './src/screens/LobbyScreen';
 import GameScreen from './src/screens/GameScreen';
 import WheelScreen from './src/screens/WheelScreen';
 import { GameProvider } from './src/context/GameContext';
+import OutlinedText from './src/components/OutlinedText';
+
 
 export type RootStackParamList = {
     Home: undefined;
@@ -28,33 +30,51 @@ export default function App() {
                         initialRouteName="Home"
                         screenOptions={{
                             headerStyle: {
-                                backgroundColor: '#6366f1',
+                                backgroundColor: 'transparent',
+                                elevation: 0,
+                                shadowOpacity: 0,
+                                height: 100,
                             },
                             headerTintColor: '#fff',
                             headerTitleStyle: {
                                 fontWeight: 'bold',
+                                fontSize: 36,
+                                color: '#fff',
                             },
+                            headerTransparent: true,
                         }}
                     >
                         <Stack.Screen
                             name="Home"
                             component={HomeScreen}
-                            options={{ title: 'Spin That Wheel' }}
+                            options={{
+                                headerTitle: () => <OutlinedText>Spin That Wheel</OutlinedText>,
+                                headerTitleAlign: 'center',
+                            }}
                         />
                         <Stack.Screen
                             name="Lobby"
                             component={LobbyScreen}
-                            options={{ title: 'Game Lobby' }}
+                            options={{
+                                headerTitle: () => <OutlinedText>Game Lobby</OutlinedText>,
+                                headerTitleAlign: 'center',
+                            }}
                         />
                         <Stack.Screen
                             name="Game"
                             component={GameScreen}
-                            options={{ title: 'Game Room' }}
+                            options={{
+                                headerTitle: () => <OutlinedText>Game Room</OutlinedText>,
+                                headerTitleAlign: 'center',
+                            }}
                         />
                         <Stack.Screen
                             name="Wheel"
                             component={WheelScreen}
-                            options={{ title: 'Spin the Wheel!' }}
+                            options={{
+                                headerTitle: () => <OutlinedText>Spin the Wheel!</OutlinedText>,
+                                headerTitleAlign: 'center',
+                            }}
                         />
                     </Stack.Navigator>
                 </NavigationContainer>

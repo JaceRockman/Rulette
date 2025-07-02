@@ -17,6 +17,8 @@ import { useGame } from '../context/GameContext';
 import { StackItem } from '../types/game';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle, Text as SvgText, Path } from 'react-native-svg';
+import StripedBackground from '../components/StripedBackground';
+import shared from '../styles/shared';
 
 
 type WheelScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wheel'>;
@@ -245,14 +247,14 @@ export default function WheelScreen() {
             const currentStack = segmentStacks[i] || [];
             const topItem = currentStack[0];
 
-            let color = '#ef4444'; // Default rule color
+            let color = '#9b2f4d'; // Default rule color
             let text = 'RULE';
             let type = 'rule';
 
             if (topItem) {
                 switch (topItem.type) {
                     case 'prompt':
-                        color = '#10b981';
+                        color = '#d08d4b';
                         text = 'PROMPT';
                         type = 'prompt';
                         break;
@@ -262,13 +264,13 @@ export default function WheelScreen() {
                             text = 'END';
                             type = 'end';
                         } else {
-                            color = '#f59e0b';
+                            color = '#cba84b';
                             text = 'MODIFIER';
                             type = 'modifier';
                         }
                         break;
                     default:
-                        color = '#ef4444';
+                        color = '#9b2f4d';
                         text = 'RULE';
                         type = 'rule';
                 }
@@ -318,51 +320,44 @@ export default function WheelScreen() {
     };
 
     const getResultColor = () => {
-        if (landedSegment === null) return '#6b7280';
+        if (landedSegment === null) return '#4688a6';
 
         const currentStack = segmentStacks[landedSegment] || [];
-        if (currentStack.length === 0) return '#6b7280';
+        if (currentStack.length === 0) return '#4688a6';
 
         const topItem = currentStack[0];
 
         switch (topItem.type) {
             case 'prompt':
-                return '#10b981';
+                return '#d08d4b';
             case 'rule':
-                return '#ef4444';
+                return '#9b2f4d';
             case 'modifier':
-                return '#f59e0b';
+                return '#cba84b';
             default:
-                return '#6b7280';
+                return '#4688a6';
         }
     };
 
     const segments = getWheelSegments();
 
     return (
-        <SafeAreaView style={styles.container}>
-            <LinearGradient
-                colors={['#6366f1', '#8b5cf6', '#ec4899']}
-                style={styles.gradient}
-            >
+        <StripedBackground>
+            <SafeAreaView style={styles.container}>
                 <View style={styles.content}>
-                    {/* Wheel */}
                     <View style={styles.wheelContainer}>
-
-
                         {/* Selected Segment Display */}
-                        {landedSegment !== null && (
-                            <View style={styles.selectedSegmentDisplay}>
-                                <Text style={styles.selectedSegmentText}>
-                                    Selected: Segment {landedSegment + 1}
-                                </Text>
-                            </View>
-                        )}
+                        <View style={styles.selectedSegmentDisplay}>
+                            <Text style={styles.selectedSegmentText}>
+                                {landedSegment !== null ? `Segment ${landedSegment + 1}` : 'Ready to spin!'}
+                            </Text>
+                        </View>
 
-                        <View style={styles.wheelWrapper}>
+                        {/* Wheel */}
+                        <View style={styles.wheel}>
                             <Animated.View
                                 style={[
-                                    styles.wheel,
+                                    styles.wheelWrapper,
                                     {
                                         transform: [{
                                             rotate: spinAnimation.interpolate({
@@ -415,11 +410,11 @@ export default function WheelScreen() {
 
                         {/* Spin Button */}
                         <TouchableOpacity
-                            style={[styles.spinButton, isSpinning && styles.spinningButton]}
+                            style={[shared.button, isSpinning && styles.spinningButton]}
                             onPress={onSpinButtonPress}
                             disabled={isSpinning}
                         >
-                            <Text style={styles.spinButtonText}>
+                            <Text style={shared.buttonText}>
                                 {isSpinning ? 'Spinning...' : 'SPIN!'}
                             </Text>
                         </TouchableOpacity>
@@ -443,19 +438,19 @@ export default function WheelScreen() {
 
                             <View style={styles.resultActions}>
                                 <TouchableOpacity
-                                    style={styles.actionButton}
+                                    style={shared.button}
                                     onPress={handleNext}
                                 >
-                                    <Text style={styles.actionButtonText}>
+                                    <Text style={shared.buttonText}>
                                         Next
                                     </Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
-                                    style={[styles.actionButton, styles.backButton]}
+                                    style={[shared.button, styles.backButton]}
                                     onPress={handleBackToGame}
                                 >
-                                    <Text style={styles.actionButtonText}>Back to Game</Text>
+                                    <Text style={shared.buttonText}>Back to Game</Text>
                                 </TouchableOpacity>
                             </View>
                         </Animated.View>
@@ -463,8 +458,8 @@ export default function WheelScreen() {
 
 
                 </View>
-            </LinearGradient>
-        </SafeAreaView >
+            </SafeAreaView>
+        </StripedBackground>
     );
 }
 
@@ -472,14 +467,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    gradient: {
-        flex: 1,
-    },
     content: {
         flex: 1,
-        alignItems: 'center',
         justifyContent: 'center',
-        padding: 20,
+        alignItems: 'center',
+        paddingTop: 100,
     },
     wheelContainer: {
         alignItems: 'center',
@@ -496,7 +488,7 @@ const styles = StyleSheet.create({
     selectedSegmentText: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#10b981',
+        color: '#d08d4b',
     },
     wheel: {
         marginBottom: 20,
@@ -525,24 +517,8 @@ const styles = StyleSheet.create({
         borderBottomColor: 'transparent',
         borderTopColor: 'transparent',
     },
-    spinButton: {
-        backgroundColor: '#f59e0b',
-        borderRadius: 50,
-        paddingHorizontal: 30,
-        paddingVertical: 15,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-    },
     spinningButton: {
-        backgroundColor: '#6b7280',
-    },
-    spinButtonText: {
-        color: '#ffffff',
-        fontSize: 18,
-        fontWeight: 'bold',
+        backgroundColor: '#4688a6',
     },
     resultContainer: {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -569,18 +545,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 10,
     },
-    actionButton: {
-        backgroundColor: '#10b981',
-        borderRadius: 8,
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-    },
     backButton: {
-        backgroundColor: '#6b7280',
-    },
-    actionButtonText: {
-        color: '#ffffff',
-        fontWeight: 'bold',
+        backgroundColor: '#4688a6',
     },
 
 
