@@ -1,553 +1,412 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    SafeAreaView,
-    Animated,
-    Dimensions,
-    Alert,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, Animated, FlatList, Dimensions, SafeAreaView, PanResponder, GestureResponderEvent, PanResponderGestureState } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import { StackItem } from '../types/game';
-import * as Haptics from 'expo-haptics';
-import Svg, { Circle, Text as SvgText, Path } from 'react-native-svg';
-import StripedBackground from '../components/StripedBackground';
 import shared from '../styles/shared';
+import StripedBackground from '../components/StripedBackground';
+import OutlinedText from '../components/OutlinedText';
+import WheelSegment from '../components/WheelSegment';
 
-
-type WheelScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wheel'>;
-
-const { width, height } = Dimensions.get('window');
-const WHEEL_SIZE = Math.min(width, height) * 0.85;
-const CENTER = WHEEL_SIZE / 2;
-const RADIUS = WHEEL_SIZE / 2 - 30;
+const ITEM_HEIGHT = 120;
+const VISIBLE_ITEMS = 5;
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SEGMENT_COLORS = ['#8b5cf6', '#ef4444', '#fbbf24', '#3b82f6']; // purple, red, yellow, blue
+const PLAQUE_COLORS = ['#8b5cf6', '#ef4444', '#fbbf24', '#3b82f6', '#fff']; // purple, red, yellow, blue, white
 
 export default function WheelScreen() {
-    const navigation = useNavigation<WheelScreenNavigationProp>();
-    const { gameState, assignRuleToCurrentPlayer } = useGame();
+    const navigation = useNavigation();
+    const { gameState } = useGame();
+    // Combine rules and prompts for the wheel
+    const segments = [
+        ...(gameState?.rules || []).map(r => ({ type: 'rule', text: "RULE" })),
+        ...(gameState?.prompts || []).map(p => ({ type: 'prompt', text: "PROMPT" })),
+    ];
     const [isSpinning, setIsSpinning] = useState(false);
-    const [showResult, setShowResult] = useState(false);
-    const [landedSegment, setLandedSegment] = useState<number | null>(null);
-    const [segmentStacks, setSegmentStacks] = useState<{ [key: number]: StackItem[] }>({});
-    const [currentWheelAngle, setCurrentWheelAngle] = useState(0); // Track cumulative wheel rotation
-    const [currentRotation, setCurrentRotation] = useState(0); // Track current rotation display
+    const [selectedIndex, setSelectedIndex] = useState<number>(0);
+    const [showExpandedPlaque, setShowExpandedPlaque] = useState(false);
+    const scrollY = useRef(new Animated.Value(0)).current;
+    const flatListRef = useRef<FlatList>(null);
+    const currentScrollOffset = useRef(0);
+    const wheelContainerRef = useRef<View>(null);
+    const [wheelHeight, setWheelHeight] = useState(0);
+    const currentRotation = useRef(0);
+    const popupScale = useRef(new Animated.Value(0)).current;
+    const popupOpacity = useRef(new Animated.Value(0)).current;
 
-    const spinAnimation = useRef(new Animated.Value(0)).current;
-    const resultOpacity = useRef(new Animated.Value(0)).current;
+    // Pad the segments so the selected item can be centered and create a continuous loop
+    const paddedSegments = [
+        // Add the last few segments at the beginning
+        ...segments.slice(-Math.floor(VISIBLE_ITEMS / 2)),
+        // Add the actual segments
+        ...segments,
+        // Add the first few segments at the end
+        ...segments.slice(0, Math.floor(VISIBLE_ITEMS / 2)),
+    ];
 
-    // Initialize segment stacks when component mounts or game state changes
-    useEffect(() => {
-        // For testing: Create test data if no game state
-        if (!gameState) {
-            const testRules = [
-                { id: 'rule-a', text: 'Rule A', isActive: true },
-                { id: 'rule-b', text: 'Rule B', isActive: true },
-                { id: 'rule-c', text: 'Rule C', isActive: true },
-                { id: 'rule-d', text: 'Rule D', isActive: true },
-                { id: 'rule-e', text: 'Rule E', isActive: true },
-            ];
-
-            const testPrompts = [
-                { id: 'prompt-1', text: 'Prompt 1' },
-                { id: 'prompt-2', text: 'Prompt 2' },
-                { id: 'prompt-3', text: 'Prompt 3' },
-                { id: 'prompt-4', text: 'Prompt 4' },
-                { id: 'prompt-5', text: 'Prompt 5' },
-                { id: 'prompt-6', text: 'Prompt 6' },
-                { id: 'prompt-7', text: 'Prompt 7' },
-                { id: 'prompt-8', text: 'Prompt 8' },
-            ];
-
-            const newSegmentStacks: { [key: number]: StackItem[] } = {};
-
-            // Create a stack for each test rule
-            testRules.forEach((rule, index) => {
-                const stack: StackItem[] = [
-                    { type: 'rule', content: rule },
-                    { type: 'prompt', content: testPrompts[Math.floor(Math.random() * testPrompts.length)] },
-                    { type: 'modifier', content: ['swap', 'clone', 'invert'][Math.floor(Math.random() * 3)] },
-                    { type: 'modifier', content: 'end' }
-                ];
-                newSegmentStacks[index] = stack;
-            });
-
-            // Only update if we don't already have stacks (to preserve existing state)
-            if (Object.keys(segmentStacks).length === 0) {
-                setSegmentStacks(newSegmentStacks);
-            }
-            return;
+    // Generate random plaque colors for each segment (keep stable during a spin)
+    const [plaqueColors, setPlaqueColors] = React.useState<string[]>([]);
+    React.useEffect(() => {
+        if (segments.length > 0) {
+            setPlaqueColors(
+                Array.from({ length: segments.length }, () =>
+                    PLAQUE_COLORS[Math.floor(Math.random() * PLAQUE_COLORS.length)]
+                )
+            );
         }
-
-        const activeRules = gameState.rules.filter(r => r.isActive);
-        const availablePrompts = gameState.prompts;
-
-        const newSegmentStacks: { [key: number]: StackItem[] } = {};
-
-        // Create a stack for each active rule
-        activeRules.forEach((rule, index) => {
-            const stack: StackItem[] = [
-                { type: 'rule', content: rule },
-                { type: 'prompt', content: availablePrompts[Math.floor(Math.random() * availablePrompts.length)] || { id: '1', text: 'Sample Prompt' } },
-                { type: 'modifier', content: ['swap', 'clone', 'invert'][Math.floor(Math.random() * 3)] },
-                { type: 'modifier', content: 'end' }
-            ];
-            newSegmentStacks[index] = stack;
-        });
-
-        // Only update if we don't already have stacks (to preserve existing state)
-        if (Object.keys(segmentStacks).length === 0) {
-            setSegmentStacks(newSegmentStacks);
-        }
-    }, [gameState]);
+        // eslint-disable-next-line
+    }, [segments.length]);
 
     const handleSpin = () => {
-        if (isSpinning) return;
-
+        if (isSpinning || segments.length === 0) return;
         setIsSpinning(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        setShowExpandedPlaque(false);
 
-        // Step 1: Generate a random spin
-        const spinDuration = 4000 + Math.random() * 2000; // 4-6 seconds
-        const minRotations = 5;
-        const maxRotations = 8;
-        const rotations = minRotations + Math.random() * (maxRotations - minRotations);
-        const spinDegrees = rotations * 360; // 5-8 full rotations (1800-2880 degrees)
+        // 1. Randomly determine the scroll amount (40-50 segments)
+        const randomSpins = 40 + Math.floor(Math.random() * 11);
+        const scrollAmount = randomSpins * ITEM_HEIGHT;
 
-        // Step 2: Calculate where the wheel will end up (counterclockwise)
-        const newWheelAngle = currentWheelAngle + spinDegrees;
+        // 2. Calculate which result we end up on
+        const finalIndex = (selectedIndex + randomSpins) % segments.length;
+        setSelectedIndex(finalIndex);
 
-        // Step 3: Determine which segment is at the right (where the tick mark points)
-        const segments = getWheelSegments();
-        const segmentCount = segments.length;
-        const anglePerSegment = 360 / segmentCount;
+        // Calculate duration with minimum and maximum bounds
+        const minDuration = 2000; // 2 seconds minimum
+        const maxDuration = 5000; // 5 seconds maximum
+        const duration = Math.random() * (maxDuration - minDuration) + minDuration;
 
-        // The tick mark is at the right (0 degrees), so we need to find which segment
-        // is at the right when the wheel stops spinning
-        const finalPosition = newWheelAngle;
-        const selectedSegmentIndex = Math.floor(finalPosition / anglePerSegment) % segmentCount;
-
-
-
-        // Set the rotation display
-        setCurrentRotation(spinDegrees);
-
-        Animated.timing(spinAnimation, {
-            toValue: newWheelAngle,
-            duration: spinDuration,
+        // Animate the scroll with a "spin" effect - always go top to bottom
+        Animated.timing(scrollY, {
+            toValue: currentScrollOffset.current + scrollAmount,
+            duration: duration,
             useNativeDriver: true,
+            easing: t => 1 - Math.pow(1 - t, 3), // ease out
         }).start(() => {
             setIsSpinning(false);
-            setLandedSegment(selectedSegmentIndex);
-            setCurrentWheelAngle(newWheelAngle); // Update the current wheel position
-            setShowResult(true);
+            // Snap to the final position, centered in the wheel
+            const centerOffset = Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT;
+            const finalScroll = (finalIndex * ITEM_HEIGHT) + centerOffset;
+            flatListRef.current?.scrollToOffset({ offset: finalScroll, animated: false });
 
-            // Animate result appearance
-            Animated.timing(resultOpacity, {
-                toValue: 1,
-                duration: 500,
-                useNativeDriver: true,
-            }).start();
+            // Show expanded plaque after a short delay
+            setTimeout(() => {
+                setShowExpandedPlaque(true);
+                // Animate the popup expansion
+                Animated.parallel([
+                    Animated.timing(popupScale, {
+                        toValue: 1,
+                        duration: 600,
+                        useNativeDriver: true,
+                        easing: t => 1 - Math.pow(1 - t, 3), // ease out
+                    }),
+                    Animated.timing(popupOpacity, {
+                        toValue: 1,
+                        duration: 400,
+                        useNativeDriver: true,
+                    })
+                ]).start();
+            }, 500);
         });
     };
 
+    // Sync the FlatList scroll position with the animation
+    React.useEffect(() => {
+        const id = scrollY.addListener(({ value }) => {
+            currentScrollOffset.current = value;
 
+            // Use a smoother offset calculation to prevent flickering
+            const wheelHeight = segments.length * ITEM_HEIGHT;
+            let offset = value % wheelHeight;
+            if (offset < 0) offset += wheelHeight;
 
-    const onSpinButtonPress = () => {
-        handleSpin();
-    };
+            flatListRef.current?.scrollToOffset({ offset, animated: false });
 
-    const handleNext = () => {
-        if (landedSegment === null) return;
-
-        // Get the current stack for the landed segment
-        const currentStack = segmentStacks[landedSegment] || [];
-
-        if (currentStack.length > 0) {
-            const topItem = currentStack[0];
-
-            // Check if we landed on "end" - if so, end the game
-            if (topItem.type === 'modifier' && topItem.content === 'end') {
-                navigation.goBack();
-                return;
+            // Reset scrollY when it gets too large, but only when not spinning
+            if (!isSpinning && value > segments.length * ITEM_HEIGHT * 10) {
+                const resetValue = value % (segments.length * ITEM_HEIGHT);
+                scrollY.setValue(resetValue);
+                currentScrollOffset.current = resetValue;
             }
+        });
+        return () => scrollY.removeListener(id);
+    }, [scrollY, segments.length, isSpinning]);
 
-            // If current item is a rule and it's not assigned yet, assign it to current player
-            if (topItem.type === 'rule' && !(topItem.content as any).assignedTo) {
-                assignRuleToCurrentPlayer((topItem.content as any).id);
-            }
-
-            // Remove the top item from the stack (peel it away)
-            const newStack = currentStack.slice(1);
-            setSegmentStacks(prev => ({
-                ...prev,
-                [landedSegment]: newStack
-            }));
-
-            // If stack is empty (reached "end"), check if game should end
-            if (newStack.length === 0) {
-                // Check if all segments are empty
-                const allSegmentsEmpty = Object.values({ ...segmentStacks, [landedSegment]: newStack }).every(stack => stack.length === 0);
-                if (allSegmentsEmpty) {
-                    // Game is over, go back to game screen
-                    navigation.goBack();
-                    return;
+    // PanResponder for swipe-to-spin
+    const panResponder = React.useRef(
+        PanResponder.create({
+            onStartShouldSetPanResponder: () => true,
+            onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 10,
+            onPanResponderRelease: (_: GestureResponderEvent, gestureState: PanResponderGestureState) => {
+                if (gestureState.dy > 30 && !isSpinning) {
+                    handleSpin();
                 }
-            }
-        }
-
-        setShowResult(false);
-        setLandedSegment(null);
-        resultOpacity.setValue(0);
-    };
-
-    const handleBackToGame = () => {
-        navigation.goBack();
-    };
-
-    const getWheelSegments = () => {
-        const segments = [];
-
-        // Each segment represents a stack of 4 layers: Rule -> Prompt/Modifier -> Prompt/Modifier -> End
-        // Number of segments = number of active rules (regardless of assignment status)
-        let activeRules = gameState?.rules.filter(r => r.isActive) || [];
-
-        // For testing: Use test rules if no game state
-        if (!gameState) {
-            activeRules = [
-                { id: 'rule-a', text: 'Rule A', isActive: true },
-                { id: 'rule-b', text: 'Rule B', isActive: true },
-                { id: 'rule-c', text: 'Rule C', isActive: true },
-                { id: 'rule-d', text: 'Rule D', isActive: true },
-                { id: 'rule-e', text: 'Rule E', isActive: true },
-            ];
-        }
-
-        // If no rules, create one default segment
-        const segmentCount = Math.max(activeRules.length, 1);
-        const anglePerSegment = 360 / segmentCount;
-
-        for (let i = 0; i < segmentCount; i++) {
-            const startAngle = (i * anglePerSegment) * (Math.PI / 180);
-            const endAngle = ((i + 1) * anglePerSegment) * (Math.PI / 180);
-
-            const x1 = CENTER + RADIUS * Math.cos(startAngle);
-            const y1 = CENTER + RADIUS * Math.sin(startAngle);
-            const x2 = CENTER + RADIUS * Math.cos(endAngle);
-            const y2 = CENTER + RADIUS * Math.sin(endAngle);
-
-            const largeArcFlag = anglePerSegment > 180 ? 1 : 0;
-
-            // Get the current top layer of this segment's stack
-            const currentStack = segmentStacks[i] || [];
-            const topItem = currentStack[0];
-
-            let color = '#9b2f4d'; // Default rule color
-            let text = 'RULE';
-            let type = 'rule';
-
-            if (topItem) {
-                switch (topItem.type) {
-                    case 'prompt':
-                        color = '#d08d4b';
-                        text = 'PROMPT';
-                        type = 'prompt';
-                        break;
-                    case 'modifier':
-                        if (topItem.content === 'end') {
-                            color = '#6b7280';
-                            text = 'END';
-                            type = 'end';
-                        } else {
-                            color = '#cba84b';
-                            text = 'MODIFIER';
-                            type = 'modifier';
-                        }
-                        break;
-                    default:
-                        color = '#9b2f4d';
-                        text = 'RULE';
-                        type = 'rule';
-                }
-            }
-
-            segments.push({
-                path: `M ${CENTER} ${CENTER} L ${x1} ${y1} A ${RADIUS} ${RADIUS} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`,
-                color,
-                text,
-                type,
-                textAngle: (i * anglePerSegment + anglePerSegment / 2) * (Math.PI / 180),
-                anglePerSegment,
-                segmentIndex: i,
-            });
-        }
-
-        return segments;
-    };
-
-    const getResultText = () => {
-        if (landedSegment === null) return 'No result';
-
-        const currentStack = segmentStacks[landedSegment] || [];
-        if (currentStack.length === 0) return 'No result';
-
-        const topItem = currentStack[0];
-
-        switch (topItem.type) {
-            case 'prompt':
-                return `Prompt: ${(topItem.content as any).text}`;
-            case 'rule':
-                const rule = topItem.content as any;
-                if (rule.assignedTo) {
-                    const assignedPlayer = gameState?.players?.find(p => p.id === rule.assignedTo);
-                    return `Rule: ${rule.text}\n(Already assigned to ${assignedPlayer?.name || 'Unknown'})`;
-                } else {
-                    return `Rule: ${rule.text}\n(Will be assigned to you!)`;
-                }
-            case 'modifier':
-                if (topItem.content === 'end') {
-                    return 'Game Over!';
-                }
-                return `Modifier: ${topItem.content}`;
-            default:
-                return 'Unknown result';
-        }
-    };
-
-    const getResultColor = () => {
-        if (landedSegment === null) return '#4688a6';
-
-        const currentStack = segmentStacks[landedSegment] || [];
-        if (currentStack.length === 0) return '#4688a6';
-
-        const topItem = currentStack[0];
-
-        switch (topItem.type) {
-            case 'prompt':
-                return '#d08d4b';
-            case 'rule':
-                return '#9b2f4d';
-            case 'modifier':
-                return '#cba84b';
-            default:
-                return '#4688a6';
-        }
-    };
-
-    const segments = getWheelSegments();
+            },
+        })
+    ).current;
 
     return (
         <StripedBackground>
-            <SafeAreaView style={styles.container}>
-                <View style={styles.content}>
-                    <View style={styles.wheelContainer}>
-                        {/* Selected Segment Display */}
-                        <View style={styles.selectedSegmentDisplay}>
-                            <Text style={styles.selectedSegmentText}>
-                                {landedSegment !== null ? `Segment ${landedSegment + 1}` : 'Ready to spin!'}
-                            </Text>
-                        </View>
+            <SafeAreaView style={shared.container}>
+                <View style={{ paddingTop: 100, alignItems: 'center', flex: 1 }}>
+                    <View style={{ height: 90 }} />
+                    <View
+                        ref={wheelContainerRef}
+                        style={{
+                            backgroundColor: 'black',
+                            height: ITEM_HEIGHT * VISIBLE_ITEMS,
+                            overflow: 'hidden',
+                            marginVertical: 32,
+                            width: '70%',
+                            position: 'relative',
+                            borderWidth: 8,
+                            borderColor: '#000',
+                            borderRadius: 8,
+                        }}
+                        onLayout={(event) => {
+                            const { height } = event.nativeEvent.layout;
+                            setWheelHeight(height);
+                            console.log('Wheel height:', height);
+                        }}
+                        {...panResponder.panHandlers}
+                    >
+                        <FlatList
+                            ref={flatListRef}
+                            data={paddedSegments}
+                            keyExtractor={(_, idx) => idx.toString()}
+                            inverted={true}
+                            renderItem={({ item, index }) => {
+                                // Calculate the actual segment index for wrapped segments
+                                let actualIndex: number;
+                                if (index < Math.floor(VISIBLE_ITEMS / 2)) {
+                                    // Wrapped segments at the beginning (last few segments)
+                                    actualIndex = segments.length - Math.floor(VISIBLE_ITEMS / 2) + index;
+                                } else if (index >= segments.length + Math.floor(VISIBLE_ITEMS / 2)) {
+                                    // Wrapped segments at the end (first few segments)
+                                    actualIndex = index - (segments.length + Math.floor(VISIBLE_ITEMS / 2));
+                                } else {
+                                    // Regular segments in the middle
+                                    actualIndex = index - Math.floor(VISIBLE_ITEMS / 2);
+                                }
 
-                        {/* Wheel */}
-                        <View style={styles.wheel}>
-                            <Animated.View
-                                style={[
-                                    styles.wheelWrapper,
-                                    {
-                                        transform: [{
-                                            rotate: spinAnimation.interpolate({
-                                                inputRange: [0, 3600],
-                                                outputRange: ['0deg', '-3600deg'],
-                                            })
-                                        }]
-                                    }
-                                ]}
-                            >
-                                <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
-                                    {segments.map((segment, index) => (
-                                        <View key={index}>
-                                            {/* Segment path */}
-                                            <Path
-                                                d={segment.path}
-                                                fill={segment.color}
-                                                stroke="#ffffff"
-                                                strokeWidth={3}
-                                            />
-                                            {/* Segment text */}
-                                            <SvgText
-                                                x={CENTER + (RADIUS * 0.7) * Math.cos(segment.textAngle)}
-                                                y={CENTER + (RADIUS * 0.7) * Math.sin(segment.textAngle)}
-                                                fill="#ffffff"
-                                                fontSize="16"
-                                                fontWeight="bold"
-                                                textAnchor="middle"
-                                                alignmentBaseline="middle"
-                                                transform={`rotate(${(segment.textAngle * 180 / Math.PI) + 90}, ${CENTER + (RADIUS * 0.7) * Math.cos(segment.textAngle)}, ${CENTER + (RADIUS * 0.7) * Math.sin(segment.textAngle)})`}
-                                            >
-                                                {segment.text}
-                                            </SvgText>
-                                        </View>
-                                    ))}
+                                return (
+                                    <WheelSegment
+                                        text={item.text}
+                                        isSelected={actualIndex === selectedIndex}
+                                        color={SEGMENT_COLORS[actualIndex % SEGMENT_COLORS.length]}
+                                        plaqueColor={plaqueColors[actualIndex]}
+                                        index={actualIndex}
+                                    />
+                                );
+                            }}
+                            scrollEnabled={false}
+                            showsVerticalScrollIndicator={false}
+                            getItemLayout={(_, idx) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * idx, index: idx })}
+                        />
 
-
-                                </Svg>
-                            </Animated.View>
-
-                            {/* Tick mark indicator */}
-                            <View style={styles.tickMark}>
-                                <View style={styles.tickTriangle} />
-                            </View>
-                        </View>
-
-
-
-
-
-                        {/* Spin Button */}
-                        <TouchableOpacity
-                            style={[shared.button, isSpinning && styles.spinningButton]}
-                            onPress={onSpinButtonPress}
-                            disabled={isSpinning}
+                        {/* Top fade overlay - gradient effect */}
+                        <View
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                height: 100,
+                                zIndex: 10,
+                            }}
                         >
-                            <Text style={shared.buttonText}>
-                                {isSpinning ? 'Spinning...' : 'SPIN!'}
-                            </Text>
-                        </TouchableOpacity>
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 1.0 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.9 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.8 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.7 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.6 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.5 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.4 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.3 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.2 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.1 }} />
+                        </View>
+
+                        {/* Bottom fade overlay - gradient effect */}
+                        <View
+                            style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                height: 100,
+                                zIndex: 10,
+                            }}
+                        >
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.1 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.2 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.3 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.4 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.5 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.6 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.7 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.8 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.9 }} />
+                            <View style={{ height: 12, backgroundColor: 'black', opacity: 1.0 }} />
+                        </View>
                     </View>
 
-                    {/* Result Display */}
-                    {showResult && (
-                        <Animated.View
-                            style={[
-                                styles.resultContainer,
-                                {
-                                    opacity: resultOpacity,
-                                    borderColor: getResultColor(),
-                                }
-                            ]}
-                        >
-                            <Text style={styles.resultTitle}>Result:</Text>
-                            <Text style={[styles.resultText, { color: getResultColor() }]}>
-                                {getResultText()}
-                            </Text>
-
-                            <View style={styles.resultActions}>
-                                <TouchableOpacity
-                                    style={shared.button}
-                                    onPress={handleNext}
-                                >
-                                    <Text style={shared.buttonText}>
-                                        Next
-                                    </Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[shared.button, styles.backButton]}
-                                    onPress={handleBackToGame}
-                                >
-                                    <Text style={shared.buttonText}>Back to Game</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </Animated.View>
-                    )}
-
-
+                    {/* Tick mark positioned outside the wheel container */}
+                    <Animated.View
+                        pointerEvents="none"
+                        style={{
+                            position: 'absolute',
+                            top: '50%',
+                            right: '16%',
+                            height: ITEM_HEIGHT,
+                            width: 30,
+                            zIndex: 1000,
+                            justifyContent: 'center',
+                            alignItems: 'flex-end',
+                        }}
+                    >
+                        <View
+                            style={{
+                                width: 0,
+                                height: 0,
+                                borderTopWidth: 18,
+                                borderBottomWidth: 18,
+                                borderRightWidth: 35,
+                                borderTopColor: 'transparent',
+                                borderBottomColor: 'transparent',
+                                borderRightColor: '#000',
+                                shadowColor: '#000',
+                                shadowOffset: { width: -2, height: 2 },
+                                shadowOpacity: 0.8,
+                                shadowRadius: 2,
+                            }}
+                        />
+                        <View
+                            style={{
+                                position: 'absolute',
+                                width: 0,
+                                height: 0,
+                                borderTopWidth: 15,
+                                borderBottomWidth: 15,
+                                borderRightWidth: 30,
+                                borderTopColor: 'transparent',
+                                borderBottomColor: 'transparent',
+                                borderRightColor: '#ff0000',
+                            }}
+                        />
+                    </Animated.View>
+                    <TouchableOpacity
+                        style={[shared.button, { width: 180, marginTop: 16 }]}
+                        onPress={handleSpin}
+                        disabled={isSpinning || segments.length === 0}
+                    >
+                        <Text style={shared.buttonText}>{isSpinning ? 'Spinning...' : 'SPIN!'}</Text>
+                    </TouchableOpacity>
                 </View>
+
+                {/* Expanded plaque overlay */}
+                {showExpandedPlaque && (
+                    <View
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            zIndex: 2000,
+                        }}
+                    >
+                        <Animated.View
+                            style={{
+                                backgroundColor: plaqueColors[selectedIndex] || '#fff',
+                                borderRadius: 20,
+                                padding: 40,
+                                margin: 20,
+                                width: '90%',
+                                maxHeight: '60%',
+                                borderWidth: 4,
+                                borderColor: '#000',
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 4 },
+                                shadowOpacity: 0.3,
+                                shadowRadius: 8,
+                                transform: [{ scale: popupScale }],
+                                opacity: popupOpacity,
+                            }}
+                        >
+                            <Text
+                                style={{
+                                    fontSize: 24,
+                                    fontWeight: 'bold',
+                                    textAlign: 'center',
+                                    marginBottom: 20,
+                                    color: (plaqueColors[selectedIndex] === '#fbbf24' || plaqueColors[selectedIndex] === '#fff') ? '#000' : '#fff',
+                                }}
+                            >
+                                {segments[selectedIndex]?.type === 'rule' ? 'RULE' : 'PROMPT'}
+                            </Text>
+                            <Text
+                                style={{
+                                    fontSize: 18,
+                                    textAlign: 'center',
+                                    color: (plaqueColors[selectedIndex] === '#fbbf24' || plaqueColors[selectedIndex] === '#fff') ? '#000' : '#fff',
+                                    lineHeight: 26,
+                                }}
+                            >
+                                {(() => {
+                                    const segment = segments[selectedIndex];
+                                    if (segment?.type === 'rule') {
+                                        const ruleIndex = selectedIndex;
+                                        const rule = gameState?.rules?.[ruleIndex];
+                                        return rule?.text || 'No rule available';
+                                    } else if (segment?.type === 'prompt') {
+                                        const promptIndex = selectedIndex - (gameState?.rules?.length || 0);
+                                        const prompt = gameState?.prompts?.[promptIndex];
+                                        return prompt?.text || 'No prompt available';
+                                    }
+                                    return 'No content available';
+                                })()}
+                            </Text>
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: '#000',
+                                    paddingHorizontal: 30,
+                                    paddingVertical: 15,
+                                    borderRadius: 10,
+                                    marginTop: 30,
+                                    alignSelf: 'center',
+                                }}
+                                onPress={() => {
+                                    // Animate the popup closing
+                                    Animated.parallel([
+                                        Animated.timing(popupScale, {
+                                            toValue: 0,
+                                            duration: 400,
+                                            useNativeDriver: true,
+                                        }),
+                                        Animated.timing(popupOpacity, {
+                                            toValue: 0,
+                                            duration: 300,
+                                            useNativeDriver: true,
+                                        })
+                                    ]).start(() => {
+                                        setShowExpandedPlaque(false);
+                                        popupScale.setValue(0);
+                                        popupOpacity.setValue(0);
+                                        // Navigate back to the game room
+                                        navigation.goBack();
+                                    });
+                                }}
+                            >
+                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                    CLOSE
+                                </Text>
+                            </TouchableOpacity>
+                        </Animated.View>
+                    </View>
+                )}
             </SafeAreaView>
         </StripedBackground>
     );
-}
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    content: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingTop: 100,
-    },
-    wheelContainer: {
-        alignItems: 'center',
-        marginBottom: 30,
-    },
-
-    selectedSegmentDisplay: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        marginBottom: 10,
-    },
-    selectedSegmentText: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#d08d4b',
-    },
-    wheel: {
-        marginBottom: 20,
-    },
-    wheelWrapper: {
-        position: 'relative',
-    },
-    tickMark: {
-        position: 'absolute',
-        right: -10,
-        top: '50%',
-        transform: [{ translateY: -10 }],
-        zIndex: 10,
-    },
-    tickTriangle: {
-        width: 0,
-        height: 0,
-        backgroundColor: 'transparent',
-        borderStyle: 'solid',
-        borderLeftWidth: 0,
-        borderRightWidth: 20,
-        borderBottomWidth: 10,
-        borderTopWidth: 10,
-        borderLeftColor: 'transparent',
-        borderRightColor: '#ffffff',
-        borderBottomColor: 'transparent',
-        borderTopColor: 'transparent',
-    },
-    spinningButton: {
-        backgroundColor: '#4688a6',
-    },
-    resultContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 20,
-        borderWidth: 3,
-        alignItems: 'center',
-        minWidth: 300,
-    },
-    resultTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 10,
-    },
-    resultText: {
-        fontSize: 16,
-        textAlign: 'center',
-        marginBottom: 20,
-        fontWeight: '500',
-    },
-    resultActions: {
-        flexDirection: 'row',
-        gap: 10,
-    },
-    backButton: {
-        backgroundColor: '#4688a6',
-    },
-
-
-}); 
+} 
