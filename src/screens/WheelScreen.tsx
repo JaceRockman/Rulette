@@ -411,8 +411,6 @@ export default function WheelScreen() {
                                     alignSelf: 'center',
                                 }}
                                 onPress={() => {
-                                    // Print the selected segment to console for debugging
-                                    console.log('Selected Segment:', segments[selectedIndex]);
                                     // Handle the selected segment before closing
                                     const selectedSegment = segments[selectedIndex];
                                     if (selectedSegment) {
@@ -420,7 +418,6 @@ export default function WheelScreen() {
 
                                         // If the CURRENT layer is an end layer, end the game
                                         if (currentLayer && currentLayer.type === 'end') {
-                                            console.log('ENDING GAME - Found end layer');
                                             // Find player with most points
                                             const winner = gameState?.players.reduce((prev, current) =>
                                                 (prev.points > current.points) ? prev : current
@@ -429,7 +426,6 @@ export default function WheelScreen() {
                                                 endGame();
                                             }
                                         } else {
-                                            console.log('Removing layer, moving to next layer');
                                             // Remove the current layer to reveal the next one
                                             removeWheelLayer(selectedSegment.id);
                                         }
