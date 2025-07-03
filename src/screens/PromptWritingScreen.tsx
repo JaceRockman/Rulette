@@ -10,7 +10,7 @@ import OutlinedText from '../components/OutlinedText';
 
 export default function PromptWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addPrompt } = useGame();
+    const { gameState, addPrompt, dispatch } = useGame();
     const [prompts, setPrompts] = useState<string[]>([]);
     const [input, setInput] = useState('');
     const numPrompts = Number(gameState?.numPrompts) || 3;
@@ -24,6 +24,9 @@ export default function PromptWritingScreen() {
     };
 
     const handleDone = () => {
+        // Create wheel segments after all prompts are entered
+        dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
+
         navigation.reset({
             index: 0,
             routes: [{ name: 'Game' }],

@@ -10,17 +10,21 @@ import WheelSegment from '../components/WheelSegment';
 const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
-const SEGMENT_COLORS = ['#8b5cf6', '#ef4444', '#fbbf24', '#3b82f6']; // purple, red, yellow, blue
-const PLAQUE_COLORS = ['#8b5cf6', '#ef4444', '#fbbf24', '#3b82f6', '#fff']; // purple, red, yellow, blue, white
 
 export default function WheelScreen() {
     const navigation = useNavigation();
-    const { gameState } = useGame();
-    // Combine rules and prompts for the wheel
-    const segments = [
-        ...(gameState?.rules || []).map(r => ({ type: 'rule', text: "RULE" })),
-        ...(gameState?.prompts || []).map(p => ({ type: 'prompt', text: "PROMPT" })),
-    ];
+    const { gameState, removeWheelLayer, endGame } = useGame();
+
+    // Use wheel segments from game state
+    const segments = gameState?.wheelSegments || [];
+
+    // If no segments exist and game is started, create them
+    React.useEffect(() => {
+        if (gameState?.isGameStarted && segments.length === 0 && gameState.rules.length > 0 && gameState.prompts.length > 0) {
+            // This will be handled by the CREATE_WHEEL_SEGMENTS action in startGame
+        }
+    }, [gameState?.isGameStarted, segments.length, gameState?.rules.length, gameState?.prompts.length]);
+
     const [isSpinning, setIsSpinning] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number>(0);
     const [showExpandedPlaque, setShowExpandedPlaque] = useState(false);
@@ -43,21 +47,18 @@ export default function WheelScreen() {
         ...segments.slice(0, Math.floor(VISIBLE_ITEMS / 2)),
     ];
 
-    // Generate random plaque colors for each segment (keep stable during a spin)
-    const [plaqueColors, setPlaqueColors] = React.useState<string[]>([]);
+    // Check if game has ended
     React.useEffect(() => {
-        if (segments.length > 0) {
-            setPlaqueColors(
-                Array.from({ length: segments.length }, () =>
-                    PLAQUE_COLORS[Math.floor(Math.random() * PLAQUE_COLORS.length)]
-                )
-            );
+        if (gameState?.gameEnded && gameState?.winner) {
+            // Navigate to game over screen or show winner
+            alert(`Game Over! ${gameState.winner.name} wins with ${gameState.winner.points} points!`);
+            navigation.goBack();
         }
-        // eslint-disable-next-line
-    }, [segments.length]);
+    }, [gameState?.gameEnded, gameState?.winner, navigation]);
 
     const handleSpin = () => {
         if (isSpinning || segments.length === 0) return;
+
         setIsSpinning(true);
         setShowExpandedPlaque(false);
 
@@ -86,6 +87,10 @@ export default function WheelScreen() {
             const centerOffset = Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT;
             const finalScroll = (finalIndex * ITEM_HEIGHT) + centerOffset;
             flatListRef.current?.scrollToOffset({ offset: finalScroll, animated: false });
+
+            // Store the selected segment for later processing
+            const selectedSegment = segments[finalIndex];
+            // Don't process the layer yet - wait until popup is closed
 
             // Show expanded plaque after a short delay
             setTimeout(() => {
@@ -164,7 +169,6 @@ export default function WheelScreen() {
                         onLayout={(event) => {
                             const { height } = event.nativeEvent.layout;
                             setWheelHeight(height);
-                            console.log('Wheel height:', height);
                         }}
                         {...panResponder.panHandlers}
                     >
@@ -187,13 +191,19 @@ export default function WheelScreen() {
                                     actualIndex = index - Math.floor(VISIBLE_ITEMS / 2);
                                 }
 
+                                const segment = segments[actualIndex];
+                                const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
+
                                 return (
                                     <WheelSegment
-                                        text={item.text}
+                                        text={currentLayer ? (typeof currentLayer.content === 'string' ? currentLayer.content : currentLayer.content.text) : ''}
                                         isSelected={actualIndex === selectedIndex}
-                                        color={SEGMENT_COLORS[actualIndex % SEGMENT_COLORS.length]}
-                                        plaqueColor={plaqueColors[actualIndex]}
+                                        color={segment?.color || '#8b5cf6'}
+                                        plaqueColor={segment?.plaqueColor || '#fff'}
                                         index={actualIndex}
+                                        currentLayer={currentLayer}
+                                        layerCount={segment?.layers.length || 1}
+                                        currentLayerIndex={segment?.currentLayerIndex || 0}
                                     />
                                 );
                             }}
@@ -319,7 +329,11 @@ export default function WheelScreen() {
                     >
                         <Animated.View
                             style={{
-                                backgroundColor: plaqueColors[selectedIndex] || '#fff',
+                                backgroundColor: (() => {
+                                    const segment = segments[selectedIndex];
+                                    const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
+                                    return currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
+                                })(),
                                 borderRadius: 20,
                                 padding: 40,
                                 margin: 20,
@@ -341,31 +355,50 @@ export default function WheelScreen() {
                                     fontWeight: 'bold',
                                     textAlign: 'center',
                                     marginBottom: 20,
-                                    color: (plaqueColors[selectedIndex] === '#fbbf24' || plaqueColors[selectedIndex] === '#fff') ? '#000' : '#fff',
+                                    color: (() => {
+                                        const segment = segments[selectedIndex];
+                                        const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
+                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
+                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
+                                    })(),
                                 }}
                             >
-                                {segments[selectedIndex]?.type === 'rule' ? 'RULE' : 'PROMPT'}
+                                {(() => {
+                                    const segment = segments[selectedIndex];
+                                    const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
+                                    if (!currentLayer) return 'NO CONTENT';
+
+                                    switch (currentLayer.type) {
+                                        case 'rule': return 'RULE';
+                                        case 'prompt': return 'PROMPT';
+                                        case 'modifier': return 'MODIFIER';
+                                        case 'end': return 'GAME OVER';
+                                        default: return 'CONTENT';
+                                    }
+                                })()}
                             </Text>
                             <Text
                                 style={{
                                     fontSize: 18,
                                     textAlign: 'center',
-                                    color: (plaqueColors[selectedIndex] === '#fbbf24' || plaqueColors[selectedIndex] === '#fff') ? '#000' : '#fff',
+                                    color: (() => {
+                                        const segment = segments[selectedIndex];
+                                        const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
+                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
+                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
+                                    })(),
                                     lineHeight: 26,
                                 }}
                             >
                                 {(() => {
                                     const segment = segments[selectedIndex];
-                                    if (segment?.type === 'rule') {
-                                        const ruleIndex = selectedIndex;
-                                        const rule = gameState?.rules?.[ruleIndex];
-                                        return rule?.text || 'No rule available';
-                                    } else if (segment?.type === 'prompt') {
-                                        const promptIndex = selectedIndex - (gameState?.rules?.length || 0);
-                                        const prompt = gameState?.prompts?.[promptIndex];
-                                        return prompt?.text || 'No prompt available';
+                                    const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
+                                    if (!currentLayer) return 'No content available';
+
+                                    if (typeof currentLayer.content === 'string') {
+                                        return currentLayer.content;
                                     }
-                                    return 'No content available';
+                                    return currentLayer.content.text || 'No content available';
                                 })()}
                             </Text>
                             <TouchableOpacity
@@ -378,6 +411,30 @@ export default function WheelScreen() {
                                     alignSelf: 'center',
                                 }}
                                 onPress={() => {
+                                    // Print the selected segment to console for debugging
+                                    console.log('Selected Segment:', segments[selectedIndex]);
+                                    // Handle the selected segment before closing
+                                    const selectedSegment = segments[selectedIndex];
+                                    if (selectedSegment) {
+                                        const currentLayer = selectedSegment.layers[selectedSegment.currentLayerIndex];
+
+                                        // If the CURRENT layer is an end layer, end the game
+                                        if (currentLayer && currentLayer.type === 'end') {
+                                            console.log('ENDING GAME - Found end layer');
+                                            // Find player with most points
+                                            const winner = gameState?.players.reduce((prev, current) =>
+                                                (prev.points > current.points) ? prev : current
+                                            );
+                                            if (winner) {
+                                                endGame();
+                                            }
+                                        } else {
+                                            console.log('Removing layer, moving to next layer');
+                                            // Remove the current layer to reveal the next one
+                                            removeWheelLayer(selectedSegment.id);
+                                        }
+                                    }
+
                                     // Animate the popup closing
                                     Animated.parallel([
                                         Animated.timing(popupScale, {

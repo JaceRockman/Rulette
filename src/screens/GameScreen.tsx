@@ -16,6 +16,7 @@ import { useGame } from '../context/GameContext';
 import { Player, Rule } from '../types/game';
 import StripedBackground from '../components/StripedBackground';
 import shared from '../styles/shared';
+import OutlinedText from '../components/OutlinedText';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
@@ -49,6 +50,64 @@ export default function GameScreen() {
     const openRuleModal = (rule: Rule) => {
         setSelectedRule(rule);
     };
+
+    // Show game over screen if game has ended
+    if (gameState?.gameEnded && gameState?.winner) {
+        return (
+            <StripedBackground>
+                <View style={[shared.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <OutlinedText style={{ fontSize: 48, marginBottom: 20, color: '#000', fontWeight: 'bold', textAlign: 'center' }}>
+                        GAME OVER!
+                    </OutlinedText>
+
+                    <View style={{
+                        backgroundColor: '#fff',
+                        borderRadius: 20,
+                        padding: 40,
+                        margin: 20,
+                        borderWidth: 4,
+                        borderColor: '#000',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 4 },
+                        shadowOpacity: 0.3,
+                        shadowRadius: 8,
+                    }}>
+                        <Text style={{
+                            fontSize: 32,
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            marginBottom: 10,
+                            color: '#000',
+                        }}>
+                            🏆 WINNER! 🏆
+                        </Text>
+                        <Text style={{
+                            fontSize: 24,
+                            textAlign: 'center',
+                            marginBottom: 10,
+                            color: '#000',
+                        }}>
+                            {gameState.winner.name}
+                        </Text>
+                        <Text style={{
+                            fontSize: 20,
+                            textAlign: 'center',
+                            color: '#666',
+                        }}>
+                            {gameState.winner.points} points
+                        </Text>
+                    </View>
+
+                    <TouchableOpacity
+                        style={[shared.button, { marginTop: 30 }]}
+                        onPress={() => navigation.navigate('Home' as never)}
+                    >
+                        <Text style={shared.buttonText}>Back to Home</Text>
+                    </TouchableOpacity>
+                </View>
+            </StripedBackground>
+        );
+    }
 
     if (!gameState || !currentPlayer) {
         return (

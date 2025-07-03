@@ -19,12 +19,28 @@ export interface Rule {
     isActive: boolean;
 }
 
+export interface WheelLayer {
+    type: 'rule' | 'prompt' | 'modifier' | 'end';
+    content: Rule | Prompt | string;
+    isActive: boolean;
+    plaqueColor: string;
+}
+
+export interface WheelSegment {
+    id: string;
+    layers: WheelLayer[];
+    currentLayerIndex: number;
+    color: string;
+    plaqueColor: string;
+}
+
 export interface GameState {
     id: string;
     code: string;
     players: Player[];
     prompts: Prompt[];
     rules: Rule[];
+    wheelSegments: WheelSegment[];
     currentPlayer?: string;
     isGameStarted: boolean;
     isWheelSpinning: boolean;
@@ -32,6 +48,8 @@ export interface GameState {
     roundNumber: number;
     numRules: number;
     numPrompts: number;
+    gameEnded: boolean;
+    winner?: Player;
 }
 
 export interface StackItem {

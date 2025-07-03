@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { WheelLayer } from '../types/game';
 
 interface WheelSegmentProps {
     text: string;
@@ -7,12 +8,46 @@ interface WheelSegmentProps {
     color: string;
     plaqueColor?: string;
     index?: number;
+    currentLayer?: WheelLayer;
+    layerCount?: number;
+    currentLayerIndex?: number;
 }
 
-export default function WheelSegment({ text, isSelected, color, plaqueColor, index }: WheelSegmentProps) {
-    // Determine text color based on plaque color
-    const isLightPlaque = plaqueColor === '#fbbf24' || plaqueColor === '#fff';
+export default function WheelSegment({
+    text,
+    isSelected,
+    color,
+    plaqueColor,
+    index,
+    currentLayer,
+    layerCount = 1,
+    currentLayerIndex = 0
+}: WheelSegmentProps) {
+    // Determine text color based on current layer's plaque color
+    const currentPlaqueColor = currentLayer?.plaqueColor || plaqueColor || '#fff';
+    const isLightPlaque = currentPlaqueColor === '#fbbf24' || currentPlaqueColor === '#fff';
     const textColor = isLightPlaque ? '#000' : '#fff';
+
+    // Get layer type text
+    const getLayerTypeText = () => {
+        if (!currentLayer) return text;
+        switch (currentLayer.type) {
+            case 'rule': return 'RULE';
+            case 'prompt': return 'PROMPT';
+            case 'modifier': return 'MODIFIER';
+            case 'end': return 'END';
+            default: return text;
+        }
+    };
+
+    // Get layer content text
+    const getLayerContentText = () => {
+        if (!currentLayer) return text;
+        if (typeof currentLayer.content === 'string') {
+            return currentLayer.content;
+        }
+        return currentLayer.content.text;
+    };
 
     return (
         <View
@@ -44,11 +79,32 @@ export default function WheelSegment({ text, isSelected, color, plaqueColor, ind
                     zIndex: 2,
                 }}
             />
+
+            {/* Layer indicator */}
+            {layerCount > 1 && (
+                <View
+                    style={{
+                        position: 'absolute',
+                        top: 8,
+                        left: 8,
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        borderRadius: 12,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        zIndex: 2,
+                    }}
+                >
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>
+                        {currentLayerIndex + 1}/{layerCount}
+                    </Text>
+                </View>
+            )}
+
             <View style={{ flex: 1, alignItems: 'center' }}>
                 {/* Plaque */}
                 <View
                     style={{
-                        backgroundColor: plaqueColor || '#fff',
+                        backgroundColor: currentPlaqueColor,
                         borderRadius: 18,
                         paddingHorizontal: 30,
                         paddingVertical: 25,
@@ -72,7 +128,7 @@ export default function WheelSegment({ text, isSelected, color, plaqueColor, ind
                         }}
                         numberOfLines={2}
                     >
-                        {text}
+                        {getLayerTypeText()}
                     </Text>
                 </View>
             </View>

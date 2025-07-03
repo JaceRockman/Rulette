@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { GameState, Player, Prompt, Rule, StackItem, GameEvent } from '../types/game';
+import { GameState, Player, Prompt, Rule, StackItem, GameEvent, WheelSegment, WheelLayer } from '../types/game';
 
 interface GameContextType {
     gameState: GameState | null;
@@ -17,6 +17,8 @@ interface GameContextType {
     swapRules: (player1Id: string, player2Id: string) => void;
     assignRule: (ruleId: string, playerId: string) => void;
     assignRuleToCurrentPlayer: (ruleId: string) => void;
+    removeWheelLayer: (segmentId: string) => void;
+    endGame: () => void;
 }
 
 type GameAction =
@@ -33,7 +35,10 @@ type GameAction =
     | { type: 'SET_CURRENT_PLAYER'; payload: string }
     | { type: 'RESET_GAME' }
     | { type: 'SET_NUM_RULES'; payload: number }
-    | { type: 'SET_NUM_PROMPTS'; payload: number };
+    | { type: 'SET_NUM_PROMPTS'; payload: number }
+    | { type: 'REMOVE_WHEEL_LAYER'; payload: string }
+    | { type: 'END_GAME'; payload: Player }
+    | { type: 'CREATE_WHEEL_SEGMENTS' };
 
 const initialState: GameState = {
     id: '',
@@ -41,12 +46,14 @@ const initialState: GameState = {
     players: [],
     prompts: [],
     rules: [],
+    wheelSegments: [],
     isGameStarted: false,
     isWheelSpinning: false,
     currentStack: [],
     roundNumber: 0,
     numRules: 3,
     numPrompts: 3,
+    gameEnded: false,
 };
 
 function gameReducer(state: GameState, action: GameAction): GameState {
@@ -121,6 +128,96 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             return { ...state, numRules: action.payload };
         case 'SET_NUM_PROMPTS':
             return { ...state, numPrompts: action.payload };
+
+        case 'REMOVE_WHEEL_LAYER':
+            const updatedSegments = state.wheelSegments.map((segment: WheelSegment) => {
+                if (segment.id === action.payload) {
+                    const newLayerIndex = segment.currentLayerIndex + 1;
+                    return { ...segment, currentLayerIndex: newLayerIndex };
+                }
+                return segment;
+            });
+
+            return {
+                ...state,
+                wheelSegments: updatedSegments,
+            };
+
+        case 'END_GAME':
+            return {
+                ...state,
+                gameEnded: true,
+                winner: action.payload,
+            };
+
+        case 'CREATE_WHEEL_SEGMENTS':
+            const SEGMENT_COLORS = ['#6bb9d3', '#f3a962', '#ed5c5d', '#fff'];
+            const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
+
+            // Create wheel segments with layers
+            const newSegments: WheelSegment[] = [];
+            const totalSegments = state.rules.length; // Always create segments based on rules
+
+            for (let i = 0; i < totalSegments; i++) {
+                const layers: WheelLayer[] = [];
+
+                // Add rule layer (always present) with its own plaque color
+                layers.push({
+                    type: 'rule',
+                    content: state.rules[i],
+                    isActive: true,
+                    plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                });
+
+                // Add prompt layer if available, otherwise add modifier
+                if (i < state.prompts.length) {
+                    layers.push({
+                        type: 'prompt',
+                        content: state.prompts[i],
+                        isActive: true,
+                        plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                    });
+                } else {
+                    // Add modifier layer if no prompt available
+                    const modifiers = ['+5 points', '-3 points', 'Skip turn', 'Double points', 'Steal points'];
+                    layers.push({
+                        type: 'modifier',
+                        content: modifiers[Math.floor(Math.random() * modifiers.length)],
+                        isActive: true,
+                        plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                    });
+                }
+
+                // Add another modifier layer
+                const modifiers = ['+5 points', '-3 points', 'Skip turn', 'Double points', 'Steal points'];
+                layers.push({
+                    type: 'modifier',
+                    content: modifiers[Math.floor(Math.random() * modifiers.length)],
+                    isActive: true,
+                    plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                });
+
+                // Add end layer
+                layers.push({
+                    type: 'end',
+                    content: 'Game Over',
+                    isActive: true,
+                    plaqueColor: '#313131' // Always slate gray for end layer
+                });
+
+                newSegments.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    layers,
+                    currentLayerIndex: 0,
+                    color: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
+                    plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                });
+            }
+
+            return {
+                ...state,
+                wheelSegments: newSegments,
+            };
 
         default:
             return state;
@@ -271,6 +368,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const removeWheelLayer = (segmentId: string) => {
+        dispatch({ type: 'REMOVE_WHEEL_LAYER', payload: segmentId });
+    };
+
+    const endGame = () => {
+        if (!gameState || !gameState.currentPlayer) return;
+
+        const winner = gameState.players.find(p => p.id === gameState.currentPlayer);
+        if (winner) {
+            dispatch({ type: 'END_GAME', payload: winner });
+        }
+    };
+
     const value: GameContextType = {
         gameState,
         currentPlayer,
@@ -287,6 +397,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         swapRules,
         assignRule,
         assignRuleToCurrentPlayer,
+        removeWheelLayer,
+        endGame,
     };
 
     return (
