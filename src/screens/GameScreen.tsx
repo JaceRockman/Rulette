@@ -22,7 +22,7 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
-    const { gameState, currentPlayer, updatePoints, swapRules, assignRule } = useGame();
+    const { gameState, currentPlayer, updatePoints, swapRules, assignRule, endGame } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [selectedPlayer1, setSelectedPlayer1] = useState<Player | null>(null);
     const [selectedPlayer2, setSelectedPlayer2] = useState<Player | null>(null);
@@ -258,6 +258,26 @@ export default function GameScreen() {
                             <Text style={styles.spinButtonText}>Spin the Wheel!</Text>
                         </TouchableOpacity>
                     </View>
+
+                    {/* End Game Early Button (Host Only) */}
+                    {currentPlayer.isHost && (
+                        <View style={styles.section}>
+                            <TouchableOpacity
+                                style={[styles.spinButton, { backgroundColor: '#ed5c5d' }]}
+                                onPress={() => {
+                                    // Find player with most points
+                                    const winner = gameState.players.reduce((prev, current) =>
+                                        (prev.points > current.points) ? prev : current
+                                    );
+                                    if (winner) {
+                                        endGame();
+                                    }
+                                }}
+                            >
+                                <Text style={styles.spinButtonText}>End Game Early</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </ScrollView>
 
                 {/* Rule Assignment Modal */}
