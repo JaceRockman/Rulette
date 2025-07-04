@@ -9,8 +9,10 @@ interface GameContextType {
     createLobby: (playerName: string, numRules?: number, numPrompts?: number, startingPoints?: number) => void;
     setNumRules: (num: number) => void;
     setNumPrompts: (num: number) => void;
-    addPrompt: (text: string, category?: string) => void;
-    addRule: (text: string) => void;
+    addPrompt: (text: string, category?: string, plaqueColor?: string) => void;
+    addRule: (text: string, plaqueColor?: string) => void;
+    updatePrompt: (id: string, text: string) => void;
+    updateRule: (id: string, text: string) => void;
     startGame: () => void;
     spinWheel: () => void;
     updatePoints: (playerId: string, points: number) => void;
@@ -29,6 +31,7 @@ type GameAction =
     | { type: 'ADD_PROMPT'; payload: Prompt }
     | { type: 'ADD_RULE'; payload: Rule }
     | { type: 'UPDATE_RULE'; payload: Rule }
+    | { type: 'UPDATE_PROMPT'; payload: Prompt }
     | { type: 'START_GAME' }
     | { type: 'SPIN_WHEEL'; payload: StackItem[] }
     | { type: 'UPDATE_POINTS'; payload: { playerId: string; points: number } }
@@ -89,6 +92,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             return {
                 ...state,
                 rules: state.rules.map((r: Rule) => r.id === action.payload.id ? action.payload : r),
+            };
+
+        case 'UPDATE_PROMPT':
+            return {
+                ...state,
+                prompts: state.prompts.map((p: Prompt) => p.id === action.payload.id ? action.payload : p),
             };
 
         case 'START_GAME':
@@ -161,21 +170,23 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             for (let i = 0; i < totalSegments; i++) {
                 const layers: WheelLayer[] = [];
 
-                // Add rule layer (always present) with its own plaque color
+                // Add rule layer (always present) with its stored plaque color or random if not set
+                const rulePlaqueColor = state.rules[i].plaqueColor || LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)];
                 layers.push({
                     type: 'rule',
                     content: state.rules[i],
                     isActive: true,
-                    plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                    plaqueColor: rulePlaqueColor
                 });
 
                 // Add prompt layer if available, otherwise add modifier
                 if (i < state.prompts.length) {
+                    const promptPlaqueColor = state.prompts[i].plaqueColor || LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)];
                     layers.push({
                         type: 'prompt',
                         content: state.prompts[i],
                         isActive: true,
-                        plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                        plaqueColor: promptPlaqueColor
                     });
                 } else {
                     // Add modifier layer if no prompt available
@@ -275,22 +286,40 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_NUM_PROMPTS', payload: num });
     };
 
-    const addPrompt = (text: string, category?: string) => {
+    const addPrompt = (text: string, category?: string, plaqueColor?: string) => {
+        const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
         const prompt: Prompt = {
             id: Math.random().toString(36).substr(2, 9),
             text,
             category,
+            plaqueColor: plaqueColor || LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
         };
         dispatch({ type: 'ADD_PROMPT', payload: prompt });
     };
 
-    const addRule = (text: string) => {
+    const addRule = (text: string, plaqueColor?: string) => {
+        const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
         const rule: Rule = {
             id: Math.random().toString(36).substr(2, 9),
             text,
             isActive: true,
+            plaqueColor: plaqueColor || LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
         };
         dispatch({ type: 'ADD_RULE', payload: rule });
+    };
+
+    const updateRule = (id: string, text: string) => {
+        const rule = gameState?.rules.find(r => r.id === id);
+        if (rule) {
+            dispatch({ type: 'UPDATE_RULE', payload: { ...rule, text } });
+        }
+    };
+
+    const updatePrompt = (id: string, text: string) => {
+        const prompt = gameState?.prompts.find(p => p.id === id);
+        if (prompt) {
+            dispatch({ type: 'UPDATE_PROMPT', payload: { ...prompt, text } });
+        }
     };
 
     const startGame = () => {
@@ -391,6 +420,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         setNumPrompts,
         addPrompt,
         addRule,
+        updatePrompt,
+        updateRule,
         startGame,
         spinWheel,
         updatePoints,

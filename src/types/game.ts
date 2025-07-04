@@ -10,6 +10,7 @@ export interface Prompt {
     id: string;
     text: string;
     category?: string;
+    plaqueColor?: string;
 }
 
 export interface Rule {
@@ -17,6 +18,7 @@ export interface Rule {
     text: string;
     assignedTo?: string; // player id (optional - assigned when wheel lands on it)
     isActive: boolean;
+    plaqueColor?: string;
 }
 
 export interface WheelLayer {
