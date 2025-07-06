@@ -40,6 +40,19 @@ export default function GameScreen() {
     const [showAccusationTargetModal, setShowAccusationTargetModal] = useState(false);
     const [showAccusationRuleModal, setShowAccusationRuleModal] = useState(false);
     const [accusationTarget, setAccusationTarget] = useState<Player | null>(null);
+    const [originalCurrentPlayer, setOriginalCurrentPlayer] = useState<string | null>(null);
+
+    // Restore original current player when returning from wheel
+    React.useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            if (originalCurrentPlayer && currentPlayer && currentPlayer.id !== originalCurrentPlayer) {
+                dispatch({ type: 'SET_CURRENT_PLAYER', payload: originalCurrentPlayer });
+                setOriginalCurrentPlayer(null);
+            }
+        });
+
+        return unsubscribe;
+    }, [navigation, originalCurrentPlayer, currentPlayer, dispatch]);
 
     const handleSpinWheel = () => {
         navigation.navigate('Wheel');
@@ -277,6 +290,18 @@ export default function GameScreen() {
             setShowAccusationRuleModal(false);
             setSelectedPlayerForAction(null);
             setAccusationTarget(null);
+        }
+    };
+
+    const handleSpinWheelForPlayer = () => {
+        if (selectedPlayerForAction && currentPlayer) {
+            // Store the original current player
+            setOriginalCurrentPlayer(currentPlayer.id);
+            // Set the current player to the selected player and navigate to wheel
+            dispatch({ type: 'SET_CURRENT_PLAYER', payload: selectedPlayerForAction.id });
+            setShowPlayerActionModal(false);
+            setSelectedPlayerForAction(null);
+            navigation.navigate('Wheel');
         }
     };
 
@@ -766,6 +791,13 @@ export default function GameScreen() {
                                     onPress={handleGiveRuleAction}
                                 >
                                     <Text style={styles.spinButtonText}>Give Rule</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: '#ff9800' }]}
+                                    onPress={handleSpinWheelForPlayer}
+                                >
+                                    <Text style={styles.spinButtonText}>Spin Wheel</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
