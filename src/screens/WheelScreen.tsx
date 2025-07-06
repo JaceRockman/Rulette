@@ -13,7 +13,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WheelScreen() {
     const navigation = useNavigation();
-    const { gameState, removeWheelLayer, endGame } = useGame();
+    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentPlayer, updatePoints } = useGame();
 
     // Use wheel segments from game state
     const segments = gameState?.wheelSegments || [];
@@ -28,6 +28,7 @@ export default function WheelScreen() {
     const [isSpinning, setIsSpinning] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number>(0);
     const [showExpandedPlaque, setShowExpandedPlaque] = useState(false);
+    const [showPromptButtons, setShowPromptButtons] = useState(false);
     const scrollY = useRef(new Animated.Value(0)).current;
     const flatListRef = useRef<FlatList>(null);
     const currentScrollOffset = useRef(0);
@@ -401,61 +402,164 @@ export default function WheelScreen() {
                                     return currentLayer.content.text || 'No content available';
                                 })()}
                             </Text>
-                            <TouchableOpacity
-                                style={{
-                                    backgroundColor: '#000',
-                                    paddingHorizontal: 30,
-                                    paddingVertical: 15,
-                                    borderRadius: 10,
-                                    marginTop: 30,
-                                    alignSelf: 'center',
-                                }}
-                                onPress={() => {
-                                    // Handle the selected segment before closing
-                                    const selectedSegment = segments[selectedIndex];
-                                    if (selectedSegment) {
-                                        const currentLayer = selectedSegment.layers[selectedSegment.currentLayerIndex];
+                            {(() => {
+                                const selectedSegment = segments[selectedIndex];
+                                const currentLayer = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
 
-                                        // If the CURRENT layer is an end layer, end the game
-                                        if (currentLayer && currentLayer.type === 'end') {
-                                            // Find player with most points
-                                            const winner = gameState?.players.reduce((prev, current) =>
-                                                (prev.points > current.points) ? prev : current
-                                            );
-                                            if (winner) {
-                                                endGame();
-                                            }
-                                        } else {
-                                            // Remove the current layer to reveal the next one
-                                            removeWheelLayer(selectedSegment.id);
-                                        }
-                                    }
+                                if (currentLayer && currentLayer.type === 'prompt') {
+                                    return (
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 30 }}>
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: '#28a745',
+                                                    paddingHorizontal: 30,
+                                                    paddingVertical: 15,
+                                                    borderRadius: 10,
+                                                    flex: 1,
+                                                    marginRight: 10,
+                                                }}
+                                                onPress={() => {
+                                                    // Give 2 points for success
+                                                    if (gameState?.currentPlayer) {
+                                                        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayer);
+                                                        if (currentPlayer) {
+                                                            updatePoints(currentPlayer.id, currentPlayer.points + 2);
+                                                        }
+                                                    }
+                                                    // Remove the current layer to reveal the next one
+                                                    removeWheelLayer(selectedSegment.id);
 
-                                    // Animate the popup closing
-                                    Animated.parallel([
-                                        Animated.timing(popupScale, {
-                                            toValue: 0,
-                                            duration: 400,
-                                            useNativeDriver: true,
-                                        }),
-                                        Animated.timing(popupOpacity, {
-                                            toValue: 0,
-                                            duration: 300,
-                                            useNativeDriver: true,
-                                        })
-                                    ]).start(() => {
-                                        setShowExpandedPlaque(false);
-                                        popupScale.setValue(0);
-                                        popupOpacity.setValue(0);
-                                        // Navigate back to the game room
-                                        navigation.goBack();
-                                    });
-                                }}
-                            >
-                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
-                                    CLOSE
-                                </Text>
-                            </TouchableOpacity>
+                                                    // Animate the popup closing
+                                                    Animated.parallel([
+                                                        Animated.timing(popupScale, {
+                                                            toValue: 0,
+                                                            duration: 400,
+                                                            useNativeDriver: true,
+                                                        }),
+                                                        Animated.timing(popupOpacity, {
+                                                            toValue: 0,
+                                                            duration: 300,
+                                                            useNativeDriver: true,
+                                                        })
+                                                    ]).start(() => {
+                                                        setShowExpandedPlaque(false);
+                                                        popupScale.setValue(0);
+                                                        popupOpacity.setValue(0);
+                                                        navigation.goBack();
+                                                    });
+                                                }}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                    SUCCESS (+2)
+                                                </Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: '#dc3545',
+                                                    paddingHorizontal: 30,
+                                                    paddingVertical: 15,
+                                                    borderRadius: 10,
+                                                    flex: 1,
+                                                    marginLeft: 10,
+                                                }}
+                                                onPress={() => {
+                                                    // No points lost for failure
+                                                    // Remove the current layer to reveal the next one
+                                                    removeWheelLayer(selectedSegment.id);
+
+                                                    // Animate the popup closing
+                                                    Animated.parallel([
+                                                        Animated.timing(popupScale, {
+                                                            toValue: 0,
+                                                            duration: 400,
+                                                            useNativeDriver: true,
+                                                        }),
+                                                        Animated.timing(popupOpacity, {
+                                                            toValue: 0,
+                                                            duration: 300,
+                                                            useNativeDriver: true,
+                                                        })
+                                                    ]).start(() => {
+                                                        setShowExpandedPlaque(false);
+                                                        popupScale.setValue(0);
+                                                        popupOpacity.setValue(0);
+                                                        navigation.goBack();
+                                                    });
+                                                }}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                    FAILURE (0)
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    );
+                                } else {
+                                    return (
+                                        <TouchableOpacity
+                                            style={{
+                                                backgroundColor: '#000',
+                                                paddingHorizontal: 30,
+                                                paddingVertical: 15,
+                                                borderRadius: 10,
+                                                marginTop: 30,
+                                                alignSelf: 'center',
+                                            }}
+                                            onPress={() => {
+                                                // Handle the selected segment before closing
+                                                const selectedSegment = segments[selectedIndex];
+                                                if (selectedSegment) {
+                                                    const currentLayer = selectedSegment.layers[selectedSegment.currentLayerIndex];
+
+                                                    // If the CURRENT layer is an end layer, end the game
+                                                    if (currentLayer && currentLayer.type === 'end') {
+                                                        // Find player with most points
+                                                        const winner = gameState?.players.reduce((prev, current) =>
+                                                            (prev.points > current.points) ? prev : current
+                                                        );
+                                                        if (winner) {
+                                                            endGame();
+                                                        }
+                                                    } else if (currentLayer && currentLayer.type === 'rule') {
+                                                        // Assign the rule to the current player
+                                                        if (typeof currentLayer.content !== 'string' && currentLayer.content.id) {
+                                                            assignRuleToCurrentPlayer(currentLayer.content.id);
+                                                        }
+                                                        // Remove the current layer to reveal the next one
+                                                        removeWheelLayer(selectedSegment.id);
+                                                    } else {
+                                                        // Remove the current layer to reveal the next one
+                                                        removeWheelLayer(selectedSegment.id);
+                                                    }
+                                                }
+
+                                                // Animate the popup closing
+                                                Animated.parallel([
+                                                    Animated.timing(popupScale, {
+                                                        toValue: 0,
+                                                        duration: 400,
+                                                        useNativeDriver: true,
+                                                    }),
+                                                    Animated.timing(popupOpacity, {
+                                                        toValue: 0,
+                                                        duration: 300,
+                                                        useNativeDriver: true,
+                                                    })
+                                                ]).start(() => {
+                                                    setShowExpandedPlaque(false);
+                                                    popupScale.setValue(0);
+                                                    popupOpacity.setValue(0);
+                                                    // Navigate back to the game room
+                                                    navigation.goBack();
+                                                });
+                                            }}
+                                        >
+                                            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                CLOSE
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                }
+                            })()}
                         </Animated.View>
                     </View>
                 )}

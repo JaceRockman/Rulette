@@ -21,12 +21,28 @@ export default function RuleWritingScreen() {
     const [editingPlaqueColor, setEditingPlaqueColor] = useState('#fff');
     const numRules = Number(gameState?.numRules) || 3;
 
-    const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
-
     const handleAddRule = () => {
         setInputValue('');
-        const randomColor = LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)];
-        setCurrentPlaqueColor(randomColor);
+        // Use balanced color selection for better distribution
+        const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
+
+        // Count existing rule colors
+        const colorCount: { [color: string]: number } = {};
+        LAYER_PLAQUE_COLORS.forEach(color => colorCount[color] = 0);
+
+        gameState?.rules?.forEach(rule => {
+            if (rule.plaqueColor && colorCount[rule.plaqueColor] !== undefined) {
+                colorCount[rule.plaqueColor]++;
+            }
+        });
+
+        // Find colors with minimum usage
+        const minCount = Math.min(...Object.values(colorCount));
+        const availableColors = LAYER_PLAQUE_COLORS.filter(color => colorCount[color] === minCount);
+
+        // Randomly select from available colors
+        const selectedColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+        setCurrentPlaqueColor(selectedColor);
         setShowInputPlaque(true);
     };
 

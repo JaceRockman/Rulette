@@ -17,6 +17,8 @@ import { Player, Rule } from '../types/game';
 import StripedBackground from '../components/StripedBackground';
 import shared from '../styles/shared';
 import OutlinedText from '../components/OutlinedText';
+import DigitalClock from '../components/DigitalClock';
+import Plaque from '../components/Plaque';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
@@ -26,6 +28,11 @@ export default function GameScreen() {
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [selectedPlayer1, setSelectedPlayer1] = useState<Player | null>(null);
     const [selectedPlayer2, setSelectedPlayer2] = useState<Player | null>(null);
+    const [showRulePopup, setShowRulePopup] = useState(false);
+    const [selectedRuleForAccusation, setSelectedRuleForAccusation] = useState<{ rule: Rule; accusedPlayer: Player } | null>(null);
+    const [showAccusationPopup, setShowAccusationPopup] = useState(false);
+    const [accusationDetails, setAccusationDetails] = useState<{ accuser: Player; accused: Player; rule: Rule } | null>(null);
+    const [isAccusationInProgress, setIsAccusationInProgress] = useState(false);
 
     const handleSpinWheel = () => {
         navigation.navigate('Wheel');
@@ -49,6 +56,46 @@ export default function GameScreen() {
 
     const openRuleModal = (rule: Rule) => {
         setSelectedRule(rule);
+    };
+
+    const handleRuleTap = (rule: Rule, accusedPlayer: Player) => {
+        // Prevent accusation if one is already in progress
+        if (isAccusationInProgress) {
+            return;
+        }
+        setSelectedRuleForAccusation({ rule, accusedPlayer });
+        setShowRulePopup(true);
+    };
+
+    const handleAccuse = () => {
+        if (selectedRuleForAccusation && currentPlayer) {
+            setAccusationDetails({
+                accuser: currentPlayer,
+                accused: selectedRuleForAccusation.accusedPlayer,
+                rule: selectedRuleForAccusation.rule
+            });
+            setShowRulePopup(false);
+            setShowAccusationPopup(true);
+            setIsAccusationInProgress(true);
+        }
+    };
+
+    const handleAcceptAccusation = () => {
+        if (accusationDetails) {
+            // Give point to accuser
+            updatePoints(accusationDetails.accuser.id, accusationDetails.accuser.points + 1);
+            // Take point from accused
+            updatePoints(accusationDetails.accused.id, accusationDetails.accused.points - 1);
+            setShowAccusationPopup(false);
+            setAccusationDetails(null);
+            setIsAccusationInProgress(false);
+        }
+    };
+
+    const handleDeclineAccusation = () => {
+        setShowAccusationPopup(false);
+        setAccusationDetails(null);
+        setIsAccusationInProgress(false);
     };
 
     // Show game over screen if game has ended
@@ -139,41 +186,100 @@ export default function GameScreen() {
                         <Text style={styles.sectionTitle}>Players</Text>
                         {gameState.players.map((player) => (
                             <View key={player.id} style={styles.playerCard}>
-                                <View style={styles.playerHeader}>
-                                    <Text style={styles.playerName}>
-                                        {player.name} {player.isHost ? '(Host)' : ''}
-                                    </Text>
-                                    <Text style={styles.playerPoints}>{player.points} pts</Text>
+                                <Text style={styles.playerName}>
+                                    {player.name} {player.isHost ? '(Host)' : ''}
+                                </Text>
+
+                                <View style={styles.pointsRow}>
+                                    <TouchableOpacity
+                                        style={{
+                                            backgroundColor: '#dc3545',
+                                            width: 60,
+                                            height: 40,
+                                            borderRadius: 8,
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                        }}
+                                        onPress={() => handleUpdatePoints(player.id, player.points, -1)}
+                                    >
+                                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>-1</Text>
+                                    </TouchableOpacity>
+                                    <View style={styles.pointsContainer}>
+                                        <DigitalClock value={player.points} />
+                                    </View>
+                                    <TouchableOpacity
+                                        style={{
+                                            backgroundColor: '#28a745',
+                                            width: 60,
+                                            height: 40,
+                                            borderRadius: 8,
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                        }}
+                                        onPress={() => handleUpdatePoints(player.id, player.points, 1)}
+                                    >
+                                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>+1</Text>
+                                    </TouchableOpacity>
                                 </View>
 
-                                {currentPlayer.isHost && (
-                                    <View style={styles.pointControls}>
-                                        <TouchableOpacity
-                                            style={[shared.button]}
-                                            onPress={() => handleUpdatePoints(player.id, player.points, -5)}
-                                        >
-                                            <Text style={shared.buttonText}>-5</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[shared.button]}
-                                            onPress={() => handleUpdatePoints(player.id, player.points, -1)}
-                                        >
-                                            <Text style={shared.buttonText}>-1</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={shared.button}
-                                            onPress={() => handleUpdatePoints(player.id, player.points, 1)}
-                                        >
-                                            <Text style={shared.buttonText}>+1</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={shared.button}
-                                            onPress={() => handleUpdatePoints(player.id, player.points, 5)}
-                                        >
-                                            <Text style={shared.buttonText}>+5</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
+                                {/* Player's Assigned Rules */}
+                                {(() => {
+                                    const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id);
+                                    return playerRules.length > 0 ? (
+                                        <View style={styles.playerRulesContainer}>
+                                            <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
+                                            <View style={styles.playerRulesGrid}>
+                                                {(() => {
+                                                    const rows = [];
+                                                    for (let i = 0; i < playerRules.length; i += 2) {
+                                                        const hasSecondItem = playerRules[i + 1];
+                                                        const row = (
+                                                            <View key={i} style={{
+                                                                flexDirection: 'row',
+                                                                marginBottom: 12,
+                                                                justifyContent: 'space-between',
+                                                                width: '100%'
+                                                            }}>
+                                                                <View style={{ width: '48%' }}>
+                                                                    <TouchableOpacity
+                                                                        onPress={() => handleRuleTap(playerRules[i], player)}
+                                                                        activeOpacity={0.8}
+                                                                    >
+                                                                        <Plaque
+                                                                            text={playerRules[i].text}
+                                                                            plaqueColor={playerRules[i].plaqueColor || '#fff'}
+                                                                            style={{ minHeight: 100 }}
+                                                                        />
+                                                                    </TouchableOpacity>
+                                                                </View>
+                                                                {hasSecondItem && (
+                                                                    <View style={{ width: '48%' }}>
+                                                                        <TouchableOpacity
+                                                                            onPress={() => handleRuleTap(playerRules[i + 1], player)}
+                                                                            activeOpacity={0.8}
+                                                                        >
+                                                                            <Plaque
+                                                                                text={playerRules[i + 1].text}
+                                                                                plaqueColor={playerRules[i + 1].plaqueColor || '#fff'}
+                                                                                style={{ minHeight: 100 }}
+                                                                            />
+                                                                        </TouchableOpacity>
+                                                                    </View>
+                                                                )}
+                                                            </View>
+                                                        );
+                                                        rows.push(row);
+                                                    }
+                                                    return rows;
+                                                })()}
+                                            </View>
+                                        </View>
+                                    ) : null;
+                                })()}
+
+
+
+
 
                                 {player.rules.length > 0 && (
                                     <View style={styles.rulesContainer}>
@@ -314,6 +420,125 @@ export default function GameScreen() {
                         </View>
                     </View>
                 </Modal>
+
+                {/* Rule Accusation Popup */}
+                {showRulePopup && (
+                    <TouchableOpacity
+                        style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            zIndex: 9999,
+                            elevation: 9999,
+                        }}
+                        activeOpacity={1}
+                        onPress={() => setShowRulePopup(false)}
+                    >
+                        <TouchableOpacity
+                            style={[
+                                styles.modalContent,
+                                {
+                                    backgroundColor: selectedRuleForAccusation?.rule.plaqueColor || '#ffffff',
+                                    borderWidth: 2,
+                                    borderColor: '#000000',
+                                }
+                            ]}
+                            activeOpacity={1}
+                            onPress={(e) => e.stopPropagation()}
+                        >
+                            <Text style={[
+                                styles.modalTitle,
+                                {
+                                    color: (() => {
+                                        const plaqueColor = selectedRuleForAccusation?.rule.plaqueColor || '#ffffff';
+                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff' || plaqueColor === '#ffffff') ? '#000' : '#fff';
+                                    })()
+                                }
+                            ]}>Rule Details</Text>
+                            <Text style={[
+                                styles.modalRuleText,
+                                {
+                                    color: (() => {
+                                        const plaqueColor = selectedRuleForAccusation?.rule.plaqueColor || '#ffffff';
+                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff' || plaqueColor === '#ffffff') ? '#000' : '#fff';
+                                    })()
+                                }
+                            ]}>
+                                {selectedRuleForAccusation?.rule.text}
+                            </Text>
+                            {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
+                                <Text style={[
+                                    styles.modalSubtitle,
+                                    {
+                                        color: (() => {
+                                            const plaqueColor = selectedRuleForAccusation?.rule.plaqueColor || '#ffffff';
+                                            return (plaqueColor === '#fbbf24' || plaqueColor === '#fff' || plaqueColor === '#ffffff') ? '#000' : '#fff';
+                                        })()
+                                    }
+                                ]}>
+                                    Accusing {selectedRuleForAccusation?.accusedPlayer.name} of breaking this rule
+                                </Text>
+                            )}
+
+                            {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
+                                <TouchableOpacity
+                                    style={[
+                                        styles.spinButton,
+                                        {
+                                            alignSelf: 'center',
+                                            marginTop: 20,
+                                            opacity: isAccusationInProgress ? 0.5 : 1
+                                        }
+                                    ]}
+                                    onPress={handleAccuse}
+                                    disabled={isAccusationInProgress}
+                                >
+                                    <Text style={styles.spinButtonText}>Accuse!</Text>
+                                </TouchableOpacity>
+                            )}
+                        </TouchableOpacity>
+                    </TouchableOpacity>
+                )}
+
+                {/* Host Accusation Decision Popup */}
+                <Modal
+                    visible={showAccusationPopup}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowAccusationPopup(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Rule Violation Accusation</Text>
+                            <Text style={styles.modalRuleText}>
+                                {accusationDetails?.accuser.name} has accused {accusationDetails?.accused.name} of breaking rule:
+                            </Text>
+                            <Text style={[styles.modalRuleText, { fontStyle: 'italic', marginTop: 10 }]}>
+                                "{accusationDetails?.rule.text}"
+                            </Text>
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 20 }}>
+                                <TouchableOpacity
+                                    style={[styles.modalCancelButton, { flex: 1, marginRight: 10 }]}
+                                    onPress={handleDeclineAccusation}
+                                >
+                                    <Text style={styles.modalCancelText}>Decline</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { flex: 1, marginLeft: 10 }]}
+                                    onPress={handleAcceptAccusation}
+                                >
+                                    <Text style={styles.spinButtonText}>Accept</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
             </SafeAreaView>
         </StripedBackground>
     );
@@ -368,7 +593,43 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         color: '#1f2937',
+        marginBottom: 8,
+        alignSelf: 'center',
     },
+    pointsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+        gap: 12,
+    },
+    pointsContainer: {
+        alignItems: 'center',
+        backgroundColor: '#000000',
+        borderRadius: 8,
+        paddingHorizontal: 2,
+        paddingVertical: 4,
+        borderWidth: 2,
+        borderColor: '#ffffff',
+        width: 80,
+    },
+    playerRulesContainer: {
+        marginBottom: 12,
+    },
+    playerRulesTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#6b7280',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    playerRulesGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        justifyContent: 'center',
+    },
+
     playerPoints: {
         fontSize: 16,
         fontWeight: 'bold',
@@ -377,6 +638,8 @@ const styles = StyleSheet.create({
     pointControls: {
         flexDirection: 'row',
         marginBottom: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     rulesContainer: {
         borderTopWidth: 1,
@@ -449,10 +712,16 @@ const styles = StyleSheet.create({
         marginTop: 50,
     },
     modalOverlay: {
-        flex: 1,
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
+        zIndex: 9999,
+        elevation: 9999,
     },
     modalContent: {
         backgroundColor: '#ffffff',

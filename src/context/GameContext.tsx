@@ -161,17 +161,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
         case 'CREATE_WHEEL_SEGMENTS':
             const SEGMENT_COLORS = ['#6bb9d3', '#f3a962', '#ed5c5d', '#fff'];
-            const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
 
             // Create wheel segments with layers
             const newSegments: WheelSegment[] = [];
             const totalSegments = state.rules.length; // Always create segments based on rules
 
+            // Track modifier colors for balanced distribution
+            const modifierColors: string[] = [];
+
             for (let i = 0; i < totalSegments; i++) {
                 const layers: WheelLayer[] = [];
 
-                // Add rule layer (always present) with its stored plaque color or random if not set
-                const rulePlaqueColor = state.rules[i].plaqueColor || LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)];
+                // Add rule layer (always present) with its stored plaque color or balanced if not set
+                const rulePlaqueColor = state.rules[i].plaqueColor || LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length];
                 layers.push({
                     type: 'rule',
                     content: state.rules[i],
@@ -181,7 +183,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
                 // Add prompt layer if available, otherwise add modifier
                 if (i < state.prompts.length) {
-                    const promptPlaqueColor = state.prompts[i].plaqueColor || LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)];
+                    const promptPlaqueColor = state.prompts[i].plaqueColor || LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length];
                     layers.push({
                         type: 'prompt',
                         content: state.prompts[i],
@@ -191,21 +193,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 } else {
                     // Add modifier layer if no prompt available
                     const modifiers = ['+5 points', '-3 points', 'Skip turn', 'Double points', 'Steal points'];
+                    // Use a more varied approach for modifier colors
+                    const modifierColor = getVariedModifierColor(modifierColors);
+                    modifierColors.push(modifierColor);
                     layers.push({
                         type: 'modifier',
                         content: modifiers[Math.floor(Math.random() * modifiers.length)],
                         isActive: true,
-                        plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                        plaqueColor: modifierColor
                     });
                 }
 
                 // Add another modifier layer
                 const modifiers = ['+5 points', '-3 points', 'Skip turn', 'Double points', 'Steal points'];
+                const secondModifierColor = getVariedModifierColor(modifierColors);
+                modifierColors.push(secondModifierColor);
                 layers.push({
                     type: 'modifier',
                     content: modifiers[Math.floor(Math.random() * modifiers.length)],
                     isActive: true,
-                    plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                    plaqueColor: secondModifierColor
                 });
 
                 // Add end layer
@@ -221,7 +228,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                     layers,
                     currentLayerIndex: 0,
                     color: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
-                    plaqueColor: LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+                    plaqueColor: LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length]
                 });
             }
 
@@ -236,6 +243,72 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
+
+// Color distribution utility
+const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
+
+interface ColorUsage {
+    [color: string]: {
+        prompts: number;
+        rules: number;
+        modifiers: number;
+    };
+}
+
+function getBalancedColor(type: 'prompt' | 'rule' | 'modifier', prompts: Prompt[], rules: Rule[]): string {
+    // Count color usage for the specific type
+    const colorCount: { [color: string]: number } = {};
+    LAYER_PLAQUE_COLORS.forEach(color => {
+        colorCount[color] = 0;
+    });
+
+    // Count existing colors for this type
+    if (type === 'prompt') {
+        prompts.forEach(prompt => {
+            if (prompt.plaqueColor && colorCount[prompt.plaqueColor] !== undefined) {
+                colorCount[prompt.plaqueColor]++;
+            }
+        });
+    } else if (type === 'rule') {
+        rules.forEach(rule => {
+            if (rule.plaqueColor && colorCount[rule.plaqueColor] !== undefined) {
+                colorCount[rule.plaqueColor]++;
+            }
+        });
+    }
+
+    // Find colors with minimum usage
+    const minCount = Math.min(...Object.values(colorCount));
+    const availableColors = LAYER_PLAQUE_COLORS.filter(color => colorCount[color] === minCount);
+
+    // If multiple colors have the same usage, randomly select one
+    if (availableColors.length > 1) {
+        return availableColors[Math.floor(Math.random() * availableColors.length)];
+    }
+
+    return availableColors[0];
+}
+
+function getVariedModifierColor(existingModifierColors: string[]): string {
+    // Count existing modifier colors
+    const colorCount: { [color: string]: number } = {};
+    LAYER_PLAQUE_COLORS.forEach(color => {
+        colorCount[color] = 0;
+    });
+
+    existingModifierColors.forEach(color => {
+        if (colorCount[color] !== undefined) {
+            colorCount[color]++;
+        }
+    });
+
+    // Find colors with minimum usage
+    const minCount = Math.min(...Object.values(colorCount));
+    const availableColors = LAYER_PLAQUE_COLORS.filter(color => colorCount[color] === minCount);
+
+    // Randomly select from available colors
+    return availableColors[Math.floor(Math.random() * availableColors.length)];
+}
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
     const [gameState, dispatch] = useReducer(gameReducer, initialState);
@@ -287,23 +360,21 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const addPrompt = (text: string, category?: string, plaqueColor?: string) => {
-        const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
         const prompt: Prompt = {
             id: Math.random().toString(36).substr(2, 9),
             text,
             category,
-            plaqueColor: plaqueColor || LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+            plaqueColor: plaqueColor || getBalancedColor('prompt', gameState?.prompts || [], gameState?.rules || [])
         };
         dispatch({ type: 'ADD_PROMPT', payload: prompt });
     };
 
     const addRule = (text: string, plaqueColor?: string) => {
-        const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
         const rule: Rule = {
             id: Math.random().toString(36).substr(2, 9),
             text,
             isActive: true,
-            plaqueColor: plaqueColor || LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)]
+            plaqueColor: plaqueColor || getBalancedColor('rule', gameState?.prompts || [], gameState?.rules || [])
         };
         dispatch({ type: 'ADD_RULE', payload: rule });
     };
