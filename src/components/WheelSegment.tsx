@@ -80,25 +80,7 @@ export default function WheelSegment({
                 }}
             />
 
-            {/* Layer indicator */}
-            {layerCount > 1 && (
-                <View
-                    style={{
-                        position: 'absolute',
-                        top: 8,
-                        left: 8,
-                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
-                        borderRadius: 12,
-                        paddingHorizontal: 8,
-                        paddingVertical: 4,
-                        zIndex: 2,
-                    }}
-                >
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>
-                        {currentLayerIndex + 1}/{layerCount}
-                    </Text>
-                </View>
-            )}
+
 
             <View style={{ flex: 1, alignItems: 'center' }}>
                 {/* Plaque */}

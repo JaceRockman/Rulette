@@ -7,6 +7,7 @@ interface GameContextType {
     dispatch: React.Dispatch<GameAction>;
     joinLobby: (code: string, playerName: string) => void;
     createLobby: (playerName: string, numRules?: number, numPrompts?: number, startingPoints?: number) => void;
+    createTestingState: () => void;
     setNumRules: (num: number) => void;
     setNumPrompts: (num: number) => void;
     addPrompt: (text: string, category?: string, plaqueColor?: string) => void;
@@ -17,6 +18,10 @@ interface GameContextType {
     spinWheel: () => void;
     updatePoints: (playerId: string, points: number) => void;
     swapRules: (player1Id: string, player2Id: string) => void;
+    swapRulesWithPlayer: (targetPlayerId: string) => void;
+    cloneRuleToPlayer: (ruleId: string, targetPlayerId: string) => void;
+    shredRule: (ruleId: string) => void;
+    flipRule: (ruleId: string) => void;
     assignRule: (ruleId: string, playerId: string) => void;
     assignRuleToCurrentPlayer: (ruleId: string) => void;
     removeWheelLayer: (segmentId: string) => void;
@@ -160,7 +165,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             };
 
         case 'CREATE_WHEEL_SEGMENTS':
-            const SEGMENT_COLORS = ['#6bb9d3', '#f3a962', '#ed5c5d', '#fff'];
+            const SEGMENT_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fbbf24'];
 
             // Create wheel segments with layers
             const newSegments: WheelSegment[] = [];
@@ -192,7 +197,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                     });
                 } else {
                     // Add modifier layer if no prompt available
-                    const modifiers = ['+5 points', '-3 points', 'Skip turn', 'Double points', 'Steal points'];
+                    const modifiers = ['Clone', 'Flip'];
                     // Use a more varied approach for modifier colors
                     const modifierColor = getVariedModifierColor(modifierColors);
                     modifierColors.push(modifierColor);
@@ -205,7 +210,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 }
 
                 // Add another modifier layer
-                const modifiers = ['+5 points', '-3 points', 'Skip turn', 'Double points', 'Steal points'];
+                const modifiers = ['Clone', 'Flip'];
                 const secondModifierColor = getVariedModifierColor(modifierColors);
                 modifierColors.push(secondModifierColor);
                 layers.push({
@@ -315,6 +320,83 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const currentPlayer = gameState?.players.find(p => p.id === gameState.currentPlayer) || null;
 
+    // Initialize with testing state
+    React.useEffect(() => {
+        const hostId = Math.random().toString(36).substr(2, 9);
+        const player1Id = Math.random().toString(36).substr(2, 9);
+        const player2Id = Math.random().toString(36).substr(2, 9);
+        const player3Id = Math.random().toString(36).substr(2, 9);
+
+        const players: Player[] = [
+            {
+                id: hostId,
+                name: "Host Player",
+                points: 20,
+                rules: [],
+                isHost: true,
+            },
+            {
+                id: player1Id,
+                name: "Alice",
+                points: 18,
+                rules: [],
+                isHost: false,
+            },
+            {
+                id: player2Id,
+                name: "Bob",
+                points: 22,
+                rules: [],
+                isHost: false,
+            },
+            {
+                id: player3Id,
+                name: "Charlie",
+                points: 16,
+                rules: [],
+                isHost: false,
+            },
+        ];
+
+        const rules: Rule[] = [
+            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
+        ];
+
+        const prompts: Prompt[] = [
+            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3" },
+        ];
+
+        const testingGameState: GameState = {
+            ...initialState,
+            id: Math.random().toString(36).substr(2, 9),
+            code: "TEST123",
+            players,
+            currentPlayer: hostId,
+            rules,
+            prompts,
+            numRules: 10,
+            numPrompts: 7,
+            isGameStarted: true,
+        };
+
+        dispatch({ type: 'SET_GAME_STATE', payload: testingGameState });
+    }, []);
+
     const joinLobby = (code: string, playerName: string) => {
         // This would connect to your backend/socket server
         const player: Player = {
@@ -361,6 +443,83 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_GAME_STATE', payload: newGameState });
     };
 
+    const createTestingState = () => {
+        const hostId = Math.random().toString(36).substr(2, 9);
+        const player1Id = Math.random().toString(36).substr(2, 9);
+        const player2Id = Math.random().toString(36).substr(2, 9);
+        const player3Id = Math.random().toString(36).substr(2, 9);
+
+        const players: Player[] = [
+            {
+                id: hostId,
+                name: "Host Player",
+                points: 20,
+                rules: [],
+                isHost: true,
+            },
+            {
+                id: player1Id,
+                name: "Alice",
+                points: 18,
+                rules: [],
+                isHost: false,
+            },
+            {
+                id: player2Id,
+                name: "Bob",
+                points: 22,
+                rules: [],
+                isHost: false,
+            },
+            {
+                id: player3Id,
+                name: "Charlie",
+                points: 16,
+                rules: [],
+                isHost: false,
+            },
+        ];
+
+        const rules: Rule[] = [
+            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
+        ];
+
+        const prompts: Prompt[] = [
+            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff" },
+            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3" },
+        ];
+
+        const testingGameState: GameState = {
+            ...initialState,
+            id: Math.random().toString(36).substr(2, 9),
+            code: "TEST123",
+            players,
+            currentPlayer: hostId,
+            rules,
+            prompts,
+            numRules: 10,
+            numPrompts: 7,
+            isGameStarted: true,
+        };
+
+        dispatch({ type: 'SET_GAME_STATE', payload: testingGameState });
+        dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
+    };
+
     const setNumRules = (num: number) => {
         dispatch({ type: 'SET_NUM_RULES', payload: num });
     };
@@ -404,6 +563,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const startGame = () => {
         dispatch({ type: 'START_GAME' });
+        dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
     };
 
     const spinWheel = () => {
@@ -426,7 +586,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         // Add modifier (50% chance)
         if (Math.random() > 0.5) {
-            const modifiers = ['Double Points', 'Skip Turn', 'Reverse Order', 'Free Pass'];
+            const modifiers = ['Clone', 'Flip'];
             const randomModifier = modifiers[Math.floor(Math.random() * modifiers.length)];
             stack.push({ type: 'modifier', content: randomModifier });
         }
@@ -456,6 +616,55 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             player2Rules.forEach((rule: Rule) => {
                 dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: player1Id } });
             });
+        }
+    };
+
+    const swapRulesWithPlayer = (targetPlayerId: string) => {
+        if (!gameState || !gameState.currentPlayer) return;
+
+        const currentPlayer = gameState.players.find((p: Player) => p.id === gameState.currentPlayer);
+        if (currentPlayer && currentPlayer.id !== targetPlayerId) {
+            swapRules(currentPlayer.id, targetPlayerId);
+        }
+    };
+
+    const cloneRuleToPlayer = (ruleId: string, targetPlayerId: string) => {
+        if (!gameState || !gameState.currentPlayer) return;
+
+        const rule = gameState.rules.find((r: Rule) => r.id === ruleId);
+        if (rule) {
+            dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: targetPlayerId } });
+        }
+    };
+
+    const shredRule = (ruleId: string) => {
+        if (!gameState) return;
+
+        const rule = gameState.rules.find((r: Rule) => r.id === ruleId);
+        if (rule) {
+            dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: undefined, isActive: false } });
+        }
+    };
+
+    const flipRule = (ruleId: string) => {
+        if (!gameState) return;
+
+        const rule = gameState.rules.find((r: Rule) => r.id === ruleId);
+        if (rule) {
+            // Flip the rule text by adding "NOT" or "DON'T" to make it opposite
+            let flippedText = rule.text;
+            if (flippedText.toLowerCase().includes('must') || flippedText.toLowerCase().includes('should') || flippedText.toLowerCase().includes('always')) {
+                flippedText = flippedText.replace(/\b(must|should|always)\b/gi, 'must NOT');
+            } else if (flippedText.toLowerCase().includes('cannot') || flippedText.toLowerCase().includes('must not') || flippedText.toLowerCase().includes('never')) {
+                flippedText = flippedText.replace(/\b(cannot|must not|never)\b/gi, 'must');
+            } else if (flippedText.toLowerCase().includes('don\'t') || flippedText.toLowerCase().includes('do not')) {
+                flippedText = flippedText.replace(/\b(don't|do not)\b/gi, 'must');
+            } else {
+                // Default: add "NOT" at the beginning
+                flippedText = `NOT: ${flippedText}`;
+            }
+
+            dispatch({ type: 'UPDATE_RULE', payload: { ...rule, text: flippedText } });
         }
     };
 
@@ -496,6 +705,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch,
         joinLobby,
         createLobby,
+        createTestingState,
         setNumRules,
         setNumPrompts,
         addPrompt,
@@ -506,6 +716,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         spinWheel,
         updatePoints,
         swapRules,
+        swapRulesWithPlayer,
+        cloneRuleToPlayer,
+        shredRule,
+        flipRule,
         assignRule,
         assignRuleToCurrentPlayer,
         removeWheelLayer,

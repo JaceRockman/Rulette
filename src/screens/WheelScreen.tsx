@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Animated, FlatList, Dimensions, SafeAreaView, PanResponder, GestureResponderEvent, PanResponderGestureState } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, FlatList, Dimensions, SafeAreaView, PanResponder, GestureResponderEvent, PanResponderGestureState, Modal, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useGame } from '../context/GameContext';
 import shared from '../styles/shared';
@@ -13,7 +13,12 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WheelScreen() {
     const navigation = useNavigation();
-    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentPlayer, updatePoints } = useGame();
+    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentPlayer, updatePoints, cloneRuleToPlayer, flipRule, shredRule, dispatch } = useGame();
+    const [showCloneModal, setShowCloneModal] = useState(false);
+    const [showClonePlayerModal, setShowClonePlayerModal] = useState(false);
+    const [showFlipModal, setShowFlipModal] = useState(false);
+    const [showShredModal, setShowShredModal] = useState(false);
+    const [selectedRuleForClone, setSelectedRuleForClone] = useState<{ rule: any; player: any } | null>(null);
 
     // Use wheel segments from game state
     const segments = gameState?.wheelSegments || [];
@@ -21,7 +26,8 @@ export default function WheelScreen() {
     // If no segments exist and game is started, create them
     React.useEffect(() => {
         if (gameState?.isGameStarted && segments.length === 0 && gameState.rules.length > 0 && gameState.prompts.length > 0) {
-            // This will be handled by the CREATE_WHEEL_SEGMENTS action in startGame
+            // Create wheel segments if they don't exist
+            dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
         }
     }, [gameState?.isGameStarted, segments.length, gameState?.rules.length, gameState?.prompts.length]);
 
@@ -426,27 +432,9 @@ export default function WheelScreen() {
                                                             updatePoints(currentPlayer.id, currentPlayer.points + 2);
                                                         }
                                                     }
-                                                    // Remove the current layer to reveal the next one
-                                                    removeWheelLayer(selectedSegment.id);
 
-                                                    // Animate the popup closing
-                                                    Animated.parallel([
-                                                        Animated.timing(popupScale, {
-                                                            toValue: 0,
-                                                            duration: 400,
-                                                            useNativeDriver: true,
-                                                        }),
-                                                        Animated.timing(popupOpacity, {
-                                                            toValue: 0,
-                                                            duration: 300,
-                                                            useNativeDriver: true,
-                                                        })
-                                                    ]).start(() => {
-                                                        setShowExpandedPlaque(false);
-                                                        popupScale.setValue(0);
-                                                        popupOpacity.setValue(0);
-                                                        navigation.goBack();
-                                                    });
+                                                    // Show shred modal instead of closing immediately
+                                                    setShowShredModal(true);
                                                 }}
                                             >
                                                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
@@ -464,8 +452,6 @@ export default function WheelScreen() {
                                                 }}
                                                 onPress={() => {
                                                     // No points lost for failure
-                                                    // Remove the current layer to reveal the next one
-                                                    removeWheelLayer(selectedSegment.id);
 
                                                     // Animate the popup closing
                                                     Animated.parallel([
@@ -480,6 +466,8 @@ export default function WheelScreen() {
                                                             useNativeDriver: true,
                                                         })
                                                     ]).start(() => {
+                                                        // Remove the current layer to reveal the next one
+                                                        removeWheelLayer(selectedSegment.id);
                                                         setShowExpandedPlaque(false);
                                                         popupScale.setValue(0);
                                                         popupOpacity.setValue(0);
@@ -493,6 +481,48 @@ export default function WheelScreen() {
                                             </TouchableOpacity>
                                         </View>
                                     );
+                                } else if (currentLayer && currentLayer.type === 'modifier' && typeof currentLayer.content === 'string') {
+                                    if (currentLayer.content === 'Clone') {
+                                        return (
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: '#28a745',
+                                                    paddingHorizontal: 30,
+                                                    paddingVertical: 15,
+                                                    borderRadius: 10,
+                                                    marginTop: 30,
+                                                    alignSelf: 'center',
+                                                }}
+                                                onPress={() => {
+                                                    setShowCloneModal(true);
+                                                }}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                    SELECT RULE TO CLONE
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    } else if (currentLayer.content === 'Flip') {
+                                        return (
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: '#ffc107',
+                                                    paddingHorizontal: 30,
+                                                    paddingVertical: 15,
+                                                    borderRadius: 10,
+                                                    marginTop: 30,
+                                                    alignSelf: 'center',
+                                                }}
+                                                onPress={() => {
+                                                    setShowFlipModal(true);
+                                                }}
+                                            >
+                                                <Text style={{ color: '#000', fontSize: 16, fontWeight: 'bold' }}>
+                                                    SELECT RULE TO FLIP
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    }
                                 } else {
                                     return (
                                         <TouchableOpacity
@@ -524,11 +554,6 @@ export default function WheelScreen() {
                                                         if (typeof currentLayer.content !== 'string' && currentLayer.content.id) {
                                                             assignRuleToCurrentPlayer(currentLayer.content.id);
                                                         }
-                                                        // Remove the current layer to reveal the next one
-                                                        removeWheelLayer(selectedSegment.id);
-                                                    } else {
-                                                        // Remove the current layer to reveal the next one
-                                                        removeWheelLayer(selectedSegment.id);
                                                     }
                                                 }
 
@@ -545,6 +570,13 @@ export default function WheelScreen() {
                                                         useNativeDriver: true,
                                                     })
                                                 ]).start(() => {
+                                                    // Remove the current layer to reveal the next one
+                                                    if (selectedSegment) {
+                                                        const currentLayer = selectedSegment.layers[selectedSegment.currentLayerIndex];
+                                                        if (currentLayer && currentLayer.type !== 'end') {
+                                                            removeWheelLayer(selectedSegment.id);
+                                                        }
+                                                    }
                                                     setShowExpandedPlaque(false);
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
@@ -563,6 +595,505 @@ export default function WheelScreen() {
                         </Animated.View>
                     </View>
                 )}
+
+                {/* Clone Rule Selection Modal */}
+                <Modal
+                    visible={showCloneModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowCloneModal(false)}
+                >
+                    <View style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 9999,
+                        elevation: 9999,
+                    }}>
+                        <View style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: 12,
+                            padding: 20,
+                            width: '80%',
+                            maxHeight: '70%',
+                        }}>
+                            <Text style={{
+                                fontSize: 18,
+                                fontWeight: 'bold',
+                                color: '#1f2937',
+                                marginBottom: 12,
+                                textAlign: 'center',
+                            }}>
+                                Select Rule to Clone
+                            </Text>
+                            <Text style={{
+                                fontSize: 14,
+                                color: '#6b7280',
+                                marginBottom: 16,
+                                textAlign: 'center',
+                                fontStyle: 'italic',
+                            }}>
+                                {(() => {
+                                    const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.currentPlayer && rule.isActive);
+                                    if (currentPlayerRules && currentPlayerRules.length > 0) {
+                                        return "Choose one of your rules to give to another player";
+                                    } else {
+                                        return "Choose any rule to give to another player";
+                                    }
+                                })()}
+                            </Text>
+
+                            <ScrollView style={{ maxHeight: 300 }}>
+                                {(() => {
+                                    const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.currentPlayer && rule.isActive);
+                                    if (currentPlayerRules && currentPlayerRules.length > 0) {
+                                        // Show current player's rules
+                                        return currentPlayerRules.map((rule) => (
+                                            <TouchableOpacity
+                                                key={rule.id}
+                                                style={{
+                                                    backgroundColor: '#f3f4f6',
+                                                    borderRadius: 8,
+                                                    padding: 12,
+                                                    marginBottom: 8,
+                                                }}
+                                                onPress={() => {
+                                                    setSelectedRuleForClone({ rule, player: gameState?.players.find(player => player.id === gameState?.currentPlayer) });
+                                                    setShowCloneModal(false);
+                                                    // Show player selection modal for the clone
+                                                    setShowClonePlayerModal(true);
+                                                }}
+                                            >
+                                                <Text style={{
+                                                    fontSize: 16,
+                                                    color: '#1f2937',
+                                                    textAlign: 'center',
+                                                }}>
+                                                    {rule.text}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ));
+                                    } else {
+                                        // Show all active rules assigned to any player
+                                        return gameState?.rules
+                                            .filter(rule => rule.assignedTo && rule.isActive)
+                                            .map((rule) => {
+                                                const ruleOwner = gameState?.players.find(player => player.id === rule.assignedTo);
+                                                return (
+                                                    <TouchableOpacity
+                                                        key={rule.id}
+                                                        style={{
+                                                            backgroundColor: '#f3f4f6',
+                                                            borderRadius: 8,
+                                                            padding: 12,
+                                                            marginBottom: 8,
+                                                        }}
+                                                        onPress={() => {
+                                                            setSelectedRuleForClone({ rule, player: ruleOwner });
+                                                            setShowCloneModal(false);
+                                                            // Show player selection modal for the clone
+                                                            setShowClonePlayerModal(true);
+                                                        }}
+                                                    >
+                                                        <Text style={{
+                                                            fontSize: 16,
+                                                            color: '#1f2937',
+                                                            textAlign: 'center',
+                                                        }}>
+                                                            {rule.text}
+                                                        </Text>
+                                                        <Text style={{
+                                                            fontSize: 12,
+                                                            color: '#6b7280',
+                                                            textAlign: 'center',
+                                                            fontStyle: 'italic',
+                                                        }}>
+                                                            (Owned by {ruleOwner?.name})
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                );
+                                            });
+                                    }
+                                })()}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: '#6b7280',
+                                    borderRadius: 8,
+                                    padding: 16,
+                                    marginTop: 16,
+                                }}
+                                onPress={() => setShowCloneModal(false)}
+                            >
+                                <Text style={{
+                                    color: '#ffffff',
+                                    textAlign: 'center',
+                                    fontWeight: 'bold',
+                                }}>
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Clone Player Selection Modal */}
+                <Modal
+                    visible={showClonePlayerModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowClonePlayerModal(false)}
+                >
+                    <View style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 9999,
+                        elevation: 9999,
+                    }}>
+                        <View style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: 12,
+                            padding: 20,
+                            width: '80%',
+                            maxHeight: '70%',
+                        }}>
+                            <Text style={{
+                                fontSize: 18,
+                                fontWeight: 'bold',
+                                color: '#1f2937',
+                                marginBottom: 12,
+                                textAlign: 'center',
+                            }}>
+                                Select Player to Give Rule To
+                            </Text>
+                            <Text style={{
+                                fontSize: 14,
+                                color: '#6b7280',
+                                marginBottom: 16,
+                                textAlign: 'center',
+                                fontStyle: 'italic',
+                            }}>
+                                Choose who to give "{selectedRuleForClone?.rule.text}" to
+                            </Text>
+
+                            <ScrollView style={{ maxHeight: 300 }}>
+                                {gameState?.players
+                                    .map((player) => (
+                                        <TouchableOpacity
+                                            key={player.id}
+                                            style={{
+                                                backgroundColor: '#f3f4f6',
+                                                borderRadius: 8,
+                                                padding: 12,
+                                                marginBottom: 8,
+                                            }}
+                                            onPress={() => {
+                                                if (selectedRuleForClone) {
+                                                    cloneRuleToPlayer(selectedRuleForClone.rule.id, player.id);
+                                                }
+                                                setShowClonePlayerModal(false);
+
+                                                // Close the wheel popup and navigate back
+                                                Animated.parallel([
+                                                    Animated.timing(popupScale, {
+                                                        toValue: 0,
+                                                        duration: 400,
+                                                        useNativeDriver: true,
+                                                    }),
+                                                    Animated.timing(popupOpacity, {
+                                                        toValue: 0,
+                                                        duration: 300,
+                                                        useNativeDriver: true,
+                                                    })
+                                                ]).start(() => {
+                                                    const selectedSegment = segments[selectedIndex];
+                                                    if (selectedSegment) {
+                                                        removeWheelLayer(selectedSegment.id);
+                                                    }
+                                                    setShowExpandedPlaque(false);
+                                                    popupScale.setValue(0);
+                                                    popupOpacity.setValue(0);
+                                                    navigation.goBack();
+                                                });
+                                            }}
+                                        >
+                                            <Text style={{
+                                                fontSize: 16,
+                                                color: '#1f2937',
+                                                textAlign: 'center',
+                                            }}>
+                                                {player.name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: '#6b7280',
+                                    borderRadius: 8,
+                                    padding: 16,
+                                    marginTop: 16,
+                                }}
+                                onPress={() => setShowClonePlayerModal(false)}
+                            >
+                                <Text style={{
+                                    color: '#ffffff',
+                                    textAlign: 'center',
+                                    fontWeight: 'bold',
+                                }}>
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Flip Rule Selection Modal */}
+                <Modal
+                    visible={showFlipModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowFlipModal(false)}
+                >
+                    <View style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 9999,
+                        elevation: 9999,
+                    }}>
+                        <View style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: 12,
+                            padding: 20,
+                            width: '80%',
+                            maxHeight: '70%',
+                        }}>
+                            <Text style={{
+                                fontSize: 18,
+                                fontWeight: 'bold',
+                                color: '#1f2937',
+                                marginBottom: 12,
+                                textAlign: 'center',
+                            }}>
+                                Select Rule to Flip
+                            </Text>
+                            <Text style={{
+                                fontSize: 14,
+                                color: '#6b7280',
+                                marginBottom: 16,
+                                textAlign: 'center',
+                                fontStyle: 'italic',
+                            }}>
+                                Choose a rule to flip its meaning
+                            </Text>
+
+                            <ScrollView style={{ maxHeight: 300 }}>
+                                {gameState?.rules
+                                    .filter(rule => rule.assignedTo && rule.isActive)
+                                    .map((rule) => (
+                                        <TouchableOpacity
+                                            key={rule.id}
+                                            style={{
+                                                backgroundColor: '#f3f4f6',
+                                                borderRadius: 8,
+                                                padding: 12,
+                                                marginBottom: 8,
+                                            }}
+                                            onPress={() => {
+                                                flipRule(rule.id);
+                                                setShowFlipModal(false);
+
+                                                // Close the wheel popup and navigate back
+                                                Animated.parallel([
+                                                    Animated.timing(popupScale, {
+                                                        toValue: 0,
+                                                        duration: 400,
+                                                        useNativeDriver: true,
+                                                    }),
+                                                    Animated.timing(popupOpacity, {
+                                                        toValue: 0,
+                                                        duration: 300,
+                                                        useNativeDriver: true,
+                                                    })
+                                                ]).start(() => {
+                                                    const selectedSegment = segments[selectedIndex];
+                                                    if (selectedSegment) {
+                                                        removeWheelLayer(selectedSegment.id);
+                                                    }
+                                                    setShowExpandedPlaque(false);
+                                                    popupScale.setValue(0);
+                                                    popupOpacity.setValue(0);
+                                                    navigation.goBack();
+                                                });
+                                            }}
+                                        >
+                                            <Text style={{
+                                                fontSize: 16,
+                                                color: '#1f2937',
+                                                textAlign: 'center',
+                                            }}>
+                                                {rule.text}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: '#6b7280',
+                                    borderRadius: 8,
+                                    padding: 16,
+                                    marginTop: 16,
+                                }}
+                                onPress={() => setShowFlipModal(false)}
+                            >
+                                <Text style={{
+                                    color: '#ffffff',
+                                    textAlign: 'center',
+                                    fontWeight: 'bold',
+                                }}>
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Shred Rule Selection Modal */}
+                <Modal
+                    visible={showShredModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowShredModal(false)}
+                >
+                    <View style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 9999,
+                        elevation: 9999,
+                    }}>
+                        <View style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: 12,
+                            padding: 20,
+                            width: '80%',
+                            maxHeight: '70%',
+                        }}>
+                            <Text style={{
+                                fontSize: 18,
+                                fontWeight: 'bold',
+                                color: '#1f2937',
+                                marginBottom: 12,
+                                textAlign: 'center',
+                            }}>
+                                Select Rule to Shred
+                            </Text>
+                            <Text style={{
+                                fontSize: 14,
+                                color: '#6b7280',
+                                marginBottom: 16,
+                                textAlign: 'center',
+                                fontStyle: 'italic',
+                            }}>
+                                Choose a rule to remove from your collection
+                            </Text>
+
+                            <ScrollView style={{ maxHeight: 300 }}>
+                                {gameState?.rules
+                                    .filter(rule => rule.assignedTo === gameState?.currentPlayer)
+                                    .map((rule) => (
+                                        <TouchableOpacity
+                                            key={rule.id}
+                                            style={{
+                                                backgroundColor: '#f3f4f6',
+                                                borderRadius: 8,
+                                                padding: 12,
+                                                marginBottom: 8,
+                                            }}
+                                            onPress={() => {
+                                                shredRule(rule.id);
+                                                setShowShredModal(false);
+
+                                                // Close the wheel popup and navigate back
+                                                Animated.parallel([
+                                                    Animated.timing(popupScale, {
+                                                        toValue: 0,
+                                                        duration: 400,
+                                                        useNativeDriver: true,
+                                                    }),
+                                                    Animated.timing(popupOpacity, {
+                                                        toValue: 0,
+                                                        duration: 300,
+                                                        useNativeDriver: true,
+                                                    })
+                                                ]).start(() => {
+                                                    const selectedSegment = segments[selectedIndex];
+                                                    if (selectedSegment) {
+                                                        removeWheelLayer(selectedSegment.id);
+                                                    }
+                                                    setShowExpandedPlaque(false);
+                                                    popupScale.setValue(0);
+                                                    popupOpacity.setValue(0);
+                                                    navigation.goBack();
+                                                });
+                                            }}
+                                        >
+                                            <Text style={{
+                                                fontSize: 16,
+                                                color: '#1f2937',
+                                                textAlign: 'center',
+                                            }}>
+                                                {rule.text}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={{
+                                    backgroundColor: '#6b7280',
+                                    borderRadius: 8,
+                                    padding: 16,
+                                    marginTop: 16,
+                                }}
+                                onPress={() => setShowShredModal(false)}
+                            >
+                                <Text style={{
+                                    color: '#ffffff',
+                                    textAlign: 'center',
+                                    fontWeight: 'bold',
+                                }}>
+                                    Cancel
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
             </SafeAreaView>
         </StripedBackground>
     );

@@ -30,7 +30,7 @@ export default function App() {
                 <NavigationContainer>
                     <StatusBar style="auto" />
                     <Stack.Navigator
-                        initialRouteName="Home"
+                        initialRouteName="Game"
                         screenOptions={{
                             headerStyle: {
                                 backgroundColor: 'transparent',

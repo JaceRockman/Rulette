@@ -24,15 +24,22 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
-    const { gameState, currentPlayer, updatePoints, swapRules, assignRule, endGame } = useGame();
+    const { gameState, currentPlayer, updatePoints, assignRule, endGame, dispatch } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
-    const [selectedPlayer1, setSelectedPlayer1] = useState<Player | null>(null);
-    const [selectedPlayer2, setSelectedPlayer2] = useState<Player | null>(null);
     const [showRulePopup, setShowRulePopup] = useState(false);
     const [selectedRuleForAccusation, setSelectedRuleForAccusation] = useState<{ rule: Rule; accusedPlayer: Player } | null>(null);
     const [showAccusationPopup, setShowAccusationPopup] = useState(false);
     const [accusationDetails, setAccusationDetails] = useState<{ accuser: Player; accused: Player; rule: Rule } | null>(null);
     const [isAccusationInProgress, setIsAccusationInProgress] = useState(false);
+    const [showRuleSelectionModal, setShowRuleSelectionModal] = useState(false);
+    const [acceptedAccusationDetails, setAcceptedAccusationDetails] = useState<{ accuser: Player; accused: Player; rule: Rule } | null>(null);
+    const [selectedPlayerForAction, setSelectedPlayerForAction] = useState<Player | null>(null);
+    const [showPlayerActionModal, setShowPlayerActionModal] = useState(false);
+    const [showShredRuleModal, setShowShredRuleModal] = useState(false);
+    const [showGiveRuleModal, setShowGiveRuleModal] = useState(false);
+    const [showAccusationTargetModal, setShowAccusationTargetModal] = useState(false);
+    const [showAccusationRuleModal, setShowAccusationRuleModal] = useState(false);
+    const [accusationTarget, setAccusationTarget] = useState<Player | null>(null);
 
     const handleSpinWheel = () => {
         navigation.navigate('Wheel');
@@ -43,11 +50,7 @@ export default function GameScreen() {
         updatePoints(playerId, newPoints);
     };
 
-    const handleSwapRules = (player1: Player, player2: Player) => {
-        swapRules(player1.id, player2.id);
-        setSelectedPlayer1(null);
-        setSelectedPlayer2(null);
-    };
+
 
     const handleAssignRule = (rule: Rule, playerId: string) => {
         assignRule(rule.id, playerId);
@@ -86,9 +89,11 @@ export default function GameScreen() {
             updatePoints(accusationDetails.accuser.id, accusationDetails.accuser.points + 1);
             // Take point from accused
             updatePoints(accusationDetails.accused.id, accusationDetails.accused.points - 1);
+
+            // Store the accepted accusation details and show rule selection modal
+            setAcceptedAccusationDetails(accusationDetails);
             setShowAccusationPopup(false);
-            setAccusationDetails(null);
-            setIsAccusationInProgress(false);
+            setShowRuleSelectionModal(true);
         }
     };
 
@@ -96,6 +101,183 @@ export default function GameScreen() {
         setShowAccusationPopup(false);
         setAccusationDetails(null);
         setIsAccusationInProgress(false);
+    };
+
+    const handleGiveRuleToAccused = (ruleId: string) => {
+        if (acceptedAccusationDetails) {
+            // Assign the selected rule to the accused player
+            assignRule(ruleId, acceptedAccusationDetails.accused.id);
+
+            // Close the modal and reset state
+            setShowRuleSelectionModal(false);
+            setAcceptedAccusationDetails(null);
+            setAccusationDetails(null);
+            setIsAccusationInProgress(false);
+        }
+    };
+
+    // Host player action handlers
+    const handlePlayerTap = (player: Player) => {
+        if (currentPlayer?.isHost && player.id !== currentPlayer.id) {
+            setSelectedPlayerForAction(player);
+            setShowPlayerActionModal(true);
+        }
+    };
+
+    const handleCloneAction = () => {
+        if (selectedPlayerForAction && gameState) {
+            // Find a random rule assigned to this player to clone
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            if (playerRules.length > 0) {
+                const randomRule = playerRules[Math.floor(Math.random() * playerRules.length)];
+                // Create a clone by assigning the same rule to another random player
+                const otherPlayers = gameState.players.filter(player =>
+                    player.id !== selectedPlayerForAction.id &&
+                    player.id !== randomRule.assignedTo
+                );
+
+                if (otherPlayers.length > 0) {
+                    const targetPlayer = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
+                    // Create a new rule with the same properties but a new ID
+                    const clonedRule = {
+                        ...randomRule,
+                        id: Math.random().toString(36).substr(2, 9),
+                        assignedTo: targetPlayer.id
+                    };
+                    // Add the cloned rule to the game state
+                    dispatch({ type: 'ADD_RULE', payload: clonedRule });
+                    Alert.alert('Clone Action', `${selectedPlayerForAction.name} cloned their rule "${randomRule.text}" to ${targetPlayer.name}`);
+                } else {
+                    Alert.alert('No Target Available', 'No other players available to clone the rule to.');
+                }
+            } else {
+                Alert.alert('No Rules to Clone', `${selectedPlayerForAction.name} has no assigned rules to clone.`);
+            }
+            setShowPlayerActionModal(false);
+            setSelectedPlayerForAction(null);
+        }
+    };
+
+    const handleSuccessfulPromptAction = () => {
+        if (selectedPlayerForAction && gameState) {
+            // Give points first
+            updatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points + 2);
+
+            // Check if player has rules to shred
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            if (playerRules.length > 0) {
+                // Show rule selection modal for shredding
+                setShowPlayerActionModal(false);
+                setShowShredRuleModal(true);
+            } else {
+                Alert.alert('Successful Prompt', `${selectedPlayerForAction.name} gained 2 points for a successful prompt!`);
+                setShowPlayerActionModal(false);
+                setSelectedPlayerForAction(null);
+            }
+        }
+    };
+
+    const handleSuccessfulAccusationAction = () => {
+        if (selectedPlayerForAction && gameState) {
+            // Give points first
+            updatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points + 1);
+
+            // Show target selection modal
+            setShowPlayerActionModal(false);
+            setShowAccusationTargetModal(true);
+        }
+    };
+
+    const handleFlipAction = () => {
+        if (selectedPlayerForAction && gameState) {
+            // Find a random rule assigned to this player to flip
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            if (playerRules.length > 0) {
+                const randomRule = playerRules[Math.floor(Math.random() * playerRules.length)];
+                // Flip the rule text by adding "NOT" or "DON'T" to make it opposite
+                let flippedText = randomRule.text;
+                if (flippedText.toLowerCase().includes('must') || flippedText.toLowerCase().includes('should') || flippedText.toLowerCase().includes('always')) {
+                    flippedText = flippedText.replace(/\b(must|should|always)\b/gi, 'must NOT');
+                } else if (flippedText.toLowerCase().includes('cannot') || flippedText.toLowerCase().includes('must not') || flippedText.toLowerCase().includes('never')) {
+                    flippedText = flippedText.replace(/\b(cannot|must not|never)\b/gi, 'must');
+                } else if (flippedText.toLowerCase().includes('don\'t') || flippedText.toLowerCase().includes('do not')) {
+                    flippedText = flippedText.replace(/\b(don't|do not)\b/gi, 'must');
+                } else {
+                    // Default: add "NOT" at the beginning
+                    flippedText = `NOT: ${flippedText}`;
+                }
+
+                // Update the rule text
+                const updatedRule = { ...randomRule, text: flippedText };
+                // Note: This would need a proper updateRule function in the context
+                Alert.alert('Flip Action', `Flipped rule for ${selectedPlayerForAction.name}: "${flippedText}"`);
+            } else {
+                Alert.alert('No Rules to Flip', `${selectedPlayerForAction.name} has no assigned rules to flip.`);
+            }
+            setShowPlayerActionModal(false);
+            setSelectedPlayerForAction(null);
+        }
+    };
+
+    const handleShredRule = (ruleId: string) => {
+        if (selectedPlayerForAction && gameState) {
+            const rule = gameState.rules.find(r => r.id === ruleId);
+            if (rule) {
+                // Shred the rule by setting it as inactive and unassigned
+                dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: undefined, isActive: false } });
+                Alert.alert('Rule Shredded', `Shredded rule "${rule.text}" from ${selectedPlayerForAction.name}`);
+            }
+            setShowShredRuleModal(false);
+            setSelectedPlayerForAction(null);
+        }
+    };
+
+    const handleGiveRuleAction = () => {
+        if (selectedPlayerForAction && gameState) {
+            // Check if there are unassigned rules available
+            const availableRules = gameState.rules.filter(rule => !rule.assignedTo && rule.isActive);
+            if (availableRules.length > 0) {
+                setShowPlayerActionModal(false);
+                setShowGiveRuleModal(true);
+            } else {
+                Alert.alert('No Rules Available', 'No unassigned rules available to give.');
+                setShowPlayerActionModal(false);
+                setSelectedPlayerForAction(null);
+            }
+        }
+    };
+
+    const handleGiveRule = (ruleId: string) => {
+        if (selectedPlayerForAction && gameState) {
+            const rule = gameState.rules.find(r => r.id === ruleId);
+            if (rule) {
+                // Assign the rule to the player
+                dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: selectedPlayerForAction.id } });
+                Alert.alert('Rule Given', `Gave rule "${rule.text}" to ${selectedPlayerForAction.name}`);
+            }
+            setShowGiveRuleModal(false);
+            setSelectedPlayerForAction(null);
+        }
+    };
+
+    const handleAccusationTargetSelect = (targetPlayer: Player) => {
+        setAccusationTarget(targetPlayer);
+        setShowAccusationTargetModal(false);
+        setShowAccusationRuleModal(true);
+    };
+
+    const handleAccusationRuleSelect = (ruleId: string) => {
+        if (selectedPlayerForAction && accusationTarget && gameState) {
+            const rule = gameState.rules.find(r => r.id === ruleId);
+            if (rule) {
+                // Assign the rule to the accusation target
+                dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: accusationTarget.id } });
+                Alert.alert('Accusation Complete', `${selectedPlayerForAction.name} successfully accused ${accusationTarget.name} and gave them the rule "${rule.text}"`);
+            }
+            setShowAccusationRuleModal(false);
+            setSelectedPlayerForAction(null);
+            setAccusationTarget(null);
+        }
     };
 
     // Show game over screen if game has ended
@@ -174,18 +356,16 @@ export default function GameScreen() {
         <StripedBackground>
             <SafeAreaView style={styles.container}>
                 <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Game Room</Text>
-                        <Text style={styles.gameStatus}>
-                            {currentPlayer.isHost ? 'You are the host' : 'Waiting for host to start...'}
-                        </Text>
-                    </View>
-
                     {/* Players Section */}
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Players</Text>
                         {gameState.players.map((player) => (
-                            <View key={player.id} style={styles.playerCard}>
+                            <TouchableOpacity
+                                key={player.id}
+                                style={styles.playerCard}
+                                onPress={() => handlePlayerTap(player)}
+                                activeOpacity={currentPlayer?.isHost && player.id !== currentPlayer.id ? 0.7 : 1}
+                            >
                                 <Text style={styles.playerName}>
                                     {player.name} {player.isHost ? '(Host)' : ''}
                                 </Text>
@@ -298,62 +478,11 @@ export default function GameScreen() {
                                         ))}
                                     </View>
                                 )}
-                            </View>
+                            </TouchableOpacity>
                         ))}
                     </View>
 
-                    {/* Rule Swap Section (Host Only) */}
-                    {currentPlayer.isHost && gameState.players.length >= 2 && (
-                        <View style={styles.section}>
-                            <Text style={styles.sectionTitle}>Swap Rules Between Players</Text>
-                            <Text style={styles.sectionSubtitle}>Select two players to swap their rules</Text>
 
-                            <View style={styles.swapContainer}>
-                                {gameState.players.map((player) => (
-                                    <TouchableOpacity
-                                        key={player.id}
-                                        style={[
-                                            styles.swapChip,
-                                            (selectedPlayer1?.id === player.id || selectedPlayer2?.id === player.id) && styles.selectedSwapChip
-                                        ]}
-                                        onPress={() => {
-                                            if (!selectedPlayer1) {
-                                                setSelectedPlayer1(player);
-                                            } else if (!selectedPlayer2 && selectedPlayer1.id !== player.id) {
-                                                setSelectedPlayer2(player);
-                                            } else if (selectedPlayer1?.id === player.id) {
-                                                setSelectedPlayer1(null);
-                                            } else if (selectedPlayer2?.id === player.id) {
-                                                setSelectedPlayer2(null);
-                                            }
-                                        }}
-                                    >
-                                        <Text style={[
-                                            styles.swapChipText,
-                                            (selectedPlayer1?.id === player.id || selectedPlayer2?.id === player.id) && styles.selectedSwapChipText
-                                        ]}>
-                                            {player.name}
-                                        </Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-
-                            {selectedPlayer1 && selectedPlayer2 && (
-                                <TouchableOpacity
-                                    style={styles.spinButton}
-                                    onPress={() => handleSwapRules(selectedPlayer1, selectedPlayer2)}
-                                >
-                                    <Text style={styles.spinButtonText}>
-                                        Swap Rules: {selectedPlayer1.name} ↔ {selectedPlayer2.name}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-
-                            <Text style={styles.swapHint}>
-                                Tap players to select them, then tap "Swap Rules" to exchange their rules
-                            </Text>
-                        </View>
-                    )}
 
                     {/* Spin Wheel Button */}
                     <View style={styles.section}>
@@ -536,6 +665,281 @@ export default function GameScreen() {
                                     <Text style={styles.spinButtonText}>Accept</Text>
                                 </TouchableOpacity>
                             </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Rule Selection Modal */}
+                <Modal
+                    visible={showRuleSelectionModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowRuleSelectionModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Give Rule to {acceptedAccusationDetails?.accused.name}</Text>
+                            <Text style={styles.modalRuleText}>
+                                {acceptedAccusationDetails?.accuser.name} successfully accused {acceptedAccusationDetails?.accused.name} of breaking:
+                            </Text>
+                            <Text style={[styles.modalRuleText, { fontStyle: 'italic', marginTop: 10 }]}>
+                                "{acceptedAccusationDetails?.rule.text}"
+                            </Text>
+                            <Text style={styles.modalSubtitle}>
+                                Select one of your rules to give to {acceptedAccusationDetails?.accused.name}:
+                            </Text>
+
+                            <ScrollView style={styles.modalPlayerList}>
+                                {gameState.rules
+                                    .filter(rule => rule.assignedTo === acceptedAccusationDetails?.accuser.id)
+                                    .map((rule) => (
+                                        <TouchableOpacity
+                                            key={rule.id}
+                                            style={styles.modalPlayerItem}
+                                            onPress={() => handleGiveRuleToAccused(rule.id)}
+                                        >
+                                            <Text style={styles.modalPlayerName}>{rule.text}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={styles.modalCancelButton}
+                                onPress={() => {
+                                    setShowRuleSelectionModal(false);
+                                    setAcceptedAccusationDetails(null);
+                                    setAccusationDetails(null);
+                                    setIsAccusationInProgress(false);
+                                }}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Host Player Action Modal */}
+                <Modal
+                    visible={showPlayerActionModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowPlayerActionModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Host Actions for {selectedPlayerForAction?.name}</Text>
+                            <Text style={styles.modalRuleText}>
+                                Select an action to perform on this player:
+                            </Text>
+
+                            <View style={{ gap: 12, marginTop: 20 }}>
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: '#6bb9d3' }]}
+                                    onPress={handleCloneAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Clone Rule</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: '#28a745' }]}
+                                    onPress={handleSuccessfulPromptAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Successful Prompt (+2 points)</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: '#ffc107' }]}
+                                    onPress={handleSuccessfulAccusationAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Successful Accusation (+1 point)</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: '#ed5c5d' }]}
+                                    onPress={handleFlipAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Flip Rule</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: '#9c27b0' }]}
+                                    onPress={handleGiveRuleAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Give Rule</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={styles.modalCancelButton}
+                                    onPress={() => setShowPlayerActionModal(false)}
+                                >
+                                    <Text style={styles.modalCancelText}>Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Shred Rule Modal */}
+                <Modal
+                    visible={showShredRuleModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowShredRuleModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Shred a Rule from {selectedPlayerForAction?.name}</Text>
+                            <Text style={styles.modalRuleText}>
+                                {selectedPlayerForAction?.name} gained 2 points for a successful prompt! Now select a rule to shred:
+                            </Text>
+
+                            <ScrollView style={styles.modalPlayerList}>
+                                {gameState?.rules
+                                    .filter(rule => rule.assignedTo === selectedPlayerForAction?.id)
+                                    .map((rule) => (
+                                        <TouchableOpacity
+                                            key={rule.id}
+                                            style={styles.modalPlayerItem}
+                                            onPress={() => handleShredRule(rule.id)}
+                                        >
+                                            <Text style={styles.modalPlayerName}>{rule.text}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={styles.modalCancelButton}
+                                onPress={() => {
+                                    setShowShredRuleModal(false);
+                                    setSelectedPlayerForAction(null);
+                                }}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Give Rule Modal */}
+                <Modal
+                    visible={showGiveRuleModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowGiveRuleModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Give Rule to {selectedPlayerForAction?.name}</Text>
+                            <Text style={styles.modalRuleText}>
+                                Select an unassigned rule to give to {selectedPlayerForAction?.name}:
+                            </Text>
+
+                            <ScrollView style={styles.modalPlayerList}>
+                                {gameState?.rules
+                                    .filter(rule => !rule.assignedTo && rule.isActive)
+                                    .map((rule) => (
+                                        <TouchableOpacity
+                                            key={rule.id}
+                                            style={styles.modalPlayerItem}
+                                            onPress={() => handleGiveRule(rule.id)}
+                                        >
+                                            <Text style={styles.modalPlayerName}>{rule.text}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={styles.modalCancelButton}
+                                onPress={() => {
+                                    setShowGiveRuleModal(false);
+                                    setSelectedPlayerForAction(null);
+                                }}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Accusation Target Selection Modal */}
+                <Modal
+                    visible={showAccusationTargetModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowAccusationTargetModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Who is being accused?</Text>
+                            <Text style={styles.modalRuleText}>
+                                {selectedPlayerForAction?.name} successfully accused someone. Select who they accused:
+                            </Text>
+
+                            <ScrollView style={styles.modalPlayerList}>
+                                {gameState?.players
+                                    .filter(player => player.id !== selectedPlayerForAction?.id)
+                                    .map(player => (
+                                        <TouchableOpacity
+                                            key={player.id}
+                                            style={styles.modalPlayerItem}
+                                            onPress={() => handleAccusationTargetSelect(player)}
+                                        >
+                                            <Text style={styles.modalPlayerName}>{player.name}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={styles.modalCancelButton}
+                                onPress={() => {
+                                    setShowAccusationTargetModal(false);
+                                    setSelectedPlayerForAction(null);
+                                }}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Accusation Rule Selection Modal */}
+                <Modal
+                    visible={showAccusationRuleModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowAccusationRuleModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>Select Rule to Give</Text>
+                            <Text style={styles.modalRuleText}>
+                                {selectedPlayerForAction?.name} successfully accused {accusationTarget?.name}. Select one of your rules to give to them:
+                            </Text>
+
+                            <ScrollView style={styles.modalPlayerList}>
+                                {gameState?.rules
+                                    .filter(rule => rule.assignedTo === selectedPlayerForAction?.id)
+                                    .map(rule => (
+                                        <TouchableOpacity
+                                            key={rule.id}
+                                            style={styles.modalPlayerItem}
+                                            onPress={() => handleAccusationRuleSelect(rule.id)}
+                                        >
+                                            <Text style={styles.modalPlayerName}>{rule.text}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                            </ScrollView>
+
+                            <TouchableOpacity
+                                style={styles.modalCancelButton}
+                                onPress={() => {
+                                    setShowAccusationRuleModal(false);
+                                    setSelectedPlayerForAction(null);
+                                    setAccusationTarget(null);
+                                }}
+                            >
+                                <Text style={styles.modalCancelText}>Cancel</Text>
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </Modal>
