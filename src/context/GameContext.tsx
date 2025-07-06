@@ -339,11 +339,20 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             isHost: true,
         };
 
+        // Add example player for testing
+        const examplePlayer: Player = {
+            id: Math.random().toString(36).substr(2, 9),
+            name: "Test Player",
+            points: 15,
+            rules: [],
+            isHost: false,
+        };
+
         const newGameState: GameState = {
             ...initialState,
             id: Math.random().toString(36).substr(2, 9),
             code,
-            players: [player],
+            players: [player, examplePlayer],
             currentPlayer: player.id,
             numRules,
             numPrompts,

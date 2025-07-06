@@ -766,9 +766,9 @@ const styles = StyleSheet.create({
     },
     modalCancelButton: {
         backgroundColor: '#6b7280',
-        borderRadius: 8,
-        padding: 12,
-        marginTop: 16,
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
     },
     modalCancelText: {
         color: '#ffffff',
