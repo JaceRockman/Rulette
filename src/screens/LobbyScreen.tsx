@@ -53,7 +53,7 @@ export default function LobbyScreen() {
                 <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
                     {/* Lobby Code Section */}
                     <View style={styles.section}>
-                        <OutlinedText>Lobby Code</OutlinedText>
+                        <OutlinedText style={{ textAlign: 'center' }}>Lobby Code</OutlinedText>
                         <TouchableOpacity style={shared.button} onPress={copyLobbyCode}>
                             <Text style={shared.buttonText}>{lobbyCode}</Text>
                             <Text style={styles.copyText}>Tap to copy</Text>

@@ -310,7 +310,7 @@ export default function GameScreen() {
         return (
             <StripedBackground>
                 <View style={[shared.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                    <OutlinedText style={{ fontSize: 48, marginBottom: 20, color: '#000', fontWeight: 'bold', textAlign: 'center' }}>
+                    <OutlinedText style={{ fontSize: 48, marginBottom: 20, textAlign: 'center' }}>
                         GAME OVER!
                     </OutlinedText>
 
@@ -346,7 +346,7 @@ export default function GameScreen() {
                         <Text style={{
                             fontSize: 20,
                             textAlign: 'center',
-                            color: '#666',
+                            color: '#000',
                         }}>
                             {gameState.winner.points} points
                         </Text>
