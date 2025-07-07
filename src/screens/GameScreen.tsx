@@ -684,22 +684,96 @@ export default function GameScreen() {
         <StripedBackground>
             <SafeAreaView style={styles.container}>
                 <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
-                    {/* Players Section */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionTitle}>Players</Text>
-                        {gameState.players.map((player) => (
-                            <TouchableOpacity
-                                key={player.id}
-                                style={styles.playerCard}
-                                onPress={() => handlePlayerTap(player)}
-                                activeOpacity={currentPlayer?.isHost && player.id !== currentPlayer.id ? 0.7 : 1}
-                            >
-                                <Text style={styles.playerName}>
-                                    {player.name} {player.isHost ? '(Host)' : ''}
-                                </Text>
+                    {/* Host Section */}
+                    {gameState.players.find(player => player.isHost) && (
+                        <View style={styles.section}>
+                            <OutlinedText>Host</OutlinedText>
+                            {gameState.players.filter(player => player.isHost).map((player) => (
+                                <TouchableOpacity
+                                    key={player.id}
+                                    style={styles.playerCard}
+                                    onPress={() => handlePlayerTap(player)}
+                                    activeOpacity={currentPlayer?.isHost && player.id !== currentPlayer.id ? 0.7 : 1}
+                                >
+                                    <Text style={styles.playerName}>
+                                        {player.name}
+                                    </Text>
 
-                                {/* Only show points for non-host players */}
-                                {!player.isHost && (
+                                    {/* Player's Assigned Rules */}
+                                    {(() => {
+                                        const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id);
+                                        return playerRules.length > 0 ? (
+                                            <View style={styles.playerRulesContainer}>
+                                                <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
+                                                <View style={styles.playerRulesGrid}>
+                                                    {(() => {
+                                                        const rows = [];
+                                                        for (let i = 0; i < playerRules.length; i += 2) {
+                                                            const hasSecondItem = playerRules[i + 1];
+                                                            const row = (
+                                                                <View key={i} style={{
+                                                                    flexDirection: 'row',
+                                                                    marginBottom: 12,
+                                                                    justifyContent: 'space-between',
+                                                                    width: '100%'
+                                                                }}>
+                                                                    <View style={{ width: '48%' }}>
+                                                                        <TouchableOpacity
+                                                                            onPress={() => handleRuleTap(playerRules[i], player)}
+                                                                            activeOpacity={0.8}
+                                                                        >
+                                                                            <Plaque
+                                                                                text={playerRules[i].text}
+                                                                                plaqueColor={playerRules[i].plaqueColor || '#fff'}
+                                                                                style={{ minHeight: 100 }}
+                                                                            />
+                                                                        </TouchableOpacity>
+                                                                    </View>
+                                                                    {hasSecondItem && (
+                                                                        <View style={{ width: '48%' }}>
+                                                                            <TouchableOpacity
+                                                                                onPress={() => handleRuleTap(playerRules[i + 1], player)}
+                                                                                activeOpacity={0.8}
+                                                                            >
+                                                                                <Plaque
+                                                                                    text={playerRules[i + 1].text}
+                                                                                    plaqueColor={playerRules[i + 1].plaqueColor || '#fff'}
+                                                                                    style={{ minHeight: 100 }}
+                                                                                />
+                                                                            </TouchableOpacity>
+                                                                        </View>
+                                                                    )}
+                                                                </View>
+                                                            );
+                                                            rows.push(row);
+                                                        }
+                                                        return rows;
+                                                    })()}
+                                                </View>
+                                            </View>
+                                        ) : null;
+                                    })()}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
+
+                    {/* Players Section */}
+                    {gameState.players.filter(player => !player.isHost).length > 0 && (
+                        <View style={styles.section}>
+                            <OutlinedText>Players</OutlinedText>
+                            {gameState.players.filter(player => !player.isHost).map((player) => (
+                                <TouchableOpacity
+                                    key={player.id}
+                                    style={styles.playerCard}
+                                    onPress={() => handlePlayerTap(player)}
+                                    activeOpacity={currentPlayer?.isHost && player.id !== currentPlayer.id ? 0.7 : 1}
+                                >
+                                    <Text style={styles.playerName}>
+                                        {player.name}
+                                    </Text>
+
+                                    {/* Only show points for non-host players */}
                                     <View style={styles.pointsRow}>
                                         <TouchableOpacity
                                             style={{
@@ -731,65 +805,65 @@ export default function GameScreen() {
                                             <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>+1</Text>
                                         </TouchableOpacity>
                                     </View>
-                                )}
 
-                                {/* Player's Assigned Rules */}
-                                {(() => {
-                                    const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id);
-                                    return playerRules.length > 0 ? (
-                                        <View style={styles.playerRulesContainer}>
-                                            <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
-                                            <View style={styles.playerRulesGrid}>
-                                                {(() => {
-                                                    const rows = [];
-                                                    for (let i = 0; i < playerRules.length; i += 2) {
-                                                        const hasSecondItem = playerRules[i + 1];
-                                                        const row = (
-                                                            <View key={i} style={{
-                                                                flexDirection: 'row',
-                                                                marginBottom: 12,
-                                                                justifyContent: 'space-between',
-                                                                width: '100%'
-                                                            }}>
-                                                                <View style={{ width: '48%' }}>
-                                                                    <TouchableOpacity
-                                                                        onPress={() => handleRuleTap(playerRules[i], player)}
-                                                                        activeOpacity={0.8}
-                                                                    >
-                                                                        <Plaque
-                                                                            text={playerRules[i].text}
-                                                                            plaqueColor={playerRules[i].plaqueColor || '#fff'}
-                                                                            style={{ minHeight: 100 }}
-                                                                        />
-                                                                    </TouchableOpacity>
-                                                                </View>
-                                                                {hasSecondItem && (
+                                    {/* Player's Assigned Rules */}
+                                    {(() => {
+                                        const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id);
+                                        return playerRules.length > 0 ? (
+                                            <View style={styles.playerRulesContainer}>
+                                                <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
+                                                <View style={styles.playerRulesGrid}>
+                                                    {(() => {
+                                                        const rows = [];
+                                                        for (let i = 0; i < playerRules.length; i += 2) {
+                                                            const hasSecondItem = playerRules[i + 1];
+                                                            const row = (
+                                                                <View key={i} style={{
+                                                                    flexDirection: 'row',
+                                                                    marginBottom: 12,
+                                                                    justifyContent: 'space-between',
+                                                                    width: '100%'
+                                                                }}>
                                                                     <View style={{ width: '48%' }}>
                                                                         <TouchableOpacity
-                                                                            onPress={() => handleRuleTap(playerRules[i + 1], player)}
+                                                                            onPress={() => handleRuleTap(playerRules[i], player)}
                                                                             activeOpacity={0.8}
                                                                         >
                                                                             <Plaque
-                                                                                text={playerRules[i + 1].text}
-                                                                                plaqueColor={playerRules[i + 1].plaqueColor || '#fff'}
+                                                                                text={playerRules[i].text}
+                                                                                plaqueColor={playerRules[i].plaqueColor || '#fff'}
                                                                                 style={{ minHeight: 100 }}
                                                                             />
                                                                         </TouchableOpacity>
                                                                     </View>
-                                                                )}
-                                                            </View>
-                                                        );
-                                                        rows.push(row);
-                                                    }
-                                                    return rows;
-                                                })()}
+                                                                    {hasSecondItem && (
+                                                                        <View style={{ width: '48%' }}>
+                                                                            <TouchableOpacity
+                                                                                onPress={() => handleRuleTap(playerRules[i + 1], player)}
+                                                                                activeOpacity={0.8}
+                                                                            >
+                                                                                <Plaque
+                                                                                    text={playerRules[i + 1].text}
+                                                                                    plaqueColor={playerRules[i + 1].plaqueColor || '#fff'}
+                                                                                    style={{ minHeight: 100 }}
+                                                                                />
+                                                                            </TouchableOpacity>
+                                                                        </View>
+                                                                    )}
+                                                                </View>
+                                                            );
+                                                            rows.push(row);
+                                                        }
+                                                        return rows;
+                                                    })()}
+                                                </View>
                                             </View>
-                                        </View>
-                                    ) : null;
-                                })()}
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                                        ) : null;
+                                    })()}
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
 
 
 
