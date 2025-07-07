@@ -21,7 +21,9 @@ const digitSegments = {
 };
 
 const DigitalClock: React.FC<DigitalClockProps> = ({ value, style }) => {
-    const digits = value.toString().split('').map(Number);
+    // Ensure value is within bounds (0-99)
+    const clampedValue = Math.max(0, Math.min(99, value));
+    const digits = clampedValue.toString().padStart(2, '0').split('').map(Number);
 
     const renderDigit = (digit: number, index: number) => {
         const segments = digitSegments[digit as keyof typeof digitSegments] || digitSegments[0];

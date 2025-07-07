@@ -68,7 +68,7 @@ export default function GameScreen() {
     };
 
     const handleUpdatePoints = (playerId: string, currentPoints: number, change: number) => {
-        const newPoints = Math.max(0, currentPoints + change);
+        const newPoints = Math.max(0, Math.min(99, currentPoints + change));
         updatePoints(playerId, newPoints);
     };
 
@@ -108,9 +108,9 @@ export default function GameScreen() {
     const handleAcceptAccusation = () => {
         if (accusationDetails && gameState) {
             // Give point to accuser
-            updatePoints(accusationDetails.accuser.id, accusationDetails.accuser.points + 1);
+            handleUpdatePoints(accusationDetails.accuser.id, accusationDetails.accuser.points, 1);
             // Take point from accused
-            updatePoints(accusationDetails.accused.id, accusationDetails.accused.points - 1);
+            handleUpdatePoints(accusationDetails.accused.id, accusationDetails.accused.points, -1);
 
             // Check if accuser has any rules to give
             const accuserRules = gameState.rules.filter(rule => rule.assignedTo === accusationDetails.accuser.id);
@@ -197,7 +197,7 @@ export default function GameScreen() {
     const handleSuccessfulPromptAction = () => {
         if (selectedPlayerForAction && gameState) {
             // Give points first
-            updatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points + 2);
+            handleUpdatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points, 2);
 
             // Check if player has rules to shred
             const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
@@ -216,7 +216,7 @@ export default function GameScreen() {
     const handleSuccessfulAccusationAction = () => {
         if (selectedPlayerForAction && gameState) {
             // Give points first
-            updatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points + 1);
+            handleUpdatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points, 1);
 
             // Show target selection modal
             setShowPlayerActionModal(false);
@@ -738,11 +738,11 @@ const styles = StyleSheet.create({
     pointsContainer: {
         alignItems: 'center',
         backgroundColor: '#000000',
-        borderRadius: 8,
+        borderRadius: 0,
         paddingHorizontal: 2,
         paddingVertical: 4,
-        borderWidth: 2,
-        borderColor: '#ffffff',
+        borderWidth: 6,
+        borderColor: '#ff0000',
         width: 80,
     },
     playerRulesContainer: {
