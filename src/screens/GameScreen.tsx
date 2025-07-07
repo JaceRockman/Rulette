@@ -106,16 +106,30 @@ export default function GameScreen() {
     };
 
     const handleAcceptAccusation = () => {
-        if (accusationDetails) {
+        if (accusationDetails && gameState) {
             // Give point to accuser
             updatePoints(accusationDetails.accuser.id, accusationDetails.accuser.points + 1);
             // Take point from accused
             updatePoints(accusationDetails.accused.id, accusationDetails.accused.points - 1);
 
-            // Store the accepted accusation details and show rule selection modal
-            setAcceptedAccusationDetails(accusationDetails);
-            setShowAccusationPopup(false);
-            setShowRuleSelectionModal(true);
+            // Check if accuser has any rules to give
+            const accuserRules = gameState.rules.filter(rule => rule.assignedTo === accusationDetails.accuser.id);
+
+            if (accuserRules.length > 0) {
+                // Store the accepted accusation details and show rule selection modal
+                setAcceptedAccusationDetails(accusationDetails);
+                setShowAccusationPopup(false);
+                setShowRuleSelectionModal(true);
+            } else {
+                // Accuser has no rules to give, complete accusation without rule reassignment
+                Alert.alert(
+                    'Accusation Accepted',
+                    `${accusationDetails.accuser.name} successfully accused ${accusationDetails.accused.name} of breaking the rule: "${accusationDetails.rule.text}"\n\n${accusationDetails.accuser.name} has no rules to give.`
+                );
+                setShowAccusationPopup(false);
+                setAccusationDetails(null);
+                setIsAccusationInProgress(false);
+            }
         }
     };
 
