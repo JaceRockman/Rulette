@@ -8,6 +8,7 @@ import {
     Alert,
     SafeAreaView,
     Modal,
+    TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -23,7 +24,8 @@ import Plaque from '../components/Plaque';
 import {
     RuleAccusationPopup,
     AccusationJudgementModal,
-    HostPlayerActionModal
+    HostPlayerActionModal,
+    FlipTextInputModal
 } from '../components/Modals';
 import RuleSelectionModal from '../components/Modals/RuleSelectionModal';
 import PlayerSelectionModal from '../components/Modals/PlayerSelectionModal';
@@ -57,6 +59,8 @@ export default function GameScreen() {
     const [showCloneRuleModal, setShowCloneRuleModal] = useState(false);
     const [showCloneTargetModal, setShowCloneTargetModal] = useState(false);
     const [cloneSelectedRule, setCloneSelectedRule] = useState<Rule | null>(null);
+    const [showFlipRuleModal, setShowFlipRuleModal] = useState(false);
+    const [flipSelectedRule, setFlipSelectedRule] = useState<Rule | null>(null);
 
     // Restore original current player when returning from wheel
     React.useEffect(() => {
@@ -255,33 +259,46 @@ export default function GameScreen() {
 
     const handleFlipAction = () => {
         if (selectedPlayerForAction && gameState) {
-            // Find a random rule assigned to this player to flip
+            // Check if player has rules to flip
             const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
             if (playerRules.length > 0) {
-                const randomRule = playerRules[Math.floor(Math.random() * playerRules.length)];
-                // Flip the rule text by adding "NOT" or "DON'T" to make it opposite
-                let flippedText = randomRule.text;
-                if (flippedText.toLowerCase().includes('must') || flippedText.toLowerCase().includes('should') || flippedText.toLowerCase().includes('always')) {
-                    flippedText = flippedText.replace(/\b(must|should|always)\b/gi, 'must NOT');
-                } else if (flippedText.toLowerCase().includes('cannot') || flippedText.toLowerCase().includes('must not') || flippedText.toLowerCase().includes('never')) {
-                    flippedText = flippedText.replace(/\b(cannot|must not|never)\b/gi, 'must');
-                } else if (flippedText.toLowerCase().includes('don\'t') || flippedText.toLowerCase().includes('do not')) {
-                    flippedText = flippedText.replace(/\b(don't|do not)\b/gi, 'must');
-                } else {
-                    // Default: add "NOT" at the beginning
-                    flippedText = `NOT: ${flippedText}`;
-                }
-
-                // Update the rule text
-                const updatedRule = { ...randomRule, text: flippedText };
-                // Note: This would need a proper updateRule function in the context
-                Alert.alert('Flip Action', `Flipped rule for ${selectedPlayerForAction.name}: "${flippedText}"`);
+                setShowPlayerActionModal(false);
+                setShowFlipRuleModal(true);
             } else {
                 Alert.alert('No Rules to Flip', `${selectedPlayerForAction.name} has no assigned rules to flip.`);
+                setShowPlayerActionModal(false);
+                setSelectedPlayerForAction(null);
             }
-            setShowPlayerActionModal(false);
-            setSelectedPlayerForAction(null);
         }
+    };
+
+    const handleFlipRuleSelect = (ruleId: string) => {
+        if (!selectedPlayerForAction || !gameState) return;
+
+        const rule = gameState.rules.find(r => r.id === ruleId);
+        if (!rule) return;
+
+        setFlipSelectedRule(rule);
+        setShowFlipRuleModal(false);
+    };
+
+    const handleFlipTextSubmit = (flippedText: string) => {
+        if (!flipSelectedRule || !selectedPlayerForAction) {
+            Alert.alert('Error', 'No rule selected for flipping.');
+            return;
+        }
+
+        // Update the rule text with the flipped version
+        dispatch({
+            type: 'UPDATE_RULE',
+            payload: { ...flipSelectedRule, text: flippedText }
+        });
+
+        Alert.alert('Flip Complete', `Flipped rule for ${selectedPlayerForAction.name}: "${flippedText}"`);
+
+        // Reset all flip state
+        setFlipSelectedRule(null);
+        setSelectedPlayerForAction(null);
     };
 
     const handleShredRule = (ruleId: string) => {
@@ -911,12 +928,33 @@ export default function GameScreen() {
                 />
 
                 {/* Flip Rule Modal */}
+                <RuleSelectionModal
+                    visible={showFlipRuleModal}
+                    title={`Select ${selectedPlayerForAction?.name}'s Rule to Flip`}
+                    description={`Choose one of ${selectedPlayerForAction?.name}'s rules to flip/negate:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id && rule.isActive) || []}
+                    onSelectRule={handleFlipRuleSelect}
+                    onClose={() => {
+                        setShowFlipRuleModal(false);
+                        setFlipSelectedRule(null);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
+
+                {/* Flip Text Input Modal */}
+                <FlipTextInputModal
+                    visible={flipSelectedRule !== null}
+                    selectedRule={flipSelectedRule}
+                    onFlipRule={handleFlipTextSubmit}
+                    onClose={() => {
+                        setFlipSelectedRule(null);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
 
                 {/* Up Rule Modal */}
 
                 {/* Down Rule Modal */}
-
-                {/* Swap Rule Modal */}
 
                 {/* Swapper Rule Selection Modal */}
                 <RuleSelectionModal
