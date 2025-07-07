@@ -121,11 +121,8 @@ export default function GameScreen() {
                 setShowAccusationPopup(false);
                 setShowRuleSelectionModal(true);
             } else {
-                // Accuser has no rules to give, complete accusation without rule reassignment
-                Alert.alert(
-                    'Accusation Accepted',
-                    `${accusationDetails.accuser.name} successfully accused ${accusationDetails.accused.name} of breaking the rule: "${accusationDetails.rule.text}"\n\n${accusationDetails.accuser.name} has no rules to give.`
-                );
+                // Use shared logic for completing accusation without rules
+                completeAccusationWithoutRules(accusationDetails.accuser, accusationDetails.accused, accusationDetails.rule.text);
                 setShowAccusationPopup(false);
                 setAccusationDetails(null);
                 setIsAccusationInProgress(false);
@@ -299,7 +296,35 @@ export default function GameScreen() {
     const handleAccusationTargetSelect = (targetPlayer: Player) => {
         setAccusationTarget(targetPlayer);
         setShowAccusationTargetModal(false);
-        setShowAccusationRuleModal(true);
+
+        // Check if the accusing player has any rules to give
+        if (selectedPlayerForAction && gameState) {
+            const accuserRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+
+            if (accuserRules.length > 0) {
+                // Show rule selection modal
+                setShowAccusationRuleModal(true);
+            } else {
+                // Use shared logic for completing accusation without rules
+                completeAccusationWithoutRules(selectedPlayerForAction, targetPlayer);
+                setSelectedPlayerForAction(null);
+                setAccusationTarget(null);
+            }
+        }
+    };
+
+    // Shared function to handle accusation completion when accuser has no rules
+    const completeAccusationWithoutRules = (accuser: Player, accused: Player, ruleText?: string) => {
+        // Give point to accuser
+        handleUpdatePoints(accuser.id, accuser.points, 1);
+        // Take point from accused
+        handleUpdatePoints(accused.id, accused.points, -1);
+
+        const ruleContext = ruleText ? ` of breaking the rule: "${ruleText}"` : '';
+        Alert.alert(
+            'Accusation Complete',
+            `${accuser.name} successfully accused ${accused.name}${ruleContext}!\n\n${accuser.name} has no rules to give.`
+        );
     };
 
     const handleAccusationRuleSelect = (ruleId: string) => {
