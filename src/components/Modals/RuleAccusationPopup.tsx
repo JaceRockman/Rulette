@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { TouchableOpacity, View, Text, StyleSheet, SafeAreaView, Modal } from 'react-native';
 import { Rule, Player } from '../../types/game';
 
 interface RuleAccusationPopupProps {
@@ -29,24 +29,22 @@ export default function RuleAccusationPopup({
     const textColor = getTextColor(plaqueColor);
 
     return (
-        <SafeAreaView style={styles.overlay}>
-            <TouchableOpacity
-                style={styles.overlayTouchable}
-                activeOpacity={1}
-                onPress={onClose}
-            >
-                <TouchableOpacity
-                    style={[
-                        styles.modalContent,
-                        {
-                            backgroundColor: plaqueColor,
-                            borderWidth: 2,
-                            borderColor: '#000000',
-                        }
-                    ]}
-                    activeOpacity={1}
-                    onPress={(e) => e.stopPropagation()}
-                >
+        <Modal
+            visible={visible}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={onClose}
+            statusBarTranslucent={true}
+        >
+            <SafeAreaView style={styles.modalOverlay}>
+                <View style={[
+                    styles.modalContent,
+                    {
+                        backgroundColor: plaqueColor,
+                        borderWidth: 2,
+                        borderColor: '#000000',
+                    }
+                ]}>
                     <Text style={[styles.modalTitle, { color: textColor }]}>
                         Rule Details
                     </Text>
@@ -73,20 +71,14 @@ export default function RuleAccusationPopup({
                             <Text style={styles.accuseButtonText}>Accuse!</Text>
                         </TouchableOpacity>
                     )}
-                </TouchableOpacity>
-            </TouchableOpacity>
-        </SafeAreaView>
+                </View>
+            </SafeAreaView>
+        </Modal>
     );
 }
 
 const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    overlayTouchable: {
+    modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
@@ -115,6 +107,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
         marginBottom: 8,
+        textAlign: 'center',
     },
     accuseButton: {
         backgroundColor: '#cba84b',
