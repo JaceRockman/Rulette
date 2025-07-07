@@ -15,6 +15,7 @@ import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import { Player, Rule } from '../types/game';
 import StripedBackground from '../components/StripedBackground';
+import { colors } from '../styles/shared';
 import shared from '../styles/shared';
 import OutlinedText from '../components/OutlinedText';
 import DigitalClock from '../components/DigitalClock';
@@ -754,54 +755,54 @@ export default function GameScreen() {
                         <View style={styles.modalContent}>
                             <Text style={styles.modalTitle}>Host Actions for {selectedPlayerForAction?.name}</Text>
                             <Text style={styles.modalRuleText}>
-                                Select an action to perform on this player:
+                                Select an action for this player to perform:
                             </Text>
 
                             <View style={{ gap: 12, marginTop: 20 }}>
                                 <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: '#6bb9d3' }]}
-                                    onPress={handleCloneAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Clone Rule</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: '#28a745' }]}
-                                    onPress={handleSuccessfulPromptAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Successful Prompt (+2 points)</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: '#ffc107' }]}
-                                    onPress={handleSuccessfulAccusationAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Successful Accusation (+1 point)</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: '#ed5c5d' }]}
-                                    onPress={handleFlipAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Flip Rule</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: '#9c27b0' }]}
-                                    onPress={handleGiveRuleAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Give Rule</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: '#ff9800' }]}
+                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerRed }]}
                                     onPress={handleSpinWheelForPlayer}
                                 >
                                     <Text style={styles.spinButtonText}>Spin Wheel</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
-                                    style={styles.modalCancelButton}
+                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerOrange }]}
+                                    onPress={handleGiveRuleAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Give Rule</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerBlue }]}
+                                    onPress={handleSuccessfulPromptAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Successful Prompt (+2 points)</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerMaroon }]}
+                                    onPress={handleSuccessfulAccusationAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Successful Accusation (+1 point)</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerBlue }]}
+                                    onPress={handleCloneAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Clone Rule</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerOrange }]}
+                                    onPress={handleFlipAction}
+                                >
+                                    <Text style={styles.spinButtonText}>Flip Rule</Text>
+                                </TouchableOpacity>
+
+                                <TouchableOpacity
+                                    style={[styles.modalCancelButton, { backgroundColor: colors.gameChangerRed }]}
                                     onPress={() => setShowPlayerActionModal(false)}
                                 >
                                     <Text style={styles.modalCancelText}>Cancel</Text>

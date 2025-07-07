@@ -1,12 +1,51 @@
 import { StyleSheet } from 'react-native';
 
+// Color palette for the entire system
+export const colors = {
+    // Primary brand colors
+    gameChangerRed: '#ed5c5d',
+    gameChangerYellow: '#f6d170',
+    gameChangerOrange: '#f3a962',
+    gameChangerBlue: '#6bb9d3',
+    gameChangerMaroon: '#b6475e',
+    gameChangerWhite: '#fff',
+
+    // Neutral colors
+    black: '#000',
+    gray: {
+        light: '#f3f4f6',
+        medium: '#9ca3af',
+        dark: '#374151',
+    },
+
+    // Background colors
+    background: {
+        primary: '#fff',
+        secondary: 'rgba(255, 255, 255, 0.9)',
+        overlay: 'rgba(0, 0, 0, 0.5)',
+    },
+
+    // Text colors
+    text: {
+        primary: '#000',
+        secondary: '#374151',
+        light: '#fff',
+    },
+
+    // Border colors
+    border: {
+        primary: '#000',
+        secondary: '#d1d5db',
+    },
+} as const;
+
 const shared = StyleSheet.create({
     container: {
         flex: 1,
     },
     button: {
-        backgroundColor: '#fff',
-        borderColor: '#000',
+        backgroundColor: colors.gameChangerWhite,
+        borderColor: colors.border.primary,
         borderWidth: 3,
         borderRadius: 12,
         padding: 16,
@@ -14,18 +53,18 @@ const shared = StyleSheet.create({
         marginBottom: 16,
     },
     buttonText: {
-        color: '#000',
+        color: colors.text.primary,
         fontSize: 16,
         fontWeight: 'bold',
     },
     input: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        backgroundColor: colors.background.secondary,
         borderRadius: 12,
         padding: 16,
         fontSize: 16,
-        color: '#1f2937',
+        color: colors.text.secondary,
         textAlign: 'center',
-        borderColor: '#000',
+        borderColor: colors.border.primary,
         borderWidth: 2,
         marginBottom: 12,
     },
@@ -37,7 +76,7 @@ const shared = StyleSheet.create({
     sectionTitle: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#000',
+        color: colors.text.primary,
         marginBottom: 15,
         textAlign: 'center',
     },
@@ -49,10 +88,10 @@ const shared = StyleSheet.create({
     dividerLine: {
         flex: 1,
         height: 2,
-        backgroundColor: '#000',
+        backgroundColor: colors.border.primary,
     },
     dividerText: {
-        color: '#000',
+        color: colors.text.primary,
         marginHorizontal: 16,
         fontSize: 14,
         fontWeight: 'bold',
