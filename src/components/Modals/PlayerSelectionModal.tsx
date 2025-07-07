@@ -1,5 +1,5 @@
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useEffect } from 'react';
+import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { Player } from '../../types/game';
 
 interface PlayerSelectionModalProps {
@@ -21,6 +21,22 @@ export default function PlayerSelectionModal({
     onClose,
     cancelButtonText = 'Cancel'
 }: PlayerSelectionModalProps) {
+    // Error handler for empty content
+    useEffect(() => {
+        if (visible && (!players || players.length === 0)) {
+            Alert.alert(
+                'No Players Available',
+                'There are no players available for selection. This might be due to a game state error.',
+                [
+                    {
+                        text: 'OK',
+                        onPress: onClose
+                    }
+                ]
+            );
+        }
+    }, [visible, players, onClose]);
+
     return (
         <Modal
             visible={visible}

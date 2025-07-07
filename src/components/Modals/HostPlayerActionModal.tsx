@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 20,
         width: '80%',
-        maxHeight: '70%',
+        maxHeight: '85%',
     },
     modalTitle: {
         fontSize: 18,

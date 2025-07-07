@@ -66,6 +66,8 @@ export default function GameScreen() {
     const [upDownCurrentPlayerIndex, setUpDownCurrentPlayerIndex] = useState(0);
     const [upDownAction, setUpDownAction] = useState<'up' | 'down' | null>(null);
     const [transferredRuleIds, setTransferredRuleIds] = useState<string[]>([]);
+    const [upDownPlayerOrder, setUpDownPlayerOrder] = useState<Player[]>([]);
+
 
     // Restore original current player when returning from wheel
     React.useEffect(() => {
@@ -385,6 +387,11 @@ export default function GameScreen() {
         if (selectedPlayerForAction && accusationTarget && gameState) {
             const rule = gameState.rules.find(r => r.id === ruleId);
             if (rule) {
+                // Give point to accuser
+                handleUpdatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points, 1);
+                // Take point from accused
+                handleUpdatePoints(accusationTarget.id, accusationTarget.points, -1);
+
                 // Assign the rule to the accusation target
                 dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: accusationTarget.id } });
                 Alert.alert('Accusation Complete', `${selectedPlayerForAction.name} successfully accused ${accusationTarget.name} and gave them the rule "${rule.text}"`);
@@ -428,6 +435,7 @@ export default function GameScreen() {
         setUpDownAction('up');
         setUpDownCurrentPlayerIndex(0);
         setTransferredRuleIds([]);
+        setUpDownPlayerOrder(playersWithRules);
         setShowPlayerActionModal(false);
         setShowUpRuleModal(true);
     };
@@ -457,79 +465,71 @@ export default function GameScreen() {
         setUpDownAction('down');
         setUpDownCurrentPlayerIndex(0);
         setTransferredRuleIds([]);
+        setUpDownPlayerOrder(playersWithRules);
         setShowPlayerActionModal(false);
         setShowDownRuleModal(true);
+    };
+
+    // Helper to get players with rules left to pass
+    const getRuleAssignedPlayers = () => {
+        if (!gameState?.players) return [];
+        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+        return nonHostPlayers.filter(player =>
+            gameState.rules.some(rule =>
+                rule.assignedTo === player.id &&
+                rule.isActive &&
+                !transferredRuleIds.includes(rule.id)
+            )
+        );
     };
 
     // Handle rule selection for Up/Down actions
     const handleUpDownRuleSelect = (ruleId: string) => {
         if (!gameState?.players || upDownAction === null) return;
-
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
-
+        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
         if (!currentPlayer) return;
-
         const rule = gameState.rules.find(r => r.id === ruleId);
         if (!rule) return;
-
         // Find the target player (above or below)
         const playerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
         let targetPlayerIndex: number;
-
         if (upDownAction === 'up') {
-            // Find the player above (previous in array, excluding host)
             targetPlayerIndex = playerIndex - 1;
             while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
                 targetPlayerIndex--;
             }
-
             if (targetPlayerIndex < 0) {
-                // Wrap around to the end, excluding host
                 targetPlayerIndex = gameState.players.length - 1;
                 while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
                     targetPlayerIndex--;
                 }
             }
         } else {
-            // Find the player below (next in array, excluding host)
             targetPlayerIndex = playerIndex + 1;
             while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
                 targetPlayerIndex++;
             }
-
             if (targetPlayerIndex >= gameState.players.length) {
-                // Wrap around to the beginning, excluding host
                 targetPlayerIndex = 0;
                 while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
                     targetPlayerIndex++;
                 }
             }
         }
-
         if (targetPlayerIndex < 0 || targetPlayerIndex >= gameState.players.length) return;
-
         const targetPlayer = gameState.players[targetPlayerIndex];
-
-        // Assign the rule to the target player
         dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: targetPlayer.id } });
-
-        // Track this rule as transferred so it can't be passed again
         setTransferredRuleIds(prev => [...prev, ruleId]);
-
-        // Move to next player or complete
-        const nextPlayerIndex = upDownCurrentPlayerIndex + 1;
-
-        if (nextPlayerIndex < nonHostPlayers.length) {
-            // Move to next player
+        let nextPlayerIndex = upDownCurrentPlayerIndex + 1;
+        if (nextPlayerIndex < upDownPlayerOrder.length) {
             setUpDownCurrentPlayerIndex(nextPlayerIndex);
         } else {
-            // Complete the action
             const actionName = upDownAction === 'up' ? 'Up' : 'Down';
             Alert.alert(`${actionName} Action Complete`, `All players have passed their rules ${upDownAction}.`);
             setUpDownAction(null);
             setUpDownCurrentPlayerIndex(0);
             setTransferredRuleIds([]);
+            setUpDownPlayerOrder([]);
             setShowUpRuleModal(false);
             setShowDownRuleModal(false);
         }
@@ -983,11 +983,8 @@ export default function GameScreen() {
                 <RuleSelectionModal
                     visible={showUpRuleModal}
                     title={`Which rule would you like to send to ${(() => {
-                        if (!gameState?.players || upDownAction !== 'up') return '';
-                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
                         if (!currentPlayer) return '';
-
                         const playerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
                         let targetPlayerIndex = playerIndex - 1;
                         while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
@@ -1002,15 +999,11 @@ export default function GameScreen() {
                         return gameState.players[targetPlayerIndex]?.name || '';
                     })()}?`}
                     description={`${(() => {
-                        if (!gameState?.players || upDownAction !== 'up') return '';
-                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
                         return currentPlayer?.name || '';
                     })()}'s rules:`}
                     rules={(() => {
-                        if (!gameState?.players || upDownAction !== 'up') return [];
-                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
                         if (!currentPlayer) return [];
                         return gameState.rules.filter(rule =>
                             rule.assignedTo === currentPlayer.id &&
@@ -1024,6 +1017,7 @@ export default function GameScreen() {
                         setUpDownAction(null);
                         setUpDownCurrentPlayerIndex(0);
                         setTransferredRuleIds([]);
+                        setUpDownPlayerOrder([]);
                     }}
                 />
 
@@ -1031,11 +1025,8 @@ export default function GameScreen() {
                 <RuleSelectionModal
                     visible={showDownRuleModal}
                     title={`Which rule would you like to send to ${(() => {
-                        if (!gameState?.players || upDownAction !== 'down') return '';
-                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
                         if (!currentPlayer) return '';
-
                         const playerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
                         let targetPlayerIndex = playerIndex + 1;
                         while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
@@ -1050,15 +1041,11 @@ export default function GameScreen() {
                         return gameState.players[targetPlayerIndex]?.name || '';
                     })()}?`}
                     description={`${(() => {
-                        if (!gameState?.players || upDownAction !== 'down') return '';
-                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
                         return currentPlayer?.name || '';
                     })()}'s rules:`}
                     rules={(() => {
-                        if (!gameState?.players || upDownAction !== 'down') return [];
-                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
                         if (!currentPlayer) return [];
                         return gameState.rules.filter(rule =>
                             rule.assignedTo === currentPlayer.id &&
@@ -1072,6 +1059,7 @@ export default function GameScreen() {
                         setUpDownAction(null);
                         setUpDownCurrentPlayerIndex(0);
                         setTransferredRuleIds([]);
+                        setUpDownPlayerOrder([]);
                     }}
                 />
 

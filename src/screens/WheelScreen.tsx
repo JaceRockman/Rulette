@@ -787,47 +787,145 @@ export default function WheelScreen() {
                                             </TouchableOpacity>
                                         );
                                     } else if (currentLayer.content === 'Up') {
-                                        return (
-                                            <TouchableOpacity
-                                                style={{
-                                                    backgroundColor: '#17a2b8',
-                                                    paddingHorizontal: 30,
-                                                    paddingVertical: 15,
-                                                    borderRadius: 10,
-                                                    marginTop: 30,
-                                                    alignSelf: 'center',
-                                                }}
-                                                onPress={() => {
-                                                    // Handle Up modifier - pass rule to player above
-                                                    handleUpModifier();
-                                                }}
-                                            >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
-                                                    PASS RULE UP
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
+                                        // Check if current player has rules to pass
+                                        const currentPlayer = gameState?.players.find(p => p.id === gameState?.currentPlayer);
+                                        const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === currentPlayer?.id && rule.isActive);
+
+                                        if (currentPlayerRules && currentPlayerRules.length > 0) {
+                                            return (
+                                                <TouchableOpacity
+                                                    style={{
+                                                        backgroundColor: '#17a2b8',
+                                                        paddingHorizontal: 30,
+                                                        paddingVertical: 15,
+                                                        borderRadius: 10,
+                                                        marginTop: 30,
+                                                        alignSelf: 'center',
+                                                    }}
+                                                    onPress={() => {
+                                                        // Handle Up modifier - pass rule to player above
+                                                        handleUpModifier();
+                                                    }}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                        PASS RULE UP
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        } else {
+                                            // Player has no rules, show a message and close
+                                            return (
+                                                <TouchableOpacity
+                                                    style={{
+                                                        backgroundColor: '#6b7280',
+                                                        paddingHorizontal: 30,
+                                                        paddingVertical: 15,
+                                                        borderRadius: 10,
+                                                        marginTop: 30,
+                                                        alignSelf: 'center',
+                                                    }}
+                                                    onPress={() => {
+                                                        alert('You have no rules to pass up.');
+                                                        // Close the wheel popup and navigate back
+                                                        Animated.parallel([
+                                                            Animated.timing(popupScale, {
+                                                                toValue: 0,
+                                                                duration: 400,
+                                                                useNativeDriver: true,
+                                                            }),
+                                                            Animated.timing(popupOpacity, {
+                                                                toValue: 0,
+                                                                duration: 300,
+                                                                useNativeDriver: true,
+                                                            })
+                                                        ]).start(() => {
+                                                            const selectedSegment = segments[selectedIndex];
+                                                            if (selectedSegment) {
+                                                                removeWheelLayer(selectedSegment.id);
+                                                            }
+                                                            setShowExpandedPlaque(false);
+                                                            popupScale.setValue(0);
+                                                            popupOpacity.setValue(0);
+                                                            navigation.goBack();
+                                                        });
+                                                    }}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                        NO RULES TO PASS UP
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        }
                                     } else if (currentLayer.content === 'Down') {
-                                        return (
-                                            <TouchableOpacity
-                                                style={{
-                                                    backgroundColor: '#6f42c1',
-                                                    paddingHorizontal: 30,
-                                                    paddingVertical: 15,
-                                                    borderRadius: 10,
-                                                    marginTop: 30,
-                                                    alignSelf: 'center',
-                                                }}
-                                                onPress={() => {
-                                                    // Handle Down modifier - pass rule to player below
-                                                    handleDownModifier();
-                                                }}
-                                            >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
-                                                    PASS RULE DOWN
-                                                </Text>
-                                            </TouchableOpacity>
-                                        );
+                                        // Check if current player has rules to pass
+                                        const currentPlayer = gameState?.players.find(p => p.id === gameState?.currentPlayer);
+                                        const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === currentPlayer?.id && rule.isActive);
+
+                                        if (currentPlayerRules && currentPlayerRules.length > 0) {
+                                            return (
+                                                <TouchableOpacity
+                                                    style={{
+                                                        backgroundColor: '#6f42c1',
+                                                        paddingHorizontal: 30,
+                                                        paddingVertical: 15,
+                                                        borderRadius: 10,
+                                                        marginTop: 30,
+                                                        alignSelf: 'center',
+                                                    }}
+                                                    onPress={() => {
+                                                        // Handle Down modifier - pass rule to player below
+                                                        handleDownModifier();
+                                                    }}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                        PASS RULE DOWN
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        } else {
+                                            // Player has no rules, show a message and close
+                                            return (
+                                                <TouchableOpacity
+                                                    style={{
+                                                        backgroundColor: '#6b7280',
+                                                        paddingHorizontal: 30,
+                                                        paddingVertical: 15,
+                                                        borderRadius: 10,
+                                                        marginTop: 30,
+                                                        alignSelf: 'center',
+                                                    }}
+                                                    onPress={() => {
+                                                        alert('You have no rules to pass down.');
+                                                        // Close the wheel popup and navigate back
+                                                        Animated.parallel([
+                                                            Animated.timing(popupScale, {
+                                                                toValue: 0,
+                                                                duration: 400,
+                                                                useNativeDriver: true,
+                                                            }),
+                                                            Animated.timing(popupOpacity, {
+                                                                toValue: 0,
+                                                                duration: 300,
+                                                                useNativeDriver: true,
+                                                            })
+                                                        ]).start(() => {
+                                                            const selectedSegment = segments[selectedIndex];
+                                                            if (selectedSegment) {
+                                                                removeWheelLayer(selectedSegment.id);
+                                                            }
+                                                            setShowExpandedPlaque(false);
+                                                            popupScale.setValue(0);
+                                                            popupOpacity.setValue(0);
+                                                            navigation.goBack();
+                                                        });
+                                                    }}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                        NO RULES TO PASS DOWN
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        }
                                     } else if (currentLayer.content === 'Swap') {
                                         return (
                                             <TouchableOpacity

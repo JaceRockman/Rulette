@@ -1,5 +1,5 @@
-import React from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import React, { useEffect } from 'react';
+import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { Rule, Player } from '../../types/game';
 
 interface RuleSelectionModalProps {
@@ -21,6 +21,22 @@ export default function RuleSelectionModal({
     onClose,
     cancelButtonText = 'Cancel'
 }: RuleSelectionModalProps) {
+    // Error handler for empty content
+    useEffect(() => {
+        if (visible && (!rules || rules.length === 0)) {
+            Alert.alert(
+                'No Rules Available',
+                'There are no rules available for selection. This might be due to a game state error.',
+                [
+                    {
+                        text: 'OK',
+                        onPress: onClose
+                    }
+                ]
+            );
+        }
+    }, [visible, rules, onClose]);
+
     return (
         <Modal
             visible={visible}
