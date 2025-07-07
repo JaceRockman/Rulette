@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, View, Text, StyleSheet, SafeAreaView } from 'react-native';
 import { Rule, Player } from '../../types/game';
 
 interface RuleAccusationPopupProps {
@@ -29,66 +29,68 @@ export default function RuleAccusationPopup({
     const textColor = getTextColor(plaqueColor);
 
     return (
-        <TouchableOpacity
-            style={styles.overlay}
-            activeOpacity={1}
-            onPress={onClose}
-        >
+        <SafeAreaView style={styles.overlay}>
             <TouchableOpacity
-                style={[
-                    styles.modalContent,
-                    {
-                        backgroundColor: plaqueColor,
-                        borderWidth: 2,
-                        borderColor: '#000000',
-                    }
-                ]}
+                style={styles.overlayTouchable}
                 activeOpacity={1}
-                onPress={(e) => e.stopPropagation()}
+                onPress={onClose}
             >
-                <Text style={[styles.modalTitle, { color: textColor }]}>
-                    Rule Details
-                </Text>
-                <Text style={[styles.modalRuleText, { color: textColor }]}>
-                    {selectedRuleForAccusation?.rule.text}
-                </Text>
-                {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
-                    <Text style={[styles.modalSubtitle, { color: textColor }]}>
-                        Accusing {selectedRuleForAccusation?.accusedPlayer.name} of breaking this rule
+                <TouchableOpacity
+                    style={[
+                        styles.modalContent,
+                        {
+                            backgroundColor: plaqueColor,
+                            borderWidth: 2,
+                            borderColor: '#000000',
+                        }
+                    ]}
+                    activeOpacity={1}
+                    onPress={(e) => e.stopPropagation()}
+                >
+                    <Text style={[styles.modalTitle, { color: textColor }]}>
+                        Rule Details
                     </Text>
-                )}
+                    <Text style={[styles.modalRuleText, { color: textColor }]}>
+                        {selectedRuleForAccusation?.rule.text}
+                    </Text>
+                    {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
+                        <Text style={[styles.modalSubtitle, { color: textColor }]}>
+                            Accusing {selectedRuleForAccusation?.accusedPlayer.name} of breaking this rule
+                        </Text>
+                    )}
 
-                {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
-                    <TouchableOpacity
-                        style={[
-                            styles.accuseButton,
-                            {
-                                opacity: isAccusationInProgress ? 0.5 : 1
-                            }
-                        ]}
-                        onPress={onAccuse}
-                        disabled={isAccusationInProgress}
-                    >
-                        <Text style={styles.accuseButtonText}>Accuse!</Text>
-                    </TouchableOpacity>
-                )}
+                    {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
+                        <TouchableOpacity
+                            style={[
+                                styles.accuseButton,
+                                {
+                                    opacity: isAccusationInProgress ? 0.5 : 1
+                                }
+                            ]}
+                            onPress={onAccuse}
+                            disabled={isAccusationInProgress}
+                        >
+                            <Text style={styles.accuseButtonText}>Accuse!</Text>
+                        </TouchableOpacity>
+                    )}
+                </TouchableOpacity>
             </TouchableOpacity>
-        </TouchableOpacity>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     overlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 9999,
-        elevation: 9999,
+    },
+    overlayTouchable: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     modalContent: {
         backgroundColor: '#ffffff',

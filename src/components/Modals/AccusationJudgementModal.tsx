@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { Rule, Player } from '../../types/game';
 
 interface AccusationJudgementModalProps {
@@ -21,8 +21,9 @@ export default function AccusationJudgementModal({
             transparent={true}
             animationType="fade"
             onRequestClose={onDecline}
+            statusBarTranslucent={true}
         >
-            <View style={styles.modalOverlay}>
+            <SafeAreaView style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Rule Violation Accusation</Text>
                     <Text style={styles.modalRuleText}>
@@ -47,23 +48,17 @@ export default function AccusationJudgementModal({
                         </TouchableOpacity>
                     </View>
                 </View>
-            </View>
+            </SafeAreaView>
         </Modal>
     );
 }
 
 const styles = StyleSheet.create({
     modalOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 9999,
-        elevation: 9999,
     },
     modalContent: {
         backgroundColor: '#ffffff',

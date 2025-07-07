@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { Rule, Player } from '../../types/game';
 
 interface RuleSelectionModalProps {
@@ -27,8 +27,9 @@ export default function RuleSelectionModal({
             transparent={true}
             animationType="fade"
             onRequestClose={onClose}
+            statusBarTranslucent={true}
         >
-            <View style={styles.modalOverlay}>
+            <SafeAreaView style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>{title}</Text>
                     <Text style={styles.modalRuleText}>{description}</Text>
@@ -52,23 +53,17 @@ export default function RuleSelectionModal({
                         <Text style={styles.modalCancelText}>{cancelButtonText}</Text>
                     </TouchableOpacity>
                 </View>
-            </View>
+            </SafeAreaView>
         </Modal>
     );
 }
 
 const styles = StyleSheet.create({
     modalOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 9999,
-        elevation: 9999,
+        alignItems: 'center'
     },
     modalContent: {
         backgroundColor: '#ffffff',

@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     Modal,
     TextInput,
+    SafeAreaView,
 } from 'react-native';
 import { Rule } from '../../types/game';
 
@@ -43,8 +44,9 @@ export default function FlipTextInputModal({
             transparent={true}
             animationType="slide"
             onRequestClose={handleClose}
+            statusBarTranslucent={true}
         >
-            <View style={styles.modalOverlay}>
+            <SafeAreaView style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Flip Rule: "{selectedRule?.text}"</Text>
                     <Text style={styles.modalDescription}>
@@ -79,7 +81,7 @@ export default function FlipTextInputModal({
                         </TouchableOpacity>
                     </View>
                 </View>
-            </View>
+            </SafeAreaView>
         </Modal>
     );
 }

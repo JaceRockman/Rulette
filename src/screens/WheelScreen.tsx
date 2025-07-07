@@ -6,6 +6,7 @@ import shared from '../styles/shared';
 import StripedBackground from '../components/StripedBackground';
 import OutlinedText from '../components/OutlinedText';
 import WheelSegment from '../components/WheelSegment';
+import FlipTextInputModal from '../components/Modals/FlipTextInputModal';
 
 const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
@@ -13,13 +14,15 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WheelScreen() {
     const navigation = useNavigation();
-    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentPlayer, updatePoints, cloneRuleToPlayer, flipRule, shredRule, dispatch } = useGame();
+    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentPlayer, updatePoints, cloneRuleToPlayer, shredRule, dispatch } = useGame();
     const [showCloneModal, setShowCloneModal] = useState(false);
     const [showClonePlayerModal, setShowClonePlayerModal] = useState(false);
     const [showFlipModal, setShowFlipModal] = useState(false);
+    const [showFlipTextInputModal, setShowFlipTextInputModal] = useState(false);
     const [showShredModal, setShowShredModal] = useState(false);
     const [showSwapModal, setShowSwapModal] = useState(false);
     const [selectedRuleForClone, setSelectedRuleForClone] = useState<{ rule: any; player: any } | null>(null);
+    const [selectedRuleForFlip, setSelectedRuleForFlip] = useState<any>(null);
     const [swapStep, setSwapStep] = useState<'selectOwnRule' | 'selectOtherRule'>('selectOwnRule');
     const [selectedOwnRule, setSelectedOwnRule] = useState<any>(null);
     const [selectedOtherPlayer, setSelectedOtherPlayer] = useState<any>(null);
@@ -305,6 +308,52 @@ export default function WheelScreen() {
         });
     };
 
+    const handleFlipRuleSelect = (ruleId: string) => {
+        const rule = gameState?.rules.find(r => r.id === ruleId);
+        if (rule) {
+            setSelectedRuleForFlip(rule);
+            setShowFlipModal(false);
+            setShowFlipTextInputModal(true);
+        }
+    };
+
+    const handleFlipTextSubmit = (flippedText: string) => {
+        if (!selectedRuleForFlip) return;
+
+        // Update the rule text with the flipped version
+        dispatch({
+            type: 'UPDATE_RULE',
+            payload: { ...selectedRuleForFlip, text: flippedText }
+        });
+
+        // Close the wheel popup and navigate back
+        Animated.parallel([
+            Animated.timing(popupScale, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+            Animated.timing(popupOpacity, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            const selectedSegment = segments[selectedIndex];
+            if (selectedSegment) {
+                removeWheelLayer(selectedSegment.id);
+            }
+            setShowExpandedPlaque(false);
+            popupScale.setValue(0);
+            popupOpacity.setValue(0);
+            navigation.goBack();
+        });
+
+        // Reset flip state
+        setSelectedRuleForFlip(null);
+        setShowFlipTextInputModal(false);
+    };
+
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
@@ -563,72 +612,137 @@ export default function WheelScreen() {
                                 const currentLayer = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
 
                                 if (currentLayer && currentLayer.type === 'prompt') {
+                                    // Get current player's rules
+                                    const currentPlayer = gameState?.players.find(p => p.id === gameState?.currentPlayer);
+                                    const playerRules = gameState?.rules.filter(rule => rule.assignedTo === currentPlayer?.id && rule.isActive) || [];
+
                                     return (
-                                        <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 30 }}>
-                                            <TouchableOpacity
-                                                style={{
-                                                    backgroundColor: '#28a745',
-                                                    paddingHorizontal: 30,
-                                                    paddingVertical: 15,
-                                                    borderRadius: 10,
-                                                    flex: 1,
-                                                    marginRight: 10,
-                                                }}
-                                                onPress={() => {
-                                                    // Give 2 points for success
-                                                    if (gameState?.currentPlayer) {
-                                                        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayer);
-                                                        if (currentPlayer) {
-                                                            updatePoints(currentPlayer.id, currentPlayer.points + 2);
+                                        <View style={{ width: '100%' }}>
+                                            {/* Rules Reminder Section */}
+                                            {playerRules.length > 0 && (
+                                                <View style={{ marginTop: 20, marginBottom: 20 }}>
+                                                    <Text
+                                                        style={{
+                                                            fontSize: 16,
+                                                            fontWeight: 'bold',
+                                                            textAlign: 'center',
+                                                            marginBottom: 15,
+                                                            color: (() => {
+                                                                const segment = segments[selectedIndex];
+                                                                const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
+                                                                const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
+                                                                return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
+                                                            })(),
+                                                        }}
+                                                    >
+                                                        Just as a reminder, these are your current rules:
+                                                    </Text>
+                                                    <ScrollView
+                                                        horizontal
+                                                        showsHorizontalScrollIndicator={false}
+                                                        contentContainerStyle={{ paddingHorizontal: 10 }}
+                                                    >
+                                                        {playerRules.map((rule, index) => (
+                                                            <View
+                                                                key={rule.id}
+                                                                style={{
+                                                                    backgroundColor: rule.plaqueColor || '#fff',
+                                                                    borderRadius: 12,
+                                                                    padding: 12,
+                                                                    marginHorizontal: 5,
+                                                                    minWidth: 120,
+                                                                    maxWidth: 150,
+                                                                    borderWidth: 2,
+                                                                    borderColor: '#000',
+                                                                    shadowColor: '#000',
+                                                                    shadowOffset: { width: 0, height: 2 },
+                                                                    shadowOpacity: 0.3,
+                                                                    shadowRadius: 4,
+                                                                }}
+                                                            >
+                                                                <Text
+                                                                    style={{
+                                                                        fontSize: 12,
+                                                                        textAlign: 'center',
+                                                                        color: (rule.plaqueColor === '#fbbf24' || rule.plaqueColor === '#fff' || rule.plaqueColor === '#ffffff') ? '#000' : '#fff',
+                                                                        fontWeight: 'bold',
+                                                                    }}
+                                                                >
+                                                                    {rule.text}
+                                                                </Text>
+                                                            </View>
+                                                        ))}
+                                                    </ScrollView>
+                                                </View>
+                                            )}
+
+                                            {/* Success/Failure Buttons */}
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 10 }}>
+                                                <TouchableOpacity
+                                                    style={{
+                                                        backgroundColor: '#28a745',
+                                                        paddingHorizontal: 30,
+                                                        paddingVertical: 15,
+                                                        borderRadius: 10,
+                                                        flex: 1,
+                                                        marginRight: 10,
+                                                    }}
+                                                    onPress={() => {
+                                                        // Give 2 points for success
+                                                        if (gameState?.currentPlayer) {
+                                                            const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayer);
+                                                            if (currentPlayer) {
+                                                                updatePoints(currentPlayer.id, currentPlayer.points + 2);
+                                                            }
                                                         }
-                                                    }
 
-                                                    // Show shred modal instead of closing immediately
-                                                    setShowShredModal(true);
-                                                }}
-                                            >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
-                                                    SUCCESS (+2)
-                                                </Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                style={{
-                                                    backgroundColor: '#dc3545',
-                                                    paddingHorizontal: 30,
-                                                    paddingVertical: 15,
-                                                    borderRadius: 10,
-                                                    flex: 1,
-                                                    marginLeft: 10,
-                                                }}
-                                                onPress={() => {
-                                                    // No points lost for failure
+                                                        // Show shred modal instead of closing immediately
+                                                        setShowShredModal(true);
+                                                    }}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                        SUCCESS (+2)
+                                                    </Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={{
+                                                        backgroundColor: '#dc3545',
+                                                        paddingHorizontal: 30,
+                                                        paddingVertical: 15,
+                                                        borderRadius: 10,
+                                                        flex: 1,
+                                                        marginLeft: 10,
+                                                    }}
+                                                    onPress={() => {
+                                                        // No points lost for failure
 
-                                                    // Animate the popup closing
-                                                    Animated.parallel([
-                                                        Animated.timing(popupScale, {
-                                                            toValue: 0,
-                                                            duration: 400,
-                                                            useNativeDriver: true,
-                                                        }),
-                                                        Animated.timing(popupOpacity, {
-                                                            toValue: 0,
-                                                            duration: 300,
-                                                            useNativeDriver: true,
-                                                        })
-                                                    ]).start(() => {
-                                                        // Remove the current layer to reveal the next one
-                                                        removeWheelLayer(selectedSegment.id);
-                                                        setShowExpandedPlaque(false);
-                                                        popupScale.setValue(0);
-                                                        popupOpacity.setValue(0);
-                                                        navigation.goBack();
-                                                    });
-                                                }}
-                                            >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
-                                                    FAILURE (0)
-                                                </Text>
-                                            </TouchableOpacity>
+                                                        // Animate the popup closing
+                                                        Animated.parallel([
+                                                            Animated.timing(popupScale, {
+                                                                toValue: 0,
+                                                                duration: 400,
+                                                                useNativeDriver: true,
+                                                            }),
+                                                            Animated.timing(popupOpacity, {
+                                                                toValue: 0,
+                                                                duration: 300,
+                                                                useNativeDriver: true,
+                                                            })
+                                                        ]).start(() => {
+                                                            // Remove the current layer to reveal the next one
+                                                            removeWheelLayer(selectedSegment.id);
+                                                            setShowExpandedPlaque(false);
+                                                            popupScale.setValue(0);
+                                                            popupOpacity.setValue(0);
+                                                            navigation.goBack();
+                                                        });
+                                                    }}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                        FAILURE (0)
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
                                         </View>
                                     );
                                 } else if (currentLayer && currentLayer.type === 'modifier' && typeof currentLayer.content === 'string') {
@@ -1135,31 +1249,7 @@ export default function WheelScreen() {
                                                 marginBottom: 8,
                                             }}
                                             onPress={() => {
-                                                flipRule(rule.id);
-                                                setShowFlipModal(false);
-
-                                                // Close the wheel popup and navigate back
-                                                Animated.parallel([
-                                                    Animated.timing(popupScale, {
-                                                        toValue: 0,
-                                                        duration: 400,
-                                                        useNativeDriver: true,
-                                                    }),
-                                                    Animated.timing(popupOpacity, {
-                                                        toValue: 0,
-                                                        duration: 300,
-                                                        useNativeDriver: true,
-                                                    })
-                                                ]).start(() => {
-                                                    const selectedSegment = segments[selectedIndex];
-                                                    if (selectedSegment) {
-                                                        removeWheelLayer(selectedSegment.id);
-                                                    }
-                                                    setShowExpandedPlaque(false);
-                                                    popupScale.setValue(0);
-                                                    popupOpacity.setValue(0);
-                                                    navigation.goBack();
-                                                });
+                                                handleFlipRuleSelect(rule.id);
                                             }}
                                         >
                                             <Text style={{
@@ -1579,6 +1669,17 @@ export default function WheelScreen() {
                         </View>
                     </View>
                 </Modal>
+
+                {/* Flip Text Input Modal */}
+                <FlipTextInputModal
+                    visible={showFlipTextInputModal}
+                    selectedRule={selectedRuleForFlip}
+                    onFlipRule={handleFlipTextSubmit}
+                    onClose={() => {
+                        setShowFlipTextInputModal(false);
+                        setSelectedRuleForFlip(null);
+                    }}
+                />
             </SafeAreaView>
         </StripedBackground>
     );

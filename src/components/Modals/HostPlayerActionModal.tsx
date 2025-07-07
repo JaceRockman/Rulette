@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { Player } from '../../types/game';
 import { colors } from '../../styles/shared';
 
@@ -36,6 +36,7 @@ export default function HostPlayerActionModal({
             transparent={true}
             animationType="fade"
             onRequestClose={onClose}
+            statusBarTranslucent={true}
         >
             <View style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
@@ -116,16 +117,10 @@ export default function HostPlayerActionModal({
 
 const styles = StyleSheet.create({
     modalOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
+        flex: 1,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 9999,
-        elevation: 9999,
+        alignItems: 'center'
     },
     modalContent: {
         backgroundColor: '#ffffff',
