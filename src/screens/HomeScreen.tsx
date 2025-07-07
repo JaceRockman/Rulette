@@ -129,14 +129,14 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
         alignItems: 'center',
         paddingHorizontal: 20,
-        paddingTop: 100,
+        paddingTop: 150,
     },
     inputContainer: {
         width: '100%',
         marginBottom: 30,
     },
     spacer: {
-        height: 150,
+        height: 120,
     },
     buttonContainer: {
         width: '100%',

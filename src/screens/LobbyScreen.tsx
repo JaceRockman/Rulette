@@ -104,7 +104,7 @@ export default function LobbyScreen() {
                     )}
 
                     {/* Players Section */}
-                    {gameState?.players?.filter(player => !player.isHost).length > 0 && (
+                    {gameState?.players?.filter(player => !player.isHost)?.length && (
                         <View style={styles.section}>
                             <OutlinedText>Players</OutlinedText>
                             <View style={styles.playerGrid}>

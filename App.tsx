@@ -11,6 +11,8 @@ import RuleWritingScreen from './src/screens/RuleWritingScreen';
 import PromptWritingScreen from './src/screens/PromptWritingScreen';
 import { GameProvider } from './src/context/GameContext';
 import OutlinedText from './src/components/OutlinedText';
+import StripedBackground from './src/components/StripedBackground';
+import { View } from 'react-native';
 
 export type RootStackParamList = {
     Home: undefined;
@@ -32,18 +34,18 @@ export default function App() {
                     <Stack.Navigator
                         initialRouteName="Home"
                         screenOptions={{
-                            headerStyle: {
-                                backgroundColor: 'transparent',
-                                elevation: 0,
-                                shadowOpacity: 0,
-                                height: 100,
-                            },
+                            headerBackground: () => (
+                                <StripedBackground>
+                                    <View style={{
+                                        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+                                        height: 107,
+                                        width: '100%',
+                                        borderBottomWidth: 1,
+                                        borderColor: '#000000',
+                                    }} />
+                                </StripedBackground>
+                            ),
                             headerTintColor: '#fff',
-                            headerTitleStyle: {
-                                fontWeight: 'bold',
-                                fontSize: 36,
-                                color: '#fff',
-                            },
                             headerTransparent: true,
                         }}
                     >
