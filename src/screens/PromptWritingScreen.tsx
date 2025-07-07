@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TouchableOpacity, Text, SafeAreaView } from 'react-native';
+import { View, TouchableOpacity, Text, SafeAreaView, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
@@ -95,9 +95,12 @@ export default function PromptWritingScreen() {
     const renderPromptsGrid = () => {
         if (!gameState?.prompts) return null;
 
+        // Filter out filler prompts
+        const nonFillerPrompts = gameState.prompts.filter(prompt => !prompt.isFiller);
+
         const rows = [];
-        for (let i = 0; i < gameState.prompts.length; i += 2) {
-            const hasSecondItem = gameState.prompts[i + 1];
+        for (let i = 0; i < nonFillerPrompts.length; i += 2) {
+            const hasSecondItem = nonFillerPrompts[i + 1];
             const row = (
                 <View key={i} style={{
                     flexDirection: 'row',
@@ -107,18 +110,18 @@ export default function PromptWritingScreen() {
                 }}>
                     <View style={{ width: '45%' }}>
                         <Plaque
-                            text={gameState.prompts[i].text}
-                            plaqueColor={gameState.prompts[i].plaqueColor || '#fff'}
-                            onPress={() => handleEditPrompt(gameState.prompts[i].id, gameState.prompts[i].text, gameState.prompts[i].plaqueColor || '#fff')}
+                            text={nonFillerPrompts[i].text}
+                            plaqueColor={nonFillerPrompts[i].plaqueColor || '#fff'}
+                            onPress={() => handleEditPrompt(nonFillerPrompts[i].id, nonFillerPrompts[i].text, nonFillerPrompts[i].plaqueColor || '#fff')}
                             style={{ minHeight: 100 }}
                         />
                     </View>
                     {hasSecondItem && (
                         <View style={{ width: '45%', marginLeft: '5%' }}>
                             <Plaque
-                                text={gameState.prompts[i + 1].text}
-                                plaqueColor={gameState.prompts[i + 1].plaqueColor || '#fff'}
-                                onPress={() => handleEditPrompt(gameState.prompts[i + 1].id, gameState.prompts[i + 1].text, gameState.prompts[i + 1].plaqueColor || '#fff')}
+                                text={nonFillerPrompts[i + 1].text}
+                                plaqueColor={nonFillerPrompts[i + 1].plaqueColor || '#fff'}
+                                onPress={() => handleEditPrompt(nonFillerPrompts[i + 1].id, nonFillerPrompts[i + 1].text, nonFillerPrompts[i + 1].plaqueColor || '#fff')}
                                 style={{ minHeight: 100 }}
                             />
                         </View>
@@ -133,11 +136,15 @@ export default function PromptWritingScreen() {
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
-                <View style={{ paddingTop: 100, alignItems: 'center' }}>
+                <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={{ paddingTop: 100, alignItems: 'center', paddingBottom: 50 }}
+                    showsVerticalScrollIndicator={false}
+                >
                     <TouchableOpacity
                         style={[shared.button, { marginTop: 30, width: 180 }]}
                         onPress={handleAddPrompt}
-                        disabled={(gameState?.prompts?.length || 0) >= numPrompts}
+                        disabled={(gameState?.prompts?.filter(prompt => !prompt.isFiller)?.length || 0) >= numPrompts}
                     >
                         <Text style={shared.buttonText}>Add Prompt</Text>
                     </TouchableOpacity>
@@ -146,15 +153,13 @@ export default function PromptWritingScreen() {
                         {renderPromptsGrid()}
                     </View>
 
-                    {(gameState?.prompts?.length || 0) === numPrompts && (
-                        <TouchableOpacity
-                            style={[shared.button, { width: 180 }]}
-                            onPress={handleDone}
-                        >
-                            <Text style={shared.buttonText}>Done</Text>
-                        </TouchableOpacity>
-                    )}
-                </View>
+                    <TouchableOpacity
+                        style={[shared.button, { width: 180, marginBottom: 30 }]}
+                        onPress={handleDone}
+                    >
+                        <Text style={shared.buttonText}>Done</Text>
+                    </TouchableOpacity>
+                </ScrollView>
 
                 <InputPlaque
                     visible={showInputPlaque}

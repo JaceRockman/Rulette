@@ -7,6 +7,9 @@ interface GameContextType {
     dispatch: React.Dispatch<GameAction>;
     joinLobby: (code: string, playerName: string) => void;
     createLobby: (playerName: string, numRules?: number, numPrompts?: number, startingPoints?: number) => void;
+    addTestPlayers: (numPlayers: number) => void;
+    addFillerRules: (numRules: number) => void;
+    addFillerPrompts: (numPrompts: number) => void;
     createTestingState: () => void;
     setNumRules: (num: number) => void;
     setNumPrompts: (num: number) => void;
@@ -320,82 +323,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const currentPlayer = gameState?.players.find(p => p.id === gameState.currentPlayer) || null;
 
-    // Initialize with testing state
-    React.useEffect(() => {
-        const hostId = Math.random().toString(36).substr(2, 9);
-        const player1Id = Math.random().toString(36).substr(2, 9);
-        const player2Id = Math.random().toString(36).substr(2, 9);
-        const player3Id = Math.random().toString(36).substr(2, 9);
-
-        const players: Player[] = [
-            {
-                id: hostId,
-                name: "Host Player",
-                points: 20,
-                rules: [],
-                isHost: true,
-            },
-            {
-                id: player1Id,
-                name: "Alice",
-                points: 18,
-                rules: [],
-                isHost: false,
-            },
-            {
-                id: player2Id,
-                name: "Bob",
-                points: 22,
-                rules: [],
-                isHost: false,
-            },
-            {
-                id: player3Id,
-                name: "Charlie",
-                points: 16,
-                rules: [],
-                isHost: false,
-            },
-        ];
-
-        const rules: Rule[] = [
-            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
-        ];
-
-        const prompts: Prompt[] = [
-            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3" },
-        ];
-
-        const testingGameState: GameState = {
-            ...initialState,
-            id: Math.random().toString(36).substr(2, 9),
-            code: "TEST123",
-            players,
-            currentPlayer: hostId,
-            rules,
-            prompts,
-            numRules: 10,
-            numPrompts: 7,
-            isGameStarted: true,
-        };
-
-        dispatch({ type: 'SET_GAME_STATE', payload: testingGameState });
-    }, []);
+    // No automatic test state initialization - will be created through UI
 
     const joinLobby = (code: string, playerName: string) => {
         // This would connect to your backend/socket server
@@ -421,26 +349,94 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             isHost: true,
         };
 
-        // Add example player for testing
-        const examplePlayer: Player = {
-            id: Math.random().toString(36).substr(2, 9),
-            name: "Test Player",
-            points: 15,
-            rules: [],
-            isHost: false,
-        };
-
         const newGameState: GameState = {
             ...initialState,
             id: Math.random().toString(36).substr(2, 9),
             code,
-            players: [player, examplePlayer],
+            players: [player],
             currentPlayer: player.id,
             numRules,
             numPrompts,
         };
 
         dispatch({ type: 'SET_GAME_STATE', payload: newGameState });
+    };
+
+    const addTestPlayers = (numPlayers: number) => {
+        if (!gameState || numPlayers <= 0) return;
+
+        const testPlayerNames = ["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Henry"];
+        const newPlayers: Player[] = [];
+
+        for (let i = 0; i < numPlayers; i++) {
+            const testPlayer: Player = {
+                id: Math.random().toString(36).substr(2, 9),
+                name: testPlayerNames[i] || `Player ${i + 1}`,
+                points: Math.floor(Math.random() * 10) + 15, // Random points between 15-24
+                rules: [],
+                isHost: false,
+            };
+            newPlayers.push(testPlayer);
+        }
+
+        const updatedGameState = {
+            ...gameState,
+            players: [...gameState.players, ...newPlayers],
+        };
+
+        dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
+    };
+
+    const addFillerRules = (numRules: number) => {
+        if (!gameState || numRules <= 0) return;
+
+        const fillerRules: Rule[] = [
+            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true },
+        ];
+
+        const selectedFillerRules = fillerRules.slice(0, Math.min(numRules, fillerRules.length));
+
+        const updatedGameState = {
+            ...gameState,
+            rules: [...gameState.rules, ...selectedFillerRules],
+        };
+
+        dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
+    };
+
+    const addFillerPrompts = (numPrompts: number) => {
+        if (!gameState || numPrompts <= 0) return;
+
+        const fillerPrompts: Prompt[] = [
+            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Explain why cats are secretly running the internet", category: "Conspiracy", plaqueColor: "#a861b3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Describe your perfect day using only emojis", category: "Creative", plaqueColor: "#ed5c5d", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), text: "Argue that breakfast foods are acceptable at any time", category: "Debate", plaqueColor: "#fff", isFiller: true },
+        ];
+
+        const selectedFillerPrompts = fillerPrompts.slice(0, Math.min(numPrompts, fillerPrompts.length));
+
+        const updatedGameState = {
+            ...gameState,
+            prompts: [...gameState.prompts, ...selectedFillerPrompts],
+        };
+
+        dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
     };
 
     const createTestingState = () => {
@@ -705,6 +701,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch,
         joinLobby,
         createLobby,
+        addTestPlayers,
+        addFillerRules,
+        addFillerPrompts,
         createTestingState,
         setNumRules,
         setNumPrompts,

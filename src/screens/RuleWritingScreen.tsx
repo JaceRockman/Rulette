@@ -89,9 +89,12 @@ export default function RuleWritingScreen() {
     const renderRulesGrid = () => {
         if (!gameState?.rules) return null;
 
+        // Filter out filler rules
+        const nonFillerRules = gameState.rules.filter(rule => !rule.isFiller);
+
         const rows = [];
-        for (let i = 0; i < gameState.rules.length; i += 2) {
-            const hasSecondItem = gameState.rules[i + 1];
+        for (let i = 0; i < nonFillerRules.length; i += 2) {
+            const hasSecondItem = nonFillerRules[i + 1];
             const row = (
                 <View key={i} style={{
                     flexDirection: 'row',
@@ -101,18 +104,18 @@ export default function RuleWritingScreen() {
                 }}>
                     <View style={{ width: '45%' }}>
                         <Plaque
-                            text={gameState.rules[i].text}
-                            plaqueColor={gameState.rules[i].plaqueColor || '#fff'}
-                            onPress={() => handleEditRule(gameState.rules[i].id, gameState.rules[i].text, gameState.rules[i].plaqueColor || '#fff')}
+                            text={nonFillerRules[i].text}
+                            plaqueColor={nonFillerRules[i].plaqueColor || '#fff'}
+                            onPress={() => handleEditRule(nonFillerRules[i].id, nonFillerRules[i].text, nonFillerRules[i].plaqueColor || '#fff')}
                             style={{ minHeight: 100 }}
                         />
                     </View>
                     {hasSecondItem && (
                         <View style={{ width: '45%', marginLeft: '5%' }}>
                             <Plaque
-                                text={gameState.rules[i + 1].text}
-                                plaqueColor={gameState.rules[i + 1].plaqueColor || '#fff'}
-                                onPress={() => handleEditRule(gameState.rules[i + 1].id, gameState.rules[i + 1].text, gameState.rules[i + 1].plaqueColor || '#fff')}
+                                text={nonFillerRules[i + 1].text}
+                                plaqueColor={nonFillerRules[i + 1].plaqueColor || '#fff'}
+                                onPress={() => handleEditRule(nonFillerRules[i + 1].id, nonFillerRules[i + 1].text, nonFillerRules[i + 1].plaqueColor || '#fff')}
                                 style={{ minHeight: 100 }}
                             />
                         </View>
@@ -131,7 +134,7 @@ export default function RuleWritingScreen() {
                     <TouchableOpacity
                         style={[shared.button, { marginTop: 30, width: 180 }]}
                         onPress={handleAddRule}
-                        disabled={(gameState?.rules?.length || 0) >= numRules}
+                        disabled={(gameState?.rules?.filter(rule => !rule.isFiller)?.length || 0) >= numRules}
                     >
                         <Text style={shared.buttonText}>Add Rule</Text>
                     </TouchableOpacity>
@@ -140,7 +143,7 @@ export default function RuleWritingScreen() {
                         {renderRulesGrid()}
                     </View>
 
-                    {(gameState?.rules?.length || 0) === numRules && (
+                    {(gameState?.rules?.filter(rule => !rule.isFiller)?.length || 0) === numRules && (
                         <TouchableOpacity
                             style={[shared.button, { width: 180 }]}
                             onPress={handleContinue}

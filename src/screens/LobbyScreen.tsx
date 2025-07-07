@@ -24,11 +24,14 @@ type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 export default function LobbyScreen() {
     const navigation = useNavigation<LobbyScreenNavigationProp>();
     const route = useRoute<LobbyScreenRouteProp>();
-    const { gameState, currentPlayer, startGame } = useGame();
+    const { gameState, currentPlayer, startGame, addTestPlayers, addFillerRules, addFillerPrompts } = useGame();
 
     const [startingPoints, setStartingPoints] = useState('20');
     const [numRules, setNumRules] = useState('3');
     const [numPrompts, setNumPrompts] = useState('3');
+    const [numTestPlayers, setNumTestPlayers] = useState('0');
+    const [numFillerRules, setNumFillerRules] = useState('0');
+    const [numFillerPrompts, setNumFillerPrompts] = useState('0');
 
     const isHost = currentPlayer?.isHost;
     const lobbyCode = gameState?.code || route.params.code;
@@ -38,11 +41,38 @@ export default function LobbyScreen() {
         Alert.alert('Copied!', 'Lobby code copied to clipboard');
     };
 
+    const handleAddTestPlayers = () => {
+        const numPlayers = parseInt(numTestPlayers) || 0;
+        if (numPlayers > 0) {
+            addTestPlayers(numPlayers);
+            Alert.alert('Test Players Added', `${numPlayers} test players have been added to the game.`);
+        }
+    };
+
+    const handleAddFillerRules = () => {
+        const numRules = parseInt(numFillerRules) || 0;
+        if (numRules > 0) {
+            addFillerRules(numRules);
+            Alert.alert('Filler Rules Added', `${numRules} filler rules have been added to the game.`);
+        }
+    };
+
+    const handleAddFillerPrompts = () => {
+        const numPrompts = parseInt(numFillerPrompts) || 0;
+        if (numPrompts > 0) {
+            addFillerPrompts(numPrompts);
+            Alert.alert('Filler Prompts Added', `${numPrompts} filler prompts have been added to the game.`);
+        }
+    };
+
     const handleStartGame = () => {
         if (!gameState?.players.length) {
             Alert.alert('Error', 'Need at least one player to start');
             return;
         }
+
+        // Update game settings before starting
+        // This would typically update the game state with the new settings
         startGame();
         navigation.navigate('RuleWriting');
     };
@@ -76,6 +106,9 @@ export default function LobbyScreen() {
                     {isHost && (
                         <View style={styles.section}>
                             <OutlinedText>Game Settings</OutlinedText>
+                            <Text style={{ color: 'white', textAlign: 'center', marginBottom: 10 }}>
+                                Debug: isHost = {isHost ? 'true' : 'false'}
+                            </Text>
 
                             <View style={styles.settingRow}>
                                 <OutlinedText>Starting Points:</OutlinedText>
@@ -112,6 +145,75 @@ export default function LobbyScreen() {
                                     placeholderTextColor="#9ca3af"
                                 />
                             </View>
+
+                            <View style={styles.settingRow}>
+                                <OutlinedText>Test Players:</OutlinedText>
+                                <TextInput
+                                    style={shared.input}
+                                    value={numTestPlayers}
+                                    onChangeText={setNumTestPlayers}
+                                    keyboardType="numeric"
+                                    placeholder="0"
+                                    placeholderTextColor="#9ca3af"
+                                />
+                            </View>
+
+                            {parseInt(numTestPlayers) > 0 && (
+                                <TouchableOpacity
+                                    style={[shared.button, { marginTop: 10 }]}
+                                    onPress={handleAddTestPlayers}
+                                >
+                                    <Text style={shared.buttonText}>Add Test Players</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            <View style={styles.settingRow}>
+                                <OutlinedText>Filler Rules:</OutlinedText>
+                                <TextInput
+                                    style={shared.input}
+                                    value={numFillerRules}
+                                    onChangeText={setNumFillerRules}
+                                    keyboardType="numeric"
+                                    placeholder="0"
+                                    placeholderTextColor="#9ca3af"
+                                />
+                            </View>
+                            <Text style={{ color: 'white', textAlign: 'center', fontSize: 12 }}>
+                                Debug: numFillerRules = {numFillerRules}
+                            </Text>
+
+                            {parseInt(numFillerRules) > 0 && (
+                                <TouchableOpacity
+                                    style={[shared.button, { marginTop: 10 }]}
+                                    onPress={handleAddFillerRules}
+                                >
+                                    <Text style={shared.buttonText}>Add Filler Rules</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            <View style={styles.settingRow}>
+                                <OutlinedText>Filler Prompts:</OutlinedText>
+                                <TextInput
+                                    style={shared.input}
+                                    value={numFillerPrompts}
+                                    onChangeText={setNumFillerPrompts}
+                                    keyboardType="numeric"
+                                    placeholder="0"
+                                    placeholderTextColor="#9ca3af"
+                                />
+                            </View>
+                            <Text style={{ color: 'white', textAlign: 'center', fontSize: 12 }}>
+                                Debug: numFillerPrompts = {numFillerPrompts}
+                            </Text>
+
+                            {parseInt(numFillerPrompts) > 0 && (
+                                <TouchableOpacity
+                                    style={[shared.button, { marginTop: 10 }]}
+                                    onPress={handleAddFillerPrompts}
+                                >
+                                    <Text style={shared.buttonText}>Add Filler Prompts</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                     )}
 
