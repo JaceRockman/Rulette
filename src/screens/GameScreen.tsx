@@ -20,6 +20,14 @@ import shared from '../styles/shared';
 import OutlinedText from '../components/OutlinedText';
 import DigitalClock from '../components/DigitalClock';
 import Plaque from '../components/Plaque';
+import {
+    RuleAccusationPopup,
+    AccusationDecisionModal,
+    HostPlayerActionModal,
+    AccusationRuleModal
+} from '../components/Modals';
+import AbstractRuleSelectionModal from '../components/Modals/RuleSelectionModal';
+import AbstractPlayerSelectionModal from '../components/Modals/PlayerSelectionModal';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
@@ -542,440 +550,113 @@ export default function GameScreen() {
                 </ScrollView>
 
                 {/* Rule Assignment Modal */}
-                <Modal
+                <AbstractPlayerSelectionModal
                     visible={selectedRule !== null}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setSelectedRule(null)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Assign Rule</Text>
-                            <Text style={styles.modalRuleText}>{selectedRule?.text}</Text>
-
-                            <Text style={styles.modalSubtitle}>Select a player to assign this rule to:</Text>
-                            <ScrollView style={styles.modalPlayerList}>
-                                {gameState.players.map((player) => (
-                                    <TouchableOpacity
-                                        key={player.id}
-                                        style={styles.modalPlayerItem}
-                                        onPress={() => selectedRule && handleAssignRule(selectedRule, player.id)}
-                                    >
-                                        <Text style={styles.modalPlayerName}>{player.name}</Text>
-                                    </TouchableOpacity>
-                                ))}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalCancelButton}
-                                onPress={() => setSelectedRule(null)}
-                            >
-                                <Text style={styles.modalCancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
+                    title="Assign Rule"
+                    description={`Select a player to assign this rule to: "${selectedRule?.text}"`}
+                    players={gameState.players}
+                    onSelectPlayer={(player) => selectedRule && handleAssignRule(selectedRule, player.id)}
+                    onClose={() => setSelectedRule(null)}
+                />
 
                 {/* Rule Accusation Popup */}
-                {showRulePopup && (
-                    <TouchableOpacity
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            zIndex: 9999,
-                            elevation: 9999,
-                        }}
-                        activeOpacity={1}
-                        onPress={() => setShowRulePopup(false)}
-                    >
-                        <TouchableOpacity
-                            style={[
-                                styles.modalContent,
-                                {
-                                    backgroundColor: selectedRuleForAccusation?.rule.plaqueColor || '#ffffff',
-                                    borderWidth: 2,
-                                    borderColor: '#000000',
-                                }
-                            ]}
-                            activeOpacity={1}
-                            onPress={(e) => e.stopPropagation()}
-                        >
-                            <Text style={[
-                                styles.modalTitle,
-                                {
-                                    color: (() => {
-                                        const plaqueColor = selectedRuleForAccusation?.rule.plaqueColor || '#ffffff';
-                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff' || plaqueColor === '#ffffff') ? '#000' : '#fff';
-                                    })()
-                                }
-                            ]}>Rule Details</Text>
-                            <Text style={[
-                                styles.modalRuleText,
-                                {
-                                    color: (() => {
-                                        const plaqueColor = selectedRuleForAccusation?.rule.plaqueColor || '#ffffff';
-                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff' || plaqueColor === '#ffffff') ? '#000' : '#fff';
-                                    })()
-                                }
-                            ]}>
-                                {selectedRuleForAccusation?.rule.text}
-                            </Text>
-                            {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
-                                <Text style={[
-                                    styles.modalSubtitle,
-                                    {
-                                        color: (() => {
-                                            const plaqueColor = selectedRuleForAccusation?.rule.plaqueColor || '#ffffff';
-                                            return (plaqueColor === '#fbbf24' || plaqueColor === '#fff' || plaqueColor === '#ffffff') ? '#000' : '#fff';
-                                        })()
-                                    }
-                                ]}>
-                                    Accusing {selectedRuleForAccusation?.accusedPlayer.name} of breaking this rule
-                                </Text>
-                            )}
-
-                            {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
-                                <TouchableOpacity
-                                    style={[
-                                        styles.spinButton,
-                                        {
-                                            alignSelf: 'center',
-                                            marginTop: 20,
-                                            opacity: isAccusationInProgress ? 0.5 : 1
-                                        }
-                                    ]}
-                                    onPress={handleAccuse}
-                                    disabled={isAccusationInProgress}
-                                >
-                                    <Text style={styles.spinButtonText}>Accuse!</Text>
-                                </TouchableOpacity>
-                            )}
-                        </TouchableOpacity>
-                    </TouchableOpacity>
-                )}
+                <RuleAccusationPopup
+                    visible={showRulePopup}
+                    selectedRuleForAccusation={selectedRuleForAccusation}
+                    currentPlayer={currentPlayer}
+                    isAccusationInProgress={isAccusationInProgress}
+                    onAccuse={handleAccuse}
+                    onClose={() => setShowRulePopup(false)}
+                />
 
                 {/* Host Accusation Decision Popup */}
-                <Modal
+                <AccusationDecisionModal
                     visible={showAccusationPopup}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowAccusationPopup(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Rule Violation Accusation</Text>
-                            <Text style={styles.modalRuleText}>
-                                {accusationDetails?.accuser.name} has accused {accusationDetails?.accused.name} of breaking rule:
-                            </Text>
-                            <Text style={[styles.modalRuleText, { fontStyle: 'italic', marginTop: 10 }]}>
-                                "{accusationDetails?.rule.text}"
-                            </Text>
-
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 20 }}>
-                                <TouchableOpacity
-                                    style={[styles.modalCancelButton, { flex: 1, marginRight: 10 }]}
-                                    onPress={handleDeclineAccusation}
-                                >
-                                    <Text style={styles.modalCancelText}>Decline</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { flex: 1, marginLeft: 10 }]}
-                                    onPress={handleAcceptAccusation}
-                                >
-                                    <Text style={styles.spinButtonText}>Accept</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
+                    accusationDetails={accusationDetails}
+                    onAccept={handleAcceptAccusation}
+                    onDecline={handleDeclineAccusation}
+                />
 
                 {/* Rule Selection Modal */}
-                <Modal
+                <AbstractRuleSelectionModal
                     visible={showRuleSelectionModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowRuleSelectionModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Give Rule to {acceptedAccusationDetails?.accused.name}</Text>
-                            <Text style={styles.modalRuleText}>
-                                {acceptedAccusationDetails?.accuser.name} successfully accused {acceptedAccusationDetails?.accused.name} of breaking:
-                            </Text>
-                            <Text style={[styles.modalRuleText, { fontStyle: 'italic', marginTop: 10 }]}>
-                                "{acceptedAccusationDetails?.rule.text}"
-                            </Text>
-                            <Text style={styles.modalSubtitle}>
-                                Select one of your rules to give to {acceptedAccusationDetails?.accused.name}:
-                            </Text>
-
-                            <ScrollView style={styles.modalPlayerList}>
-                                {gameState.rules
-                                    .filter(rule => rule.assignedTo === acceptedAccusationDetails?.accuser.id)
-                                    .map((rule) => (
-                                        <TouchableOpacity
-                                            key={rule.id}
-                                            style={styles.modalPlayerItem}
-                                            onPress={() => handleGiveRuleToAccused(rule.id)}
-                                        >
-                                            <Text style={styles.modalPlayerName}>{rule.text}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalCancelButton}
-                                onPress={() => {
-                                    setShowRuleSelectionModal(false);
-                                    setAcceptedAccusationDetails(null);
-                                    setAccusationDetails(null);
-                                    setIsAccusationInProgress(false);
-                                }}
-                            >
-                                <Text style={styles.modalCancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
+                    title={`Give Rule to ${acceptedAccusationDetails?.accused.name}`}
+                    description={`${acceptedAccusationDetails?.accuser.name} successfully accused ${acceptedAccusationDetails?.accused.name} of breaking: "${acceptedAccusationDetails?.rule.text}". Select one of your rules to give to ${acceptedAccusationDetails?.accused.name}:`}
+                    rules={gameState.rules.filter(rule => rule.assignedTo === acceptedAccusationDetails?.accuser.id)}
+                    onSelectRule={handleGiveRuleToAccused}
+                    onClose={() => {
+                        setShowRuleSelectionModal(false);
+                        setAcceptedAccusationDetails(null);
+                        setAccusationDetails(null);
+                        setIsAccusationInProgress(false);
+                    }}
+                />
 
                 {/* Host Player Action Modal */}
-                <Modal
+                <HostPlayerActionModal
                     visible={showPlayerActionModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowPlayerActionModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Host Actions for {selectedPlayerForAction?.name}</Text>
-                            <Text style={styles.modalRuleText}>
-                                Select an action for this player to perform:
-                            </Text>
-
-                            <View style={{ gap: 12, marginTop: 20 }}>
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerRed }]}
-                                    onPress={handleSpinWheelForPlayer}
-                                >
-                                    <Text style={styles.spinButtonText}>Spin Wheel</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerOrange }]}
-                                    onPress={handleGiveRuleAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Give Rule</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerBlue }]}
-                                    onPress={handleSuccessfulPromptAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Successful Prompt (+2 points)</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerMaroon }]}
-                                    onPress={handleSuccessfulAccusationAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Successful Accusation (+1 point)</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerBlue }]}
-                                    onPress={handleCloneAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Clone Rule</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.spinButton, { backgroundColor: colors.gameChangerOrange }]}
-                                    onPress={handleFlipAction}
-                                >
-                                    <Text style={styles.spinButtonText}>Flip Rule</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.modalCancelButton, { backgroundColor: colors.gameChangerRed }]}
-                                    onPress={() => setShowPlayerActionModal(false)}
-                                >
-                                    <Text style={styles.modalCancelText}>Cancel</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
+                    selectedPlayerForAction={selectedPlayerForAction}
+                    onSpinWheel={handleSpinWheelForPlayer}
+                    onGiveRule={handleGiveRuleAction}
+                    onSuccessfulPrompt={handleSuccessfulPromptAction}
+                    onSuccessfulAccusation={handleSuccessfulAccusationAction}
+                    onCloneRule={handleCloneAction}
+                    onFlipRule={handleFlipAction}
+                    onClose={() => setShowPlayerActionModal(false)}
+                />
 
                 {/* Shred Rule Modal */}
-                <Modal
+                <AbstractRuleSelectionModal
                     visible={showShredRuleModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowShredRuleModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Shred a Rule from {selectedPlayerForAction?.name}</Text>
-                            <Text style={styles.modalRuleText}>
-                                {selectedPlayerForAction?.name} gained 2 points for a successful prompt! Now select a rule to shred:
-                            </Text>
-
-                            <ScrollView style={styles.modalPlayerList}>
-                                {gameState?.rules
-                                    .filter(rule => rule.assignedTo === selectedPlayerForAction?.id)
-                                    .map((rule) => (
-                                        <TouchableOpacity
-                                            key={rule.id}
-                                            style={styles.modalPlayerItem}
-                                            onPress={() => handleShredRule(rule.id)}
-                                        >
-                                            <Text style={styles.modalPlayerName}>{rule.text}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalCancelButton}
-                                onPress={() => {
-                                    setShowShredRuleModal(false);
-                                    setSelectedPlayerForAction(null);
-                                }}
-                            >
-                                <Text style={styles.modalCancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
+                    title={`Shred a Rule from ${selectedPlayerForAction?.name}`}
+                    description={`${selectedPlayerForAction?.name} gained 2 points for a successful prompt! Now select a rule to shred:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id) || []}
+                    onSelectRule={handleShredRule}
+                    onClose={() => {
+                        setShowShredRuleModal(false);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
 
                 {/* Give Rule Modal */}
-                <Modal
+                <AbstractRuleSelectionModal
                     visible={showGiveRuleModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowGiveRuleModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Give Rule to {selectedPlayerForAction?.name}</Text>
-                            <Text style={styles.modalRuleText}>
-                                Select an unassigned rule to give to {selectedPlayerForAction?.name}:
-                            </Text>
-
-                            <ScrollView style={styles.modalPlayerList}>
-                                {gameState?.rules
-                                    .filter(rule => !rule.assignedTo && rule.isActive)
-                                    .map((rule) => (
-                                        <TouchableOpacity
-                                            key={rule.id}
-                                            style={styles.modalPlayerItem}
-                                            onPress={() => handleGiveRule(rule.id)}
-                                        >
-                                            <Text style={styles.modalPlayerName}>{rule.text}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalCancelButton}
-                                onPress={() => {
-                                    setShowGiveRuleModal(false);
-                                    setSelectedPlayerForAction(null);
-                                }}
-                            >
-                                <Text style={styles.modalCancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
+                    title={`Give Rule to ${selectedPlayerForAction?.name}`}
+                    description={`Select an unassigned rule to give to ${selectedPlayerForAction?.name}:`}
+                    rules={gameState?.rules.filter(rule => !rule.assignedTo && rule.isActive) || []}
+                    onSelectRule={handleGiveRule}
+                    onClose={() => {
+                        setShowGiveRuleModal(false);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
 
                 {/* Accusation Target Selection Modal */}
-                <Modal
+                <AbstractPlayerSelectionModal
                     visible={showAccusationTargetModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowAccusationTargetModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Who is being accused?</Text>
-                            <Text style={styles.modalRuleText}>
-                                {selectedPlayerForAction?.name} successfully accused someone. Select who they accused:
-                            </Text>
-
-                            <ScrollView style={styles.modalPlayerList}>
-                                {gameState?.players
-                                    .filter(player => player.id !== selectedPlayerForAction?.id)
-                                    .map(player => (
-                                        <TouchableOpacity
-                                            key={player.id}
-                                            style={styles.modalPlayerItem}
-                                            onPress={() => handleAccusationTargetSelect(player)}
-                                        >
-                                            <Text style={styles.modalPlayerName}>{player.name}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalCancelButton}
-                                onPress={() => {
-                                    setShowAccusationTargetModal(false);
-                                    setSelectedPlayerForAction(null);
-                                }}
-                            >
-                                <Text style={styles.modalCancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
+                    title="Who is being accused?"
+                    description={`${selectedPlayerForAction?.name} successfully accused someone. Select who they accused:`}
+                    players={gameState?.players.filter(player => player.id !== selectedPlayerForAction?.id) || []}
+                    onSelectPlayer={handleAccusationTargetSelect}
+                    onClose={() => {
+                        setShowAccusationTargetModal(false);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
 
                 {/* Accusation Rule Selection Modal */}
-                <Modal
+                <AccusationRuleModal
                     visible={showAccusationRuleModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowAccusationRuleModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>Select Rule to Give</Text>
-                            <Text style={styles.modalRuleText}>
-                                {selectedPlayerForAction?.name} successfully accused {accusationTarget?.name}. Select one of your rules to give to them:
-                            </Text>
-
-                            <ScrollView style={styles.modalPlayerList}>
-                                {gameState?.rules
-                                    .filter(rule => rule.assignedTo === selectedPlayerForAction?.id)
-                                    .map(rule => (
-                                        <TouchableOpacity
-                                            key={rule.id}
-                                            style={styles.modalPlayerItem}
-                                            onPress={() => handleAccusationRuleSelect(rule.id)}
-                                        >
-                                            <Text style={styles.modalPlayerName}>{rule.text}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalCancelButton}
-                                onPress={() => {
-                                    setShowAccusationRuleModal(false);
-                                    setSelectedPlayerForAction(null);
-                                    setAccusationTarget(null);
-                                }}
-                            >
-                                <Text style={styles.modalCancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
+                    selectedPlayerForAction={selectedPlayerForAction}
+                    accusationTarget={accusationTarget}
+                    rules={gameState?.rules || []}
+                    onSelectRule={handleAccusationRuleSelect}
+                    onClose={() => {
+                        setShowAccusationRuleModal(false);
+                        setSelectedPlayerForAction(null);
+                        setAccusationTarget(null);
+                    }}
+                />
             </SafeAreaView>
         </StripedBackground>
     );
@@ -1147,69 +828,5 @@ const styles = StyleSheet.create({
         color: '#9b2f4d',
         textAlign: 'center',
         marginTop: 50,
-    },
-    modalOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 9999,
-        elevation: 9999,
-    },
-    modalContent: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 20,
-        width: '80%',
-        maxHeight: '70%',
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    modalRuleText: {
-        fontSize: 14,
-        color: '#6b7280',
-        marginBottom: 16,
-        textAlign: 'center',
-        fontStyle: 'italic',
-    },
-    modalSubtitle: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 8,
-    },
-    modalPlayerList: {
-        maxHeight: 200,
-    },
-    modalPlayerItem: {
-        backgroundColor: '#f3f4f6',
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 8,
-    },
-    modalPlayerName: {
-        fontSize: 16,
-        color: '#1f2937',
-        textAlign: 'center',
-    },
-    modalCancelButton: {
-        backgroundColor: '#6b7280',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-    },
-    modalCancelText: {
-        color: '#ffffff',
-        textAlign: 'center',
-        fontWeight: 'bold',
     },
 }); 
