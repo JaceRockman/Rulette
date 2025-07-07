@@ -61,6 +61,11 @@ export default function GameScreen() {
     const [cloneSelectedRule, setCloneSelectedRule] = useState<Rule | null>(null);
     const [showFlipRuleModal, setShowFlipRuleModal] = useState(false);
     const [flipSelectedRule, setFlipSelectedRule] = useState<Rule | null>(null);
+    const [showUpRuleModal, setShowUpRuleModal] = useState(false);
+    const [showDownRuleModal, setShowDownRuleModal] = useState(false);
+    const [upDownCurrentPlayerIndex, setUpDownCurrentPlayerIndex] = useState(0);
+    const [upDownAction, setUpDownAction] = useState<'up' | 'down' | null>(null);
+    const [transferredRuleIds, setTransferredRuleIds] = useState<string[]>([]);
 
     // Restore original current player when returning from wheel
     React.useEffect(() => {
@@ -398,7 +403,7 @@ export default function GameScreen() {
         }
     };
 
-    // Handle Up action - pass rule to player above
+    // Handle Up action - start the modal flow
     const handleUpAction = () => {
         if (!gameState?.players) return;
 
@@ -408,16 +413,73 @@ export default function GameScreen() {
             return;
         }
 
-        let actionResults: string[] = [];
+        // Check if any players have rules to pass
+        const playersWithRules = nonHostPlayers.filter(player => {
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+            return playerRules.length > 0;
+        });
 
-        // Process each non-host player
-        nonHostPlayers.forEach((player, index) => {
-            // Find player's index in the full players array
-            const playerIndex = gameState.players.findIndex(p => p.id === player.id);
-            if (playerIndex === -1) return;
+        if (playersWithRules.length === 0) {
+            Alert.alert('No Rules to Pass', 'No players have rules to pass up.');
+            setShowPlayerActionModal(false);
+            return;
+        }
 
+        setUpDownAction('up');
+        setUpDownCurrentPlayerIndex(0);
+        setTransferredRuleIds([]);
+        setShowPlayerActionModal(false);
+        setShowUpRuleModal(true);
+    };
+
+    // Handle Down action - start the modal flow
+    const handleDownAction = () => {
+        if (!gameState?.players) return;
+
+        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+        if (nonHostPlayers.length < 2) {
+            Alert.alert('Not Enough Players', 'Need at least 2 non-host players for Down action.');
+            return;
+        }
+
+        // Check if any players have rules to pass
+        const playersWithRules = nonHostPlayers.filter(player => {
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+            return playerRules.length > 0;
+        });
+
+        if (playersWithRules.length === 0) {
+            Alert.alert('No Rules to Pass', 'No players have rules to pass down.');
+            setShowPlayerActionModal(false);
+            return;
+        }
+
+        setUpDownAction('down');
+        setUpDownCurrentPlayerIndex(0);
+        setTransferredRuleIds([]);
+        setShowPlayerActionModal(false);
+        setShowDownRuleModal(true);
+    };
+
+    // Handle rule selection for Up/Down actions
+    const handleUpDownRuleSelect = (ruleId: string) => {
+        if (!gameState?.players || upDownAction === null) return;
+
+        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+
+        if (!currentPlayer) return;
+
+        const rule = gameState.rules.find(r => r.id === ruleId);
+        if (!rule) return;
+
+        // Find the target player (above or below)
+        const playerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
+        let targetPlayerIndex: number;
+
+        if (upDownAction === 'up') {
             // Find the player above (previous in array, excluding host)
-            let targetPlayerIndex = playerIndex - 1;
+            targetPlayerIndex = playerIndex - 1;
             while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
                 targetPlayerIndex--;
             }
@@ -429,50 +491,9 @@ export default function GameScreen() {
                     targetPlayerIndex--;
                 }
             }
-
-            if (targetPlayerIndex < 0) return;
-
-            const targetPlayer = gameState.players[targetPlayerIndex];
-
-            // Find a random rule assigned to current player
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
-            if (playerRules.length === 0) {
-                actionResults.push(`${player.name} had no rules to pass up.`);
-                return;
-            }
-
-            const randomRule = playerRules[Math.floor(Math.random() * playerRules.length)];
-
-            // Assign the rule to the target player
-            dispatch({ type: 'UPDATE_RULE', payload: { ...randomRule, assignedTo: targetPlayer.id } });
-
-            actionResults.push(`${player.name} passed "${randomRule.text}" up to ${targetPlayer.name}`);
-        });
-
-        Alert.alert('Up Action Complete', actionResults.join('\n'));
-        setShowPlayerActionModal(false);
-    };
-
-    // Handle Down action - pass rule to player below
-    const handleDownAction = () => {
-        if (!gameState?.players) return;
-
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-        if (nonHostPlayers.length < 2) {
-            Alert.alert('Not Enough Players', 'Need at least 2 non-host players for Down action.');
-            return;
-        }
-
-        let actionResults: string[] = [];
-
-        // Process each non-host player
-        nonHostPlayers.forEach((player, index) => {
-            // Find player's index in the full players array
-            const playerIndex = gameState.players.findIndex(p => p.id === player.id);
-            if (playerIndex === -1) return;
-
+        } else {
             // Find the player below (next in array, excluding host)
-            let targetPlayerIndex = playerIndex + 1;
+            targetPlayerIndex = playerIndex + 1;
             while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
                 targetPlayerIndex++;
             }
@@ -484,28 +505,34 @@ export default function GameScreen() {
                     targetPlayerIndex++;
                 }
             }
+        }
 
-            if (targetPlayerIndex >= gameState.players.length) return;
+        if (targetPlayerIndex < 0 || targetPlayerIndex >= gameState.players.length) return;
 
-            const targetPlayer = gameState.players[targetPlayerIndex];
+        const targetPlayer = gameState.players[targetPlayerIndex];
 
-            // Find a random rule assigned to current player
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
-            if (playerRules.length === 0) {
-                actionResults.push(`${player.name} had no rules to pass down.`);
-                return;
-            }
+        // Assign the rule to the target player
+        dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: targetPlayer.id } });
 
-            const randomRule = playerRules[Math.floor(Math.random() * playerRules.length)];
+        // Track this rule as transferred so it can't be passed again
+        setTransferredRuleIds(prev => [...prev, ruleId]);
 
-            // Assign the rule to the target player
-            dispatch({ type: 'UPDATE_RULE', payload: { ...randomRule, assignedTo: targetPlayer.id } });
+        // Move to next player or complete
+        const nextPlayerIndex = upDownCurrentPlayerIndex + 1;
 
-            actionResults.push(`${player.name} passed "${randomRule.text}" down to ${targetPlayer.name}`);
-        });
-
-        Alert.alert('Down Action Complete', actionResults.join('\n'));
-        setShowPlayerActionModal(false);
+        if (nextPlayerIndex < nonHostPlayers.length) {
+            // Move to next player
+            setUpDownCurrentPlayerIndex(nextPlayerIndex);
+        } else {
+            // Complete the action
+            const actionName = upDownAction === 'up' ? 'Up' : 'Down';
+            Alert.alert(`${actionName} Action Complete`, `All players have passed their rules ${upDownAction}.`);
+            setUpDownAction(null);
+            setUpDownCurrentPlayerIndex(0);
+            setTransferredRuleIds([]);
+            setShowUpRuleModal(false);
+            setShowDownRuleModal(false);
+        }
     };
 
     // Handle Swap action - make selected player swap rules with another player
@@ -953,8 +980,100 @@ export default function GameScreen() {
                 />
 
                 {/* Up Rule Modal */}
+                <RuleSelectionModal
+                    visible={showUpRuleModal}
+                    title={`Which rule would you like to send to ${(() => {
+                        if (!gameState?.players || upDownAction !== 'up') return '';
+                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        if (!currentPlayer) return '';
+
+                        const playerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
+                        let targetPlayerIndex = playerIndex - 1;
+                        while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
+                            targetPlayerIndex--;
+                        }
+                        if (targetPlayerIndex < 0) {
+                            targetPlayerIndex = gameState.players.length - 1;
+                            while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
+                                targetPlayerIndex--;
+                            }
+                        }
+                        return gameState.players[targetPlayerIndex]?.name || '';
+                    })()}?`}
+                    description={`${(() => {
+                        if (!gameState?.players || upDownAction !== 'up') return '';
+                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        return currentPlayer?.name || '';
+                    })()}'s rules:`}
+                    rules={(() => {
+                        if (!gameState?.players || upDownAction !== 'up') return [];
+                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        if (!currentPlayer) return [];
+                        return gameState.rules.filter(rule =>
+                            rule.assignedTo === currentPlayer.id &&
+                            rule.isActive &&
+                            !transferredRuleIds.includes(rule.id)
+                        );
+                    })()}
+                    onSelectRule={handleUpDownRuleSelect}
+                    onClose={() => {
+                        setShowUpRuleModal(false);
+                        setUpDownAction(null);
+                        setUpDownCurrentPlayerIndex(0);
+                        setTransferredRuleIds([]);
+                    }}
+                />
 
                 {/* Down Rule Modal */}
+                <RuleSelectionModal
+                    visible={showDownRuleModal}
+                    title={`Which rule would you like to send to ${(() => {
+                        if (!gameState?.players || upDownAction !== 'down') return '';
+                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        if (!currentPlayer) return '';
+
+                        const playerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
+                        let targetPlayerIndex = playerIndex + 1;
+                        while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
+                            targetPlayerIndex++;
+                        }
+                        if (targetPlayerIndex >= gameState.players.length) {
+                            targetPlayerIndex = 0;
+                            while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
+                                targetPlayerIndex++;
+                            }
+                        }
+                        return gameState.players[targetPlayerIndex]?.name || '';
+                    })()}?`}
+                    description={`${(() => {
+                        if (!gameState?.players || upDownAction !== 'down') return '';
+                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        return currentPlayer?.name || '';
+                    })()}'s rules:`}
+                    rules={(() => {
+                        if (!gameState?.players || upDownAction !== 'down') return [];
+                        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+                        const currentPlayer = nonHostPlayers[upDownCurrentPlayerIndex];
+                        if (!currentPlayer) return [];
+                        return gameState.rules.filter(rule =>
+                            rule.assignedTo === currentPlayer.id &&
+                            rule.isActive &&
+                            !transferredRuleIds.includes(rule.id)
+                        );
+                    })()}
+                    onSelectRule={handleUpDownRuleSelect}
+                    onClose={() => {
+                        setShowDownRuleModal(false);
+                        setUpDownAction(null);
+                        setUpDownCurrentPlayerIndex(0);
+                        setTransferredRuleIds([]);
+                    }}
+                />
 
                 {/* Swapper Rule Selection Modal */}
                 <RuleSelectionModal
