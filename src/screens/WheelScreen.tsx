@@ -155,6 +155,152 @@ export default function WheelScreen() {
         })
     ).current;
 
+    // Handle Up modifier - pass rule to player above
+    const handleUpModifier = () => {
+        if (!gameState?.currentPlayer || !gameState?.players) return;
+
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayer);
+        if (!currentPlayer || currentPlayer.isHost) {
+            alert('Host players cannot use the Up modifier.');
+            return;
+        }
+
+        // Find current player's index in the players array
+        const currentPlayerIndex = gameState.players.findIndex(p => p.id === gameState.currentPlayer);
+        if (currentPlayerIndex === -1) return;
+
+        // Find the player above (previous in array, excluding host)
+        let targetPlayerIndex = currentPlayerIndex - 1;
+        while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
+            targetPlayerIndex--;
+        }
+
+        if (targetPlayerIndex < 0) {
+            // Wrap around to the end, excluding host
+            targetPlayerIndex = gameState.players.length - 1;
+            while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
+                targetPlayerIndex--;
+            }
+        }
+
+        if (targetPlayerIndex < 0) {
+            alert('No valid target player found.');
+            return;
+        }
+
+        const targetPlayer = gameState.players[targetPlayerIndex];
+
+        // Find a random rule assigned to current player
+        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo === currentPlayer.id && rule.isActive);
+        if (currentPlayerRules.length === 0) {
+            alert('You have no rules to pass up.');
+            return;
+        }
+
+        const randomRule = currentPlayerRules[Math.floor(Math.random() * currentPlayerRules.length)];
+
+        // Assign the rule to the target player
+        dispatch({ type: 'UPDATE_RULE', payload: { ...randomRule, assignedTo: targetPlayer.id } });
+
+        alert(`${currentPlayer.name} passed the rule "${randomRule.text}" up to ${targetPlayer.name}!`);
+
+        // Close the popup and navigate back
+        Animated.parallel([
+            Animated.timing(popupScale, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+            Animated.timing(popupOpacity, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            const selectedSegment = segments[selectedIndex];
+            if (selectedSegment) {
+                removeWheelLayer(selectedSegment.id);
+            }
+            setShowExpandedPlaque(false);
+            popupScale.setValue(0);
+            popupOpacity.setValue(0);
+            navigation.goBack();
+        });
+    };
+
+    // Handle Down modifier - pass rule to player below
+    const handleDownModifier = () => {
+        if (!gameState?.currentPlayer || !gameState?.players) return;
+
+        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayer);
+        if (!currentPlayer || currentPlayer.isHost) {
+            alert('Host players cannot use the Down modifier.');
+            return;
+        }
+
+        // Find current player's index in the players array
+        const currentPlayerIndex = gameState.players.findIndex(p => p.id === gameState.currentPlayer);
+        if (currentPlayerIndex === -1) return;
+
+        // Find the player below (next in array, excluding host)
+        let targetPlayerIndex = currentPlayerIndex + 1;
+        while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
+            targetPlayerIndex++;
+        }
+
+        if (targetPlayerIndex >= gameState.players.length) {
+            // Wrap around to the beginning, excluding host
+            targetPlayerIndex = 0;
+            while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
+                targetPlayerIndex++;
+            }
+        }
+
+        if (targetPlayerIndex >= gameState.players.length) {
+            alert('No valid target player found.');
+            return;
+        }
+
+        const targetPlayer = gameState.players[targetPlayerIndex];
+
+        // Find a random rule assigned to current player
+        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo === currentPlayer.id && rule.isActive);
+        if (currentPlayerRules.length === 0) {
+            alert('You have no rules to pass down.');
+            return;
+        }
+
+        const randomRule = currentPlayerRules[Math.floor(Math.random() * currentPlayerRules.length)];
+
+        // Assign the rule to the target player
+        dispatch({ type: 'UPDATE_RULE', payload: { ...randomRule, assignedTo: targetPlayer.id } });
+
+        alert(`${currentPlayer.name} passed the rule "${randomRule.text}" down to ${targetPlayer.name}!`);
+
+        // Close the popup and navigate back
+        Animated.parallel([
+            Animated.timing(popupScale, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+            Animated.timing(popupOpacity, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            const selectedSegment = segments[selectedIndex];
+            if (selectedSegment) {
+                removeWheelLayer(selectedSegment.id);
+            }
+            setShowExpandedPlaque(false);
+            popupScale.setValue(0);
+            popupOpacity.setValue(0);
+            navigation.goBack();
+        });
+    };
+
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
@@ -519,6 +665,48 @@ export default function WheelScreen() {
                                             >
                                                 <Text style={{ color: '#000', fontSize: 16, fontWeight: 'bold' }}>
                                                     SELECT RULE TO FLIP
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    } else if (currentLayer.content === 'Up') {
+                                        return (
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: '#17a2b8',
+                                                    paddingHorizontal: 30,
+                                                    paddingVertical: 15,
+                                                    borderRadius: 10,
+                                                    marginTop: 30,
+                                                    alignSelf: 'center',
+                                                }}
+                                                onPress={() => {
+                                                    // Handle Up modifier - pass rule to player above
+                                                    handleUpModifier();
+                                                }}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                    PASS RULE UP
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    } else if (currentLayer.content === 'Down') {
+                                        return (
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: '#6f42c1',
+                                                    paddingHorizontal: 30,
+                                                    paddingVertical: 15,
+                                                    borderRadius: 10,
+                                                    marginTop: 30,
+                                                    alignSelf: 'center',
+                                                }}
+                                                onPress={() => {
+                                                    // Handle Down modifier - pass rule to player below
+                                                    handleDownModifier();
+                                                }}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                    PASS RULE DOWN
                                                 </Text>
                                             </TouchableOpacity>
                                         );

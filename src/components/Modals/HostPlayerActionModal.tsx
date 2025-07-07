@@ -12,6 +12,8 @@ interface HostPlayerActionModalProps {
     onSuccessfulAccusation: () => void;
     onCloneRule: () => void;
     onFlipRule: () => void;
+    onUpAction: () => void;
+    onDownAction: () => void;
     onClose: () => void;
 }
 
@@ -24,6 +26,8 @@ export default function HostPlayerActionModal({
     onSuccessfulAccusation,
     onCloneRule,
     onFlipRule,
+    onUpAction,
+    onDownAction,
     onClose
 }: HostPlayerActionModalProps) {
     return (
@@ -49,38 +53,52 @@ export default function HostPlayerActionModal({
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerYellow }]}
                             onPress={onGiveRule}
                         >
                             <Text style={styles.actionButtonText}>Give Rule</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerBlue }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
                             onPress={onSuccessfulPrompt}
                         >
                             <Text style={styles.actionButtonText}>Successful Prompt (+2 points)</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerMaroon }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerBlue }]}
                             onPress={onSuccessfulAccusation}
                         >
                             <Text style={styles.actionButtonText}>Successful Accusation (+1 point)</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerBlue }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerMaroon }]}
                             onPress={onCloneRule}
                         >
                             <Text style={styles.actionButtonText}>Clone Rule</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerBlue }]}
                             onPress={onFlipRule}
                         >
                             <Text style={styles.actionButtonText}>Flip Rule</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
+                            onPress={onUpAction}
+                        >
+                            <Text style={styles.actionButtonText}>Up</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerYellow }]}
+                            onPress={onDownAction}
+                        >
+                            <Text style={styles.actionButtonText}>Down</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity

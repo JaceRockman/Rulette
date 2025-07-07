@@ -342,15 +342,121 @@ export default function GameScreen() {
     };
 
     const handleSpinWheelForPlayer = () => {
-        if (selectedPlayerForAction && currentPlayer) {
-            // Store the original current player
-            setOriginalCurrentPlayer(currentPlayer.id);
-            // Set the current player to the selected player and navigate to wheel
-            dispatch({ type: 'SET_CURRENT_PLAYER', payload: selectedPlayerForAction.id });
+        if (selectedPlayerForAction) {
+            // Navigate to wheel screen for this player
+            navigation.navigate('Wheel', { playerId: selectedPlayerForAction.id });
             setShowPlayerActionModal(false);
-            setSelectedPlayerForAction(null);
-            navigation.navigate('Wheel');
         }
+    };
+
+    // Handle Up action - pass rule to player above
+    const handleUpAction = () => {
+        if (!gameState?.players) return;
+
+        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+        if (nonHostPlayers.length < 2) {
+            Alert.alert('Not Enough Players', 'Need at least 2 non-host players for Up action.');
+            return;
+        }
+
+        let actionResults: string[] = [];
+
+        // Process each non-host player
+        nonHostPlayers.forEach((player, index) => {
+            // Find player's index in the full players array
+            const playerIndex = gameState.players.findIndex(p => p.id === player.id);
+            if (playerIndex === -1) return;
+
+            // Find the player above (previous in array, excluding host)
+            let targetPlayerIndex = playerIndex - 1;
+            while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
+                targetPlayerIndex--;
+            }
+
+            if (targetPlayerIndex < 0) {
+                // Wrap around to the end, excluding host
+                targetPlayerIndex = gameState.players.length - 1;
+                while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
+                    targetPlayerIndex--;
+                }
+            }
+
+            if (targetPlayerIndex < 0) return;
+
+            const targetPlayer = gameState.players[targetPlayerIndex];
+
+            // Find a random rule assigned to current player
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+            if (playerRules.length === 0) {
+                actionResults.push(`${player.name} had no rules to pass up.`);
+                return;
+            }
+
+            const randomRule = playerRules[Math.floor(Math.random() * playerRules.length)];
+
+            // Assign the rule to the target player
+            dispatch({ type: 'UPDATE_RULE', payload: { ...randomRule, assignedTo: targetPlayer.id } });
+
+            actionResults.push(`${player.name} passed "${randomRule.text}" up to ${targetPlayer.name}`);
+        });
+
+        Alert.alert('Up Action Complete', actionResults.join('\n'));
+        setShowPlayerActionModal(false);
+    };
+
+    // Handle Down action - pass rule to player below
+    const handleDownAction = () => {
+        if (!gameState?.players) return;
+
+        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+        if (nonHostPlayers.length < 2) {
+            Alert.alert('Not Enough Players', 'Need at least 2 non-host players for Down action.');
+            return;
+        }
+
+        let actionResults: string[] = [];
+
+        // Process each non-host player
+        nonHostPlayers.forEach((player, index) => {
+            // Find player's index in the full players array
+            const playerIndex = gameState.players.findIndex(p => p.id === player.id);
+            if (playerIndex === -1) return;
+
+            // Find the player below (next in array, excluding host)
+            let targetPlayerIndex = playerIndex + 1;
+            while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
+                targetPlayerIndex++;
+            }
+
+            if (targetPlayerIndex >= gameState.players.length) {
+                // Wrap around to the beginning, excluding host
+                targetPlayerIndex = 0;
+                while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
+                    targetPlayerIndex++;
+                }
+            }
+
+            if (targetPlayerIndex >= gameState.players.length) return;
+
+            const targetPlayer = gameState.players[targetPlayerIndex];
+
+            // Find a random rule assigned to current player
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+            if (playerRules.length === 0) {
+                actionResults.push(`${player.name} had no rules to pass down.`);
+                return;
+            }
+
+            const randomRule = playerRules[Math.floor(Math.random() * playerRules.length)];
+
+            // Assign the rule to the target player
+            dispatch({ type: 'UPDATE_RULE', payload: { ...randomRule, assignedTo: targetPlayer.id } });
+
+            actionResults.push(`${player.name} passed "${randomRule.text}" down to ${targetPlayer.name}`);
+        });
+
+        Alert.alert('Down Action Complete', actionResults.join('\n'));
+        setShowPlayerActionModal(false);
     };
 
     // Show game over screen if game has ended
@@ -641,6 +747,8 @@ export default function GameScreen() {
                     onSuccessfulAccusation={handleSuccessfulAccusationAction}
                     onCloneRule={handleCloneAction}
                     onFlipRule={handleFlipAction}
+                    onUpAction={handleUpAction}
+                    onDownAction={handleDownAction}
                     onClose={() => setShowPlayerActionModal(false)}
                 />
 

@@ -197,7 +197,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                     });
                 } else {
                     // Add modifier layer if no prompt available
-                    const modifiers = ['Clone', 'Flip'];
+                    const modifiers = ['Clone', 'Flip', 'Up', 'Down'];
                     // Use a more varied approach for modifier colors
                     const modifierColor = getVariedModifierColor(modifierColors);
                     modifierColors.push(modifierColor);
@@ -210,7 +210,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 }
 
                 // Add another modifier layer
-                const modifiers = ['Clone', 'Flip'];
+                const modifiers = ['Clone', 'Flip', 'Up', 'Down'];
                 const secondModifierColor = getVariedModifierColor(modifierColors);
                 modifierColors.push(secondModifierColor);
                 layers.push({
