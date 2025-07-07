@@ -49,7 +49,8 @@ type GameAction =
     | { type: 'SET_NUM_PROMPTS'; payload: number }
     | { type: 'REMOVE_WHEEL_LAYER'; payload: string }
     | { type: 'END_GAME'; payload: Player }
-    | { type: 'CREATE_WHEEL_SEGMENTS' };
+    | { type: 'CREATE_WHEEL_SEGMENTS' }
+    | { type: 'SET_HOST'; payload: string };
 
 const initialState: GameState = {
     id: '',
@@ -165,6 +166,26 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 ...state,
                 gameEnded: true,
                 winner: action.payload,
+            };
+
+        case 'SET_HOST':
+            const oldHost = state.players.find(p => p.isHost);
+            return {
+                ...state,
+                players: state.players
+                    .filter((p: Player) => !p.isHost) // Remove old host
+                    .map((p: Player) => ({
+                        ...p,
+                        isHost: p.id === action.payload
+                    }))
+                    .concat(
+                        state.players
+                            .filter((p: Player) => p.id === action.payload)
+                            .map((p: Player) => ({
+                                ...p,
+                                isHost: true
+                            }))
+                    ),
             };
 
         case 'CREATE_WHEEL_SEGMENTS':

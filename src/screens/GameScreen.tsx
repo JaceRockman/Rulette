@@ -25,6 +25,7 @@ import {
     RuleAccusationPopup,
     AccusationJudgementModal,
     HostPlayerActionModal,
+    HostActionModal,
     FlipTextInputModal
 } from '../components/Modals';
 import RuleSelectionModal from '../components/Modals/RuleSelectionModal';
@@ -67,6 +68,8 @@ export default function GameScreen() {
     const [upDownAction, setUpDownAction] = useState<'up' | 'down' | null>(null);
     const [transferredRuleIds, setTransferredRuleIds] = useState<string[]>([]);
     const [upDownPlayerOrder, setUpDownPlayerOrder] = useState<Player[]>([]);
+    const [showHostActionModal, setShowHostActionModal] = useState(false);
+    const [showNewHostSelectionModal, setShowNewHostSelectionModal] = useState(false);
 
 
     // Restore original current player when returning from wheel
@@ -80,6 +83,26 @@ export default function GameScreen() {
 
         return unsubscribe;
     }, [navigation, originalCurrentPlayer, currentPlayer, dispatch]);
+
+    // Set up custom header for host
+    React.useEffect(() => {
+        if (currentPlayer?.isHost) {
+            navigation.setOptions({
+                headerLeft: () => (
+                    <TouchableOpacity
+                        onPress={() => setShowHostActionModal(true)}
+                        style={{ marginLeft: 16 }}
+                    >
+                        <Text style={{ fontSize: 24, color: '#ffffff' }}>←</Text>
+                    </TouchableOpacity>
+                ),
+            });
+        } else {
+            navigation.setOptions({
+                headerLeft: undefined,
+            });
+        }
+    }, [navigation, currentPlayer?.isHost]);
 
     const handleSpinWheel = () => {
         navigation.navigate('Wheel');
@@ -608,6 +631,41 @@ export default function GameScreen() {
         setShowSwapTargetRuleModal(false);
     };
 
+    // Host action handlers
+    const handleEndGame = () => {
+        if (!gameState) return;
+
+        // Find player with most points
+        const winner = gameState.players.reduce((prev, current) =>
+            (prev.points > current.points) ? prev : current
+        );
+        if (winner) {
+            endGame();
+        }
+    };
+
+    const handleSelectNewHost = () => {
+        setShowNewHostSelectionModal(true);
+    };
+
+    const handleNewHostSelected = (newHost: Player) => {
+        // Check if current player is being removed (they are the current host)
+        const isCurrentPlayerRemoved = currentPlayer?.isHost;
+
+        // Update the game state to make the selected player the new host
+        dispatch({ type: 'SET_HOST', payload: newHost.id });
+        setShowNewHostSelectionModal(false);
+
+        if (isCurrentPlayerRemoved) {
+            // If current player was removed, navigate to home screen
+            Alert.alert('Host Changed', `${newHost.name} is now the host! You have been removed from the game.`, [
+                { text: 'OK', onPress: () => navigation.navigate('Home' as never) }
+            ]);
+        } else {
+            Alert.alert('Host Changed', `${newHost.name} is now the host!`);
+        }
+    };
+
     // Show game over screen if game has ended
     if (gameState?.gameEnded && gameState?.winner) {
         return (
@@ -877,25 +935,7 @@ export default function GameScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    {/* End Game Early Button (Host Only) */}
-                    {currentPlayer.isHost && (
-                        <View style={styles.section}>
-                            <TouchableOpacity
-                                style={[styles.spinButton, { backgroundColor: '#ed5c5d' }]}
-                                onPress={() => {
-                                    // Find player with most points
-                                    const winner = gameState.players.reduce((prev, current) =>
-                                        (prev.points > current.points) ? prev : current
-                                    );
-                                    if (winner) {
-                                        endGame();
-                                    }
-                                }}
-                            >
-                                <Text style={styles.spinButtonText}>End Game Early</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+
                 </ScrollView>
 
 
@@ -1190,6 +1230,24 @@ export default function GameScreen() {
                         setSelectedPlayerForAction(null);
                     }}
                 />
+
+                {/* Host Action Modal */}
+                <HostActionModal
+                    visible={showHostActionModal}
+                    onClose={() => setShowHostActionModal(false)}
+                    onEndGame={handleEndGame}
+                    onSelectNewHost={handleSelectNewHost}
+                />
+
+                {/* New Host Selection Modal */}
+                <PlayerSelectionModal
+                    visible={showNewHostSelectionModal}
+                    title="Select New Host"
+                    description="Choose a player to become the new host:"
+                    players={gameState?.players.filter(player => !player.isHost) || []}
+                    onSelectPlayer={handleNewHostSelected}
+                    onClose={() => setShowNewHostSelectionModal(false)}
+                />
             </SafeAreaView>
         </StripedBackground>
     );
@@ -1347,13 +1405,15 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     spinButton: {
-        backgroundColor: '#cba84b',
+        backgroundColor: '#ffffff',
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
+        borderWidth: 3,
+        borderColor: '#000000',
     },
     spinButtonText: {
-        color: '#ffffff',
+        color: '#000000',
         fontSize: 18,
         fontWeight: 'bold',
     },
