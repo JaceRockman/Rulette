@@ -84,9 +84,8 @@ export default function LobbyScreen() {
                     {/* Lobby Code Section */}
                     <View style={styles.section}>
                         <OutlinedText style={{ textAlign: 'center' }}>Lobby Code</OutlinedText>
-                        <TouchableOpacity style={shared.button} onPress={copyLobbyCode}>
-                            <Text style={shared.buttonText}>{lobbyCode}</Text>
-                            <Text style={styles.copyText}>Tap to copy</Text>
+                        <TouchableOpacity style={styles.lobbyCodeButton} onPress={copyLobbyCode}>
+                            <Text style={styles.lobbyCodeText}>{lobbyCode}</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -315,5 +314,21 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         fontSize: 18,
         fontWeight: 'bold',
+    },
+    lobbyCodeButton: {
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+        alignSelf: 'center',
+        width: '60%',
+        borderWidth: 3,
+        borderColor: '#000000',
+    },
+    lobbyCodeText: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: '#1f2937',
+        letterSpacing: 2,
     },
 }); 
