@@ -26,12 +26,12 @@ export default function LobbyScreen() {
     const route = useRoute<LobbyScreenRouteProp>();
     const { gameState, currentPlayer, startGame, addTestPlayers, addFillerRules, addFillerPrompts } = useGame();
 
-    const [startingPoints, setStartingPoints] = useState('20');
-    const [numRules, setNumRules] = useState('3');
-    const [numPrompts, setNumPrompts] = useState('3');
-    const [numTestPlayers, setNumTestPlayers] = useState('0');
-    const [numFillerRules, setNumFillerRules] = useState('0');
-    const [numFillerPrompts, setNumFillerPrompts] = useState('0');
+    const [startingPoints, setStartingPoints] = useState('');
+    const [numRules, setNumRules] = useState('');
+    const [numPrompts, setNumPrompts] = useState('');
+    const [numTestPlayers, setNumTestPlayers] = useState('');
+    const [numFillerRules, setNumFillerRules] = useState('');
+    const [numFillerPrompts, setNumFillerPrompts] = useState('');
 
     const isHost = currentPlayer?.isHost;
     const lobbyCode = gameState?.code || route.params.code;
@@ -120,15 +120,12 @@ export default function LobbyScreen() {
                     {/* Host Settings Section */}
                     {isHost && (
                         <View style={styles.section}>
-                            <OutlinedText>Game Settings</OutlinedText>
-                            <Text style={{ color: 'white', textAlign: 'center', marginBottom: 10 }}>
-                                Debug: isHost = {isHost ? 'true' : 'false'}
-                            </Text>
+                            <OutlinedText style={styles.gameSettingsTitle}>Game Settings</OutlinedText>
 
-                            <View style={styles.settingRow}>
-                                <OutlinedText>Starting Points:</OutlinedText>
+                            <View style={styles.settingContainer}>
+                                <OutlinedText style={styles.settingLabel}>Starting Points</OutlinedText>
                                 <TextInput
-                                    style={shared.input}
+                                    style={styles.settingInput}
                                     value={startingPoints}
                                     onChangeText={setStartingPoints}
                                     keyboardType="numeric"
@@ -137,10 +134,10 @@ export default function LobbyScreen() {
                                 />
                             </View>
 
-                            <View style={styles.settingRow}>
-                                <OutlinedText>Number of Rules:</OutlinedText>
+                            <View style={styles.settingContainer}>
+                                <OutlinedText style={styles.settingLabel}>Number of Rules</OutlinedText>
                                 <TextInput
-                                    style={shared.input}
+                                    style={styles.settingInput}
                                     value={numRules}
                                     onChangeText={setNumRules}
                                     keyboardType="numeric"
@@ -149,10 +146,10 @@ export default function LobbyScreen() {
                                 />
                             </View>
 
-                            <View style={styles.settingRow}>
-                                <OutlinedText>Number of Prompts:</OutlinedText>
+                            <View style={styles.settingContainer}>
+                                <OutlinedText style={styles.settingLabel}>Number of Prompts</OutlinedText>
                                 <TextInput
-                                    style={shared.input}
+                                    style={styles.settingInput}
                                     value={numPrompts}
                                     onChangeText={setNumPrompts}
                                     keyboardType="numeric"
@@ -161,73 +158,72 @@ export default function LobbyScreen() {
                                 />
                             </View>
 
-                            <View style={styles.settingRow}>
-                                <OutlinedText>Test Players:</OutlinedText>
-                                <TextInput
-                                    style={shared.input}
-                                    value={numTestPlayers}
-                                    onChangeText={setNumTestPlayers}
-                                    keyboardType="numeric"
-                                    placeholder="0"
-                                    placeholderTextColor="#9ca3af"
-                                />
-                            </View>
+                            {/* Development-only settings */}
+                            {__DEV__ && (
+                                <>
+                                    <View style={styles.settingContainer}>
+                                        <OutlinedText style={styles.settingLabel}>Test Players</OutlinedText>
+                                        <TextInput
+                                            style={styles.settingInput}
+                                            value={numTestPlayers}
+                                            onChangeText={setNumTestPlayers}
+                                            keyboardType="numeric"
+                                            placeholder="0"
+                                            placeholderTextColor="#9ca3af"
+                                        />
+                                    </View>
 
-                            {parseInt(numTestPlayers) > 0 && (
-                                <TouchableOpacity
-                                    style={[shared.button, { marginTop: 10 }]}
-                                    onPress={handleAddTestPlayers}
-                                >
-                                    <Text style={shared.buttonText}>Add Test Players</Text>
-                                </TouchableOpacity>
-                            )}
+                                    {parseInt(numTestPlayers) > 0 && (
+                                        <TouchableOpacity
+                                            style={[shared.button, { marginTop: 10 }]}
+                                            onPress={handleAddTestPlayers}
+                                        >
+                                            <Text style={shared.buttonText}>Add Test Players</Text>
+                                        </TouchableOpacity>
+                                    )}
 
-                            <View style={styles.settingRow}>
-                                <OutlinedText>Filler Rules:</OutlinedText>
-                                <TextInput
-                                    style={shared.input}
-                                    value={numFillerRules}
-                                    onChangeText={setNumFillerRules}
-                                    keyboardType="numeric"
-                                    placeholder="0"
-                                    placeholderTextColor="#9ca3af"
-                                />
-                            </View>
-                            <Text style={{ color: 'white', textAlign: 'center', fontSize: 12 }}>
-                                Debug: numFillerRules = {numFillerRules}
-                            </Text>
+                                    <View style={styles.settingContainer}>
+                                        <OutlinedText style={styles.settingLabel}>Filler Rules</OutlinedText>
+                                        <TextInput
+                                            style={styles.settingInput}
+                                            value={numFillerRules}
+                                            onChangeText={setNumFillerRules}
+                                            keyboardType="numeric"
+                                            placeholder="0"
+                                            placeholderTextColor="#9ca3af"
+                                        />
+                                    </View>
 
-                            {parseInt(numFillerRules) > 0 && (
-                                <TouchableOpacity
-                                    style={[shared.button, { marginTop: 10 }]}
-                                    onPress={handleAddFillerRules}
-                                >
-                                    <Text style={shared.buttonText}>Add Filler Rules</Text>
-                                </TouchableOpacity>
-                            )}
+                                    {parseInt(numFillerRules) > 0 && (
+                                        <TouchableOpacity
+                                            style={[shared.button, { marginTop: 10 }]}
+                                            onPress={handleAddFillerRules}
+                                        >
+                                            <Text style={shared.buttonText}>Add Filler Rules</Text>
+                                        </TouchableOpacity>
+                                    )}
 
-                            <View style={styles.settingRow}>
-                                <OutlinedText>Filler Prompts:</OutlinedText>
-                                <TextInput
-                                    style={shared.input}
-                                    value={numFillerPrompts}
-                                    onChangeText={setNumFillerPrompts}
-                                    keyboardType="numeric"
-                                    placeholder="0"
-                                    placeholderTextColor="#9ca3af"
-                                />
-                            </View>
-                            <Text style={{ color: 'white', textAlign: 'center', fontSize: 12 }}>
-                                Debug: numFillerPrompts = {numFillerPrompts}
-                            </Text>
+                                    <View style={styles.settingContainer}>
+                                        <OutlinedText style={styles.settingLabel}>Filler Prompts</OutlinedText>
+                                        <TextInput
+                                            style={styles.settingInput}
+                                            value={numFillerPrompts}
+                                            onChangeText={setNumFillerPrompts}
+                                            keyboardType="numeric"
+                                            placeholder="0"
+                                            placeholderTextColor="#9ca3af"
+                                        />
+                                    </View>
 
-                            {parseInt(numFillerPrompts) > 0 && (
-                                <TouchableOpacity
-                                    style={[shared.button, { marginTop: 10 }]}
-                                    onPress={handleAddFillerPrompts}
-                                >
-                                    <Text style={shared.buttonText}>Add Filler Prompts</Text>
-                                </TouchableOpacity>
+                                    {parseInt(numFillerPrompts) > 0 && (
+                                        <TouchableOpacity
+                                            style={[shared.button, { marginTop: 10 }]}
+                                            onPress={handleAddFillerPrompts}
+                                        >
+                                            <Text style={shared.buttonText}>Add Filler Prompts</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                </>
                             )}
                         </View>
                     )}
@@ -321,24 +317,28 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: '#1f2937',
     },
-    settingRow: {
-        flexDirection: 'row',
+    gameSettingsTitle: {
+        fontSize: 28,
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    settingContainer: {
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: 20,
     },
     settingLabel: {
-        fontSize: 16,
-        color: '#ffffff',
-        marginRight: 15,
-        minWidth: 120,
+        fontSize: 20,
+        textAlign: 'center',
+        marginBottom: 8,
     },
     settingInput: {
-        flex: 1,
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 8,
         padding: 12,
         fontSize: 14,
         color: '#1f2937',
+        width: 200,
+        textAlign: 'center',
     },
     startButton: {
         backgroundColor: '#cba84b',
