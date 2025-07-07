@@ -54,6 +54,9 @@ export default function GameScreen() {
     const [showSwapTargetRuleModal, setShowSwapTargetRuleModal] = useState(false);
     const [swapTargetPlayer, setSwapTargetPlayer] = useState<Player | null>(null);
     const [swapOwnRule, setSwapOwnRule] = useState<Rule | null>(null);
+    const [showCloneRuleModal, setShowCloneRuleModal] = useState(false);
+    const [showCloneTargetModal, setShowCloneTargetModal] = useState(false);
+    const [cloneSelectedRule, setCloneSelectedRule] = useState<Rule | null>(null);
 
     // Restore original current player when returning from wheel
     React.useEffect(() => {
@@ -163,36 +166,61 @@ export default function GameScreen() {
 
     const handleCloneAction = () => {
         if (selectedPlayerForAction && gameState) {
-            // Find a random rule assigned to this player to clone
+            // Check if player has rules to clone
             const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
             if (playerRules.length > 0) {
-                const randomRule = playerRules[Math.floor(Math.random() * playerRules.length)];
-                // Create a clone by assigning the same rule to another random player
-                const otherPlayers = gameState.players.filter(player =>
-                    player.id !== selectedPlayerForAction.id &&
-                    player.id !== randomRule.assignedTo
-                );
-
-                if (otherPlayers.length > 0) {
-                    const targetPlayer = otherPlayers[Math.floor(Math.random() * otherPlayers.length)];
-                    // Create a new rule with the same properties but a new ID
-                    const clonedRule = {
-                        ...randomRule,
-                        id: Math.random().toString(36).substr(2, 9),
-                        assignedTo: targetPlayer.id
-                    };
-                    // Add the cloned rule to the game state
-                    dispatch({ type: 'ADD_RULE', payload: clonedRule });
-                    Alert.alert('Clone Action', `${selectedPlayerForAction.name} cloned their rule "${randomRule.text}" to ${targetPlayer.name}`);
-                } else {
-                    Alert.alert('No Target Available', 'No other players available to clone the rule to.');
-                }
+                setShowPlayerActionModal(false);
+                setShowCloneRuleModal(true);
             } else {
                 Alert.alert('No Rules to Clone', `${selectedPlayerForAction.name} has no assigned rules to clone.`);
+                setShowPlayerActionModal(false);
+                setSelectedPlayerForAction(null);
             }
-            setShowPlayerActionModal(false);
-            setSelectedPlayerForAction(null);
         }
+    };
+
+    const handleCloneRuleSelect = (ruleId: string) => {
+        if (!selectedPlayerForAction || !gameState) return;
+
+        const rule = gameState.rules.find(r => r.id === ruleId);
+        if (!rule) return;
+
+        setCloneSelectedRule(rule);
+        setShowCloneRuleModal(false);
+
+        // Show player selection modal for the target player
+        const otherPlayers = gameState.players.filter(player =>
+            player.id !== selectedPlayerForAction.id
+        );
+        if (otherPlayers.length === 0) {
+            Alert.alert('No Target Players', 'No other players available for cloning.');
+            setCloneSelectedRule(null);
+            setSelectedPlayerForAction(null);
+            return;
+        }
+
+        setShowCloneTargetModal(true);
+    };
+
+    const handleCloneTargetSelect = (targetPlayer: Player) => {
+        if (!cloneSelectedRule || !selectedPlayerForAction) return;
+
+        // Create a new rule with the same properties but a new ID
+        const clonedRule = {
+            ...cloneSelectedRule,
+            id: Math.random().toString(36).substr(2, 9),
+            assignedTo: targetPlayer.id
+        };
+
+        // Add the cloned rule to the game state
+        dispatch({ type: 'ADD_RULE', payload: clonedRule });
+
+        Alert.alert('Clone Complete', `${selectedPlayerForAction.name} cloned their rule "${cloneSelectedRule.text}" to ${targetPlayer.name}`);
+
+        // Reset all clone state
+        setCloneSelectedRule(null);
+        setSelectedPlayerForAction(null);
+        setShowCloneTargetModal(false);
     };
 
     const handleSuccessfulPromptAction = () => {
@@ -855,6 +883,32 @@ export default function GameScreen() {
                 />
 
                 {/* Clone Rule Modal */}
+                <RuleSelectionModal
+                    visible={showCloneRuleModal}
+                    title={`Select ${selectedPlayerForAction?.name}'s Rule to Clone`}
+                    description={`Choose one of ${selectedPlayerForAction?.name}'s rules to clone:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id && rule.isActive) || []}
+                    onSelectRule={handleCloneRuleSelect}
+                    onClose={() => {
+                        setShowCloneRuleModal(false);
+                        setCloneSelectedRule(null);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
+
+                {/* Clone Target Selection Modal */}
+                <PlayerSelectionModal
+                    visible={showCloneTargetModal}
+                    title="Select Player to Clone Rule To"
+                    description={`Choose a player to give a copy of "${cloneSelectedRule?.text}" to:`}
+                    players={gameState?.players.filter(player => player.id !== selectedPlayerForAction?.id) || []}
+                    onSelectPlayer={handleCloneTargetSelect}
+                    onClose={() => {
+                        setShowCloneTargetModal(false);
+                        setCloneSelectedRule(null);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
 
                 {/* Flip Rule Modal */}
 
