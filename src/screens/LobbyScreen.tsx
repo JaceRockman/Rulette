@@ -89,17 +89,33 @@ export default function LobbyScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    {/* Players Section */}
-                    <View style={styles.section}>
-                        <OutlinedText>Players ({gameState?.players.length || 0})</OutlinedText>
-                        {gameState?.players.map((player) => (
-                            <View key={player.id} style={styles.playerItem}>
-                                <Text style={styles.playerName}>
-                                    {player.name} {player.isHost ? '(Host)' : ''}
-                                </Text>
+                    {/* Host Section */}
+                    {gameState?.players?.find(player => player.isHost) && (
+                        <View style={styles.section}>
+                            <OutlinedText>Host</OutlinedText>
+                            <View style={styles.hostContainer}>
+                                {gameState?.players?.filter(player => player.isHost).map((player) => (
+                                    <View key={player.id} style={styles.hostItem}>
+                                        <Text style={styles.playerName}>{player.name}</Text>
+                                    </View>
+                                ))}
                             </View>
-                        ))}
-                    </View>
+                        </View>
+                    )}
+
+                    {/* Players Section */}
+                    {gameState?.players?.filter(player => !player.isHost).length > 0 && (
+                        <View style={styles.section}>
+                            <OutlinedText>Players</OutlinedText>
+                            <View style={styles.playerGrid}>
+                                {gameState?.players?.filter(player => !player.isHost).map((player) => (
+                                    <View key={player.id} style={styles.playerItem}>
+                                        <Text style={styles.playerName}>{player.name}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
 
                     {/* Host Settings Section */}
                     {isHost && (
@@ -273,15 +289,35 @@ const styles = StyleSheet.create({
         color: '#6b7280',
         marginTop: 5,
     },
+    hostContainer: {
+        alignItems: 'center',
+    },
+    hostItem: {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 8,
+        paddingVertical: 16,
+        paddingHorizontal: 8,
+        marginBottom: 8,
+        alignItems: 'center',
+        width: '50%',
+    },
+    playerGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        paddingHorizontal: 10,
+    },
     playerItem: {
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 8,
-        padding: 12,
+        paddingVertical: 16,
+        paddingHorizontal: 8,
         marginBottom: 8,
         alignItems: 'center',
+        width: '48%',
     },
     playerName: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: '500',
         color: '#1f2937',
     },
