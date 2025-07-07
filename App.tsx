@@ -30,7 +30,7 @@ export default function App() {
         <GestureHandlerRootView style={{ flex: 1 }}>
             <GameProvider>
                 <NavigationContainer>
-                    <StatusBar style="auto" />
+                    <StatusBar hidden={true} />
                     <Stack.Navigator
                         initialRouteName="Home"
                         screenOptions={{
