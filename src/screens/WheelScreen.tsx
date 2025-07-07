@@ -18,7 +18,11 @@ export default function WheelScreen() {
     const [showClonePlayerModal, setShowClonePlayerModal] = useState(false);
     const [showFlipModal, setShowFlipModal] = useState(false);
     const [showShredModal, setShowShredModal] = useState(false);
+    const [showSwapModal, setShowSwapModal] = useState(false);
     const [selectedRuleForClone, setSelectedRuleForClone] = useState<{ rule: any; player: any } | null>(null);
+    const [swapStep, setSwapStep] = useState<'selectOwnRule' | 'selectOtherRule'>('selectOwnRule');
+    const [selectedOwnRule, setSelectedOwnRule] = useState<any>(null);
+    const [selectedOtherPlayer, setSelectedOtherPlayer] = useState<any>(null);
 
     // Use wheel segments from game state
     const segments = gameState?.wheelSegments || [];
@@ -710,6 +714,30 @@ export default function WheelScreen() {
                                                 </Text>
                                             </TouchableOpacity>
                                         );
+                                    } else if (currentLayer.content === 'Swap') {
+                                        return (
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: '#fd7e14',
+                                                    paddingHorizontal: 30,
+                                                    paddingVertical: 15,
+                                                    borderRadius: 10,
+                                                    marginTop: 30,
+                                                    alignSelf: 'center',
+                                                }}
+                                                onPress={() => {
+                                                    // Handle Swap modifier - open swap modal
+                                                    setShowSwapModal(true);
+                                                    setSwapStep('selectOwnRule');
+                                                    setSelectedOwnRule(null);
+                                                    setSelectedOtherPlayer(null);
+                                                }}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                    SWAP RULES
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
                                     }
                                 } else {
                                     return (
@@ -1279,6 +1307,275 @@ export default function WheelScreen() {
                                     Cancel
                                 </Text>
                             </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+
+                {/* Swap Rules Modal */}
+                <Modal
+                    visible={showSwapModal}
+                    transparent={true}
+                    animationType="fade"
+                    onRequestClose={() => setShowSwapModal(false)}
+                >
+                    <View style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        zIndex: 9999,
+                        elevation: 9999,
+                    }}>
+                        <View style={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: 12,
+                            padding: 20,
+                            width: '80%',
+                            maxHeight: '70%',
+                        }}>
+                            <Text style={{
+                                fontSize: 18,
+                                fontWeight: 'bold',
+                                color: '#1f2937',
+                                marginBottom: 12,
+                                textAlign: 'center',
+                            }}>
+                                {swapStep === 'selectOwnRule' ? 'Select Your Rule to Swap' : 'Select Other Player\'s Rule'}
+                            </Text>
+                            <Text style={{
+                                fontSize: 14,
+                                color: '#6b7280',
+                                marginBottom: 16,
+                                textAlign: 'center',
+                                fontStyle: 'italic',
+                            }}>
+                                {swapStep === 'selectOwnRule'
+                                    ? 'Choose one of your rules to swap with another player'
+                                    : `Choose a rule from ${selectedOtherPlayer?.name} to swap with "${selectedOwnRule?.text}"`
+                                }
+                            </Text>
+
+                            <ScrollView style={{ maxHeight: 300 }}>
+                                {swapStep === 'selectOwnRule' ? (
+                                    // Step 1: Select own rule
+                                    <>
+                                        <Text style={{
+                                            fontSize: 16,
+                                            fontWeight: 'bold',
+                                            color: '#1f2937',
+                                            marginBottom: 8,
+                                            textAlign: 'center',
+                                        }}>
+                                            Your Rules:
+                                        </Text>
+                                        {gameState?.rules
+                                            .filter(rule => rule.assignedTo === gameState?.currentPlayer && rule.isActive)
+                                            .map((rule) => (
+                                                <TouchableOpacity
+                                                    key={rule.id}
+                                                    style={{
+                                                        backgroundColor: '#f3f4f6',
+                                                        borderRadius: 8,
+                                                        padding: 12,
+                                                        marginBottom: 8,
+                                                    }}
+                                                    onPress={() => {
+                                                        setSelectedOwnRule(rule);
+                                                        setSwapStep('selectOtherRule');
+                                                    }}
+                                                >
+                                                    <Text style={{
+                                                        fontSize: 16,
+                                                        color: '#1f2937',
+                                                        textAlign: 'center',
+                                                    }}>
+                                                        {rule.text}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+
+                                        <Text style={{
+                                            fontSize: 16,
+                                            fontWeight: 'bold',
+                                            color: '#1f2937',
+                                            marginTop: 16,
+                                            marginBottom: 8,
+                                            textAlign: 'center',
+                                        }}>
+                                            Other Players:
+                                        </Text>
+                                        {gameState?.players
+                                            .filter(player => player.id !== gameState?.currentPlayer && !player.isHost)
+                                            .map((player) => {
+                                                const playerRules = gameState?.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+                                                if (playerRules && playerRules.length > 0) {
+                                                    return (
+                                                        <TouchableOpacity
+                                                            key={player.id}
+                                                            style={{
+                                                                backgroundColor: '#e5e7eb',
+                                                                borderRadius: 8,
+                                                                padding: 12,
+                                                                marginBottom: 8,
+                                                            }}
+                                                            onPress={() => {
+                                                                setSelectedOtherPlayer(player);
+                                                                setSwapStep('selectOtherRule');
+                                                            }}
+                                                        >
+                                                            <Text style={{
+                                                                fontSize: 16,
+                                                                color: '#1f2937',
+                                                                textAlign: 'center',
+                                                            }}>
+                                                                {player.name} ({playerRules.length} rules)
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+                                    </>
+                                ) : (
+                                    // Step 2: Select other player's rule
+                                    <>
+                                        {selectedOtherPlayer && (
+                                            <>
+                                                <Text style={{
+                                                    fontSize: 16,
+                                                    fontWeight: 'bold',
+                                                    color: '#1f2937',
+                                                    marginBottom: 8,
+                                                    textAlign: 'center',
+                                                }}>
+                                                    {selectedOtherPlayer.name}'s Rules:
+                                                </Text>
+                                                {gameState?.rules
+                                                    .filter(rule => rule.assignedTo === selectedOtherPlayer.id && rule.isActive)
+                                                    .map((rule) => (
+                                                        <TouchableOpacity
+                                                            key={rule.id}
+                                                            style={{
+                                                                backgroundColor: '#f3f4f6',
+                                                                borderRadius: 8,
+                                                                padding: 12,
+                                                                marginBottom: 8,
+                                                            }}
+                                                            onPress={() => {
+                                                                // Perform the swap
+                                                                if (selectedOwnRule && gameState?.currentPlayer) {
+                                                                    // Swap the rules
+                                                                    dispatch({
+                                                                        type: 'UPDATE_RULE',
+                                                                        payload: { ...selectedOwnRule, assignedTo: selectedOtherPlayer.id }
+                                                                    });
+                                                                    dispatch({
+                                                                        type: 'UPDATE_RULE',
+                                                                        payload: { ...rule, assignedTo: gameState.currentPlayer }
+                                                                    });
+
+                                                                    alert(`${gameState.players.find(p => p.id === gameState.currentPlayer)?.name} swapped "${selectedOwnRule.text}" with ${selectedOtherPlayer.name}'s "${rule.text}"!`);
+
+                                                                    setShowSwapModal(false);
+
+                                                                    // Close the wheel popup and navigate back
+                                                                    Animated.parallel([
+                                                                        Animated.timing(popupScale, {
+                                                                            toValue: 0,
+                                                                            duration: 400,
+                                                                            useNativeDriver: true,
+                                                                        }),
+                                                                        Animated.timing(popupOpacity, {
+                                                                            toValue: 0,
+                                                                            duration: 300,
+                                                                            useNativeDriver: true,
+                                                                        })
+                                                                    ]).start(() => {
+                                                                        const selectedSegment = segments[selectedIndex];
+                                                                        if (selectedSegment) {
+                                                                            removeWheelLayer(selectedSegment.id);
+                                                                        }
+                                                                        setShowExpandedPlaque(false);
+                                                                        popupScale.setValue(0);
+                                                                        popupOpacity.setValue(0);
+                                                                        navigation.goBack();
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            <Text style={{
+                                                                fontSize: 16,
+                                                                color: '#1f2937',
+                                                                textAlign: 'center',
+                                                            }}>
+                                                                {rule.text}
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    ))}
+                                            </>
+                                        )}
+                                    </>
+                                )}
+                            </ScrollView>
+
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+                                <TouchableOpacity
+                                    style={{
+                                        backgroundColor: '#6b7280',
+                                        borderRadius: 8,
+                                        padding: 16,
+                                        flex: 1,
+                                        marginRight: 8,
+                                    }}
+                                    onPress={() => {
+                                        if (swapStep === 'selectOtherRule') {
+                                            setSwapStep('selectOwnRule');
+                                            setSelectedOwnRule(null);
+                                            setSelectedOtherPlayer(null);
+                                        } else {
+                                            setShowSwapModal(false);
+                                        }
+                                    }}
+                                >
+                                    <Text style={{
+                                        color: '#ffffff',
+                                        textAlign: 'center',
+                                        fontWeight: 'bold',
+                                    }}>
+                                        {swapStep === 'selectOtherRule' ? 'Back' : 'Cancel'}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {swapStep === 'selectOtherRule' && (
+                                    <TouchableOpacity
+                                        style={{
+                                            backgroundColor: '#dc3545',
+                                            borderRadius: 8,
+                                            padding: 16,
+                                            flex: 1,
+                                            marginLeft: 8,
+                                        }}
+                                        onPress={() => {
+                                            setShowSwapModal(false);
+                                            setSwapStep('selectOwnRule');
+                                            setSelectedOwnRule(null);
+                                            setSelectedOtherPlayer(null);
+                                        }}
+                                    >
+                                        <Text style={{
+                                            color: '#ffffff',
+                                            textAlign: 'center',
+                                            fontWeight: 'bold',
+                                        }}>
+                                            Cancel Swap
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                         </View>
                     </View>
                 </Modal>

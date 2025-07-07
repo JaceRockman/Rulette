@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Rule, Player } from '../../types/game';
 
-interface AbstractRuleSelectionModalProps {
+interface RuleSelectionModalProps {
     visible: boolean;
     title: string;
     description: string;
@@ -12,7 +12,7 @@ interface AbstractRuleSelectionModalProps {
     cancelButtonText?: string;
 }
 
-export default function AbstractRuleSelectionModal({
+export default function RuleSelectionModal({
     visible,
     title,
     description,
@@ -20,7 +20,7 @@ export default function AbstractRuleSelectionModal({
     onSelectRule,
     onClose,
     cancelButtonText = 'Cancel'
-}: AbstractRuleSelectionModalProps) {
+}: RuleSelectionModalProps) {
     return (
         <Modal
             visible={visible}

@@ -6,7 +6,6 @@ import { colors } from '../../styles/shared';
 interface HostPlayerActionModalProps {
     visible: boolean;
     selectedPlayerForAction: Player | null;
-    onSpinWheel: () => void;
     onGiveRule: () => void;
     onSuccessfulPrompt: () => void;
     onSuccessfulAccusation: () => void;
@@ -14,13 +13,13 @@ interface HostPlayerActionModalProps {
     onFlipRule: () => void;
     onUpAction: () => void;
     onDownAction: () => void;
+    onSwapAction: () => void;
     onClose: () => void;
 }
 
 export default function HostPlayerActionModal({
     visible,
     selectedPlayerForAction,
-    onSpinWheel,
     onGiveRule,
     onSuccessfulPrompt,
     onSuccessfulAccusation,
@@ -28,6 +27,7 @@ export default function HostPlayerActionModal({
     onFlipRule,
     onUpAction,
     onDownAction,
+    onSwapAction,
     onClose
 }: HostPlayerActionModalProps) {
     return (
@@ -47,58 +47,58 @@ export default function HostPlayerActionModal({
                     <View style={styles.buttonContainer}>
                         <TouchableOpacity
                             style={[styles.actionButton, { backgroundColor: colors.gameChangerRed }]}
-                            onPress={onSpinWheel}
-                        >
-                            <Text style={styles.actionButtonText}>Spin Wheel</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerYellow }]}
                             onPress={onGiveRule}
                         >
                             <Text style={styles.actionButtonText}>Give Rule</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerYellow }]}
                             onPress={onSuccessfulPrompt}
                         >
                             <Text style={styles.actionButtonText}>Successful Prompt (+2 points)</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerBlue }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
                             onPress={onSuccessfulAccusation}
                         >
                             <Text style={styles.actionButtonText}>Successful Accusation (+1 point)</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerMaroon }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerBlue }]}
                             onPress={onCloneRule}
                         >
                             <Text style={styles.actionButtonText}>Clone Rule</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerBlue }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerMaroon }]}
                             onPress={onFlipRule}
                         >
                             <Text style={styles.actionButtonText}>Flip Rule</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerBlue }]}
                             onPress={onUpAction}
                         >
                             <Text style={styles.actionButtonText}>Up</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerYellow }]}
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
                             onPress={onDownAction}
                         >
                             <Text style={styles.actionButtonText}>Down</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.actionButton, { backgroundColor: colors.gameChangerYellow }]}
+                            onPress={onSwapAction}
+                        >
+                            <Text style={styles.actionButtonText}>Swap</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity

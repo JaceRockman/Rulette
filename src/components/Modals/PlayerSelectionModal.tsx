@@ -2,7 +2,7 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Player } from '../../types/game';
 
-interface AbstractPlayerSelectionModalProps {
+interface PlayerSelectionModalProps {
     visible: boolean;
     title: string;
     description: string;
@@ -12,7 +12,7 @@ interface AbstractPlayerSelectionModalProps {
     cancelButtonText?: string;
 }
 
-export default function AbstractPlayerSelectionModal({
+export default function PlayerSelectionModal({
     visible,
     title,
     description,
@@ -20,7 +20,7 @@ export default function AbstractPlayerSelectionModal({
     onSelectPlayer,
     onClose,
     cancelButtonText = 'Cancel'
-}: AbstractPlayerSelectionModalProps) {
+}: PlayerSelectionModalProps) {
     return (
         <Modal
             visible={visible}

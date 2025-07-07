@@ -22,12 +22,11 @@ import DigitalClock from '../components/DigitalClock';
 import Plaque from '../components/Plaque';
 import {
     RuleAccusationPopup,
-    AccusationDecisionModal,
-    HostPlayerActionModal,
-    AccusationRuleModal
+    AccusationJudgementModal,
+    HostPlayerActionModal
 } from '../components/Modals';
-import AbstractRuleSelectionModal from '../components/Modals/RuleSelectionModal';
-import AbstractPlayerSelectionModal from '../components/Modals/PlayerSelectionModal';
+import RuleSelectionModal from '../components/Modals/RuleSelectionModal';
+import PlayerSelectionModal from '../components/Modals/PlayerSelectionModal';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
@@ -50,6 +49,11 @@ export default function GameScreen() {
     const [showAccusationRuleModal, setShowAccusationRuleModal] = useState(false);
     const [accusationTarget, setAccusationTarget] = useState<Player | null>(null);
     const [originalCurrentPlayer, setOriginalCurrentPlayer] = useState<string | null>(null);
+    const [showSwapPlayerModal, setShowSwapPlayerModal] = useState(false);
+    const [showSwapOwnRuleModal, setShowSwapOwnRuleModal] = useState(false);
+    const [showSwapTargetRuleModal, setShowSwapTargetRuleModal] = useState(false);
+    const [swapTargetPlayer, setSwapTargetPlayer] = useState<Player | null>(null);
+    const [swapOwnRule, setSwapOwnRule] = useState<Rule | null>(null);
 
     // Restore original current player when returning from wheel
     React.useEffect(() => {
@@ -344,7 +348,7 @@ export default function GameScreen() {
     const handleSpinWheelForPlayer = () => {
         if (selectedPlayerForAction) {
             // Navigate to wheel screen for this player
-            navigation.navigate('Wheel', { playerId: selectedPlayerForAction.id });
+            navigation.navigate('Wheel', { playerId: selectedPlayerForAction.id } as any);
             setShowPlayerActionModal(false);
         }
     };
@@ -457,6 +461,79 @@ export default function GameScreen() {
 
         Alert.alert('Down Action Complete', actionResults.join('\n'));
         setShowPlayerActionModal(false);
+    };
+
+    // Handle Swap action - make selected player swap rules with another player
+    const handleSwapAction = () => {
+        if (!selectedPlayerForAction || !gameState) return;
+
+        // Get the selected player's rules
+        const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+        if (playerRules.length === 0) {
+            Alert.alert('No Rules to Swap', `${selectedPlayerForAction.name} has no rules to swap.`);
+            setShowPlayerActionModal(false);
+            setSelectedPlayerForAction(null);
+            return;
+        }
+
+        // Start the swap flow by showing the player's rules
+        setShowPlayerActionModal(false);
+        setShowSwapOwnRuleModal(true);
+    };
+
+    // Handler for when the first rule is selected (from the selected player)
+    const handleSwapOwnRuleSelect = (ruleId: string) => {
+        if (!selectedPlayerForAction || !gameState) return;
+
+        const rule = gameState.rules.find(r => r.id === ruleId);
+        if (!rule) return;
+
+        setSwapOwnRule(rule);
+        setShowSwapOwnRuleModal(false);
+
+        // Show player selection modal for the target player
+        const nonHostPlayers = gameState.players.filter(p => !p.isHost && p.id !== selectedPlayerForAction.id);
+        if (nonHostPlayers.length === 0) {
+            Alert.alert('No Target Players', 'No other non-host players available for swap.');
+            setSwapOwnRule(null);
+            setSelectedPlayerForAction(null);
+            return;
+        }
+
+        setShowSwapPlayerModal(true);
+    };
+
+    // Handler for when the target player is selected
+    const handleSwapPlayerSelect = (targetPlayer: Player) => {
+        if (!swapOwnRule || !selectedPlayerForAction) return;
+
+        setSwapTargetPlayer(targetPlayer);
+        setShowSwapPlayerModal(false);
+
+        // Immediately give the first rule to the target player
+        dispatch({ type: 'UPDATE_RULE', payload: { ...swapOwnRule, assignedTo: targetPlayer.id } });
+
+        // Show the target player's rules for selection (excluding the rule we just gave them)
+        setShowSwapTargetRuleModal(true);
+    };
+
+    // Handler for when the target rule is selected
+    const handleSwapTargetRuleSelect = (ruleId: string) => {
+        if (!swapOwnRule || !swapTargetPlayer || !selectedPlayerForAction || !gameState) return;
+
+        const targetRule = gameState.rules.find(r => r.id === ruleId);
+        if (!targetRule) return;
+
+        // Immediately give the target rule to the original player
+        dispatch({ type: 'UPDATE_RULE', payload: { ...targetRule, assignedTo: selectedPlayerForAction.id } });
+
+        Alert.alert('Swap Complete', `${selectedPlayerForAction.name} swapped "${swapOwnRule.text}" with ${swapTargetPlayer.name}'s "${targetRule.text}"!`);
+
+        // Reset all swap state
+        setSwapOwnRule(null);
+        setSwapTargetPlayer(null);
+        setSelectedPlayerForAction(null);
+        setShowSwapTargetRuleModal(false);
     };
 
     // Show game over screen if game has ended
@@ -635,28 +712,6 @@ export default function GameScreen() {
                                         </View>
                                     ) : null;
                                 })()}
-
-
-
-
-
-                                {player.rules.length > 0 && (
-                                    <View style={styles.rulesContainer}>
-                                        <Text style={styles.rulesTitle}>Rules:</Text>
-                                        {player.rules.map((rule) => (
-                                            <View key={rule.id} style={styles.ruleItem}>
-                                                <Text style={styles.ruleText}>{rule.text}</Text>
-                                                {currentPlayer.isHost && (
-                                                    <TouchableOpacity
-                                                        onPress={() => openRuleModal(rule)}
-                                                    >
-                                                        <Text style={styles.ruleAction}>Tap to reassign</Text>
-                                                    </TouchableOpacity>
-                                                )}
-                                            </View>
-                                        ))}
-                                    </View>
-                                )}
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -694,16 +749,8 @@ export default function GameScreen() {
                     )}
                 </ScrollView>
 
-                {/* Rule Assignment Modal */}
-                <AbstractPlayerSelectionModal
-                    visible={selectedRule !== null}
-                    title="Assign Rule"
-                    description={`Select a player to assign this rule to: "${selectedRule?.text}"`}
-                    players={gameState.players}
-                    onSelectPlayer={(player) => selectedRule && handleAssignRule(selectedRule, player.id)}
-                    onClose={() => setSelectedRule(null)}
-                />
 
+                {/* Player Action Modals */}
                 {/* Rule Accusation Popup */}
                 <RuleAccusationPopup
                     visible={showRulePopup}
@@ -715,15 +762,44 @@ export default function GameScreen() {
                 />
 
                 {/* Host Accusation Decision Popup */}
-                <AccusationDecisionModal
+                <AccusationJudgementModal
                     visible={showAccusationPopup}
                     accusationDetails={accusationDetails}
                     onAccept={handleAcceptAccusation}
                     onDecline={handleDeclineAccusation}
                 />
 
-                {/* Rule Selection Modal */}
-                <AbstractRuleSelectionModal
+                {/* Give Rule Modal */}
+                <RuleSelectionModal
+                    visible={showGiveRuleModal}
+                    title={`Give Rule to ${selectedPlayerForAction?.name}`}
+                    description={`Select an unassigned rule to give to ${selectedPlayerForAction?.name}:`}
+                    rules={gameState?.rules.filter(rule => !rule.assignedTo && rule.isActive) || []}
+                    onSelectRule={handleGiveRule}
+                    onClose={() => {
+                        setShowGiveRuleModal(false);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
+
+                {/* Host Action Modals */}
+                {/* Host Action Selection Modal */}
+                <HostPlayerActionModal
+                    visible={showPlayerActionModal}
+                    selectedPlayerForAction={selectedPlayerForAction}
+                    onGiveRule={handleGiveRuleAction}
+                    onSuccessfulPrompt={handleSuccessfulPromptAction}
+                    onSuccessfulAccusation={handleSuccessfulAccusationAction}
+                    onCloneRule={handleCloneAction}
+                    onFlipRule={handleFlipAction}
+                    onUpAction={handleUpAction}
+                    onDownAction={handleDownAction}
+                    onSwapAction={handleSwapAction}
+                    onClose={() => setShowPlayerActionModal(false)}
+                />
+
+                {/* Give Rule to Player Modal */}
+                <RuleSelectionModal
                     visible={showRuleSelectionModal}
                     title={`Give Rule to ${acceptedAccusationDetails?.accused.name}`}
                     description={`${acceptedAccusationDetails?.accuser.name} successfully accused ${acceptedAccusationDetails?.accused.name} of breaking: "${acceptedAccusationDetails?.rule.text}". Select one of your rules to give to ${acceptedAccusationDetails?.accused.name}:`}
@@ -737,23 +813,8 @@ export default function GameScreen() {
                     }}
                 />
 
-                {/* Host Player Action Modal */}
-                <HostPlayerActionModal
-                    visible={showPlayerActionModal}
-                    selectedPlayerForAction={selectedPlayerForAction}
-                    onSpinWheel={handleSpinWheelForPlayer}
-                    onGiveRule={handleGiveRuleAction}
-                    onSuccessfulPrompt={handleSuccessfulPromptAction}
-                    onSuccessfulAccusation={handleSuccessfulAccusationAction}
-                    onCloneRule={handleCloneAction}
-                    onFlipRule={handleFlipAction}
-                    onUpAction={handleUpAction}
-                    onDownAction={handleDownAction}
-                    onClose={() => setShowPlayerActionModal(false)}
-                />
-
-                {/* Shred Rule Modal */}
-                <AbstractRuleSelectionModal
+                {/* Successful Prompt Modal */}
+                <RuleSelectionModal
                     visible={showShredRuleModal}
                     title={`Shred a Rule from ${selectedPlayerForAction?.name}`}
                     description={`${selectedPlayerForAction?.name} gained 2 points for a successful prompt! Now select a rule to shred:`}
@@ -763,23 +824,11 @@ export default function GameScreen() {
                         setShowShredRuleModal(false);
                         setSelectedPlayerForAction(null);
                     }}
+                    cancelButtonText="None"
                 />
 
-                {/* Give Rule Modal */}
-                <AbstractRuleSelectionModal
-                    visible={showGiveRuleModal}
-                    title={`Give Rule to ${selectedPlayerForAction?.name}`}
-                    description={`Select an unassigned rule to give to ${selectedPlayerForAction?.name}:`}
-                    rules={gameState?.rules.filter(rule => !rule.assignedTo && rule.isActive) || []}
-                    onSelectRule={handleGiveRule}
-                    onClose={() => {
-                        setShowGiveRuleModal(false);
-                        setSelectedPlayerForAction(null);
-                    }}
-                />
-
-                {/* Accusation Target Selection Modal */}
-                <AbstractPlayerSelectionModal
+                {/* Successful Accusation Modal */}
+                <PlayerSelectionModal
                     visible={showAccusationTargetModal}
                     title="Who is being accused?"
                     description={`${selectedPlayerForAction?.name} successfully accused someone. Select who they accused:`}
@@ -791,17 +840,78 @@ export default function GameScreen() {
                     }}
                 />
 
-                {/* Accusation Rule Selection Modal */}
-                <AccusationRuleModal
+                {/* Accusor's Rule Selection Modal */}
+                <RuleSelectionModal
                     visible={showAccusationRuleModal}
-                    selectedPlayerForAction={selectedPlayerForAction}
-                    accusationTarget={accusationTarget}
-                    rules={gameState?.rules || []}
+                    title={`Select ${selectedPlayerForAction?.name}'s Rule to Give`}
+                    description={`Choose one of ${selectedPlayerForAction?.name}'s rules to give to ${accusationTarget?.name}:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id && rule.isActive) || []}
                     onSelectRule={handleAccusationRuleSelect}
                     onClose={() => {
                         setShowAccusationRuleModal(false);
                         setSelectedPlayerForAction(null);
                         setAccusationTarget(null);
+                    }}
+                />
+
+                {/* Clone Rule Modal */}
+
+                {/* Flip Rule Modal */}
+
+                {/* Up Rule Modal */}
+
+                {/* Down Rule Modal */}
+
+                {/* Swap Rule Modal */}
+
+                {/* Swapper Rule Selection Modal */}
+                <RuleSelectionModal
+                    visible={showSwapOwnRuleModal}
+                    title={`Select ${selectedPlayerForAction?.name}'s Rule to Swap`}
+                    description={`Choose one of ${selectedPlayerForAction?.name}'s rules to swap:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id && rule.isActive) || []}
+                    onSelectRule={handleSwapOwnRuleSelect}
+                    onClose={() => {
+                        setShowSwapOwnRuleModal(false);
+                        setSwapOwnRule(null);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
+
+                {/* Swapee Selection Modal */}
+                <PlayerSelectionModal
+                    visible={showSwapPlayerModal}
+                    title="Select Player to Swap With"
+                    description={`Choose a player to swap rules with ${selectedPlayerForAction?.name}:`}
+                    players={gameState?.players.filter(player =>
+                        !player.isHost &&
+                        player.id !== selectedPlayerForAction?.id &&
+                        gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive).length > 0
+                    ) || []}
+                    onSelectPlayer={handleSwapPlayerSelect}
+                    onClose={() => {
+                        setShowSwapPlayerModal(false);
+                        setSwapOwnRule(null);
+                        setSelectedPlayerForAction(null);
+                    }}
+                />
+
+                {/* Swapee Rule Selection Modal */}
+                <RuleSelectionModal
+                    visible={showSwapTargetRuleModal}
+                    title={`Select ${swapTargetPlayer?.name}'s Rule to Swap`}
+                    description={`Choose one of ${swapTargetPlayer?.name}'s rules to swap with ${selectedPlayerForAction?.name}:`}
+                    rules={gameState?.rules.filter(rule =>
+                        rule.assignedTo === swapTargetPlayer?.id &&
+                        rule.isActive &&
+                        rule.id !== swapOwnRule?.id
+                    ) || []}
+                    onSelectRule={handleSwapTargetRuleSelect}
+                    onClose={() => {
+                        setShowSwapTargetRuleModal(false);
+                        setSwapOwnRule(null);
+                        setSwapTargetPlayer(null);
+                        setSelectedPlayerForAction(null);
                     }}
                 />
             </SafeAreaView>

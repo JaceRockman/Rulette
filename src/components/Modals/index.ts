@@ -1,6 +1,5 @@
 export { default as RuleAccusationPopup } from './RuleAccusationPopup';
-export { default as AccusationDecisionModal } from './AccusationDecisionModal';
+export { default as AccusationJudgementModal } from './AccusationJudgementModal';
 export { default as HostPlayerActionModal } from './HostPlayerActionModal';
-export { default as AccusationRuleModal } from './AccusationRuleModal';
-export { default as AbstractRuleSelectionModal } from './RuleSelectionModal';
-export { default as AbstractPlayerSelectionModal } from './PlayerSelectionModal'; 
+export { default as RuleSelectionModal } from './RuleSelectionModal';
+export { default as PlayerSelectionModal } from './PlayerSelectionModal'; 
