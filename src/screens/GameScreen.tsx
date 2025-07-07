@@ -698,37 +698,40 @@ export default function GameScreen() {
                                     {player.name} {player.isHost ? '(Host)' : ''}
                                 </Text>
 
-                                <View style={styles.pointsRow}>
-                                    <TouchableOpacity
-                                        style={{
-                                            backgroundColor: '#dc3545',
-                                            width: 60,
-                                            height: 40,
-                                            borderRadius: 8,
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                        }}
-                                        onPress={() => handleUpdatePoints(player.id, player.points, -1)}
-                                    >
-                                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>-1</Text>
-                                    </TouchableOpacity>
-                                    <View style={styles.pointsContainer}>
-                                        <DigitalClock value={player.points} />
+                                {/* Only show points for non-host players */}
+                                {!player.isHost && (
+                                    <View style={styles.pointsRow}>
+                                        <TouchableOpacity
+                                            style={{
+                                                backgroundColor: '#dc3545',
+                                                width: 60,
+                                                height: 40,
+                                                borderRadius: 8,
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                            }}
+                                            onPress={() => handleUpdatePoints(player.id, player.points, -1)}
+                                        >
+                                            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>-1</Text>
+                                        </TouchableOpacity>
+                                        <View style={styles.pointsContainer}>
+                                            <DigitalClock value={player.points} />
+                                        </View>
+                                        <TouchableOpacity
+                                            style={{
+                                                backgroundColor: '#28a745',
+                                                width: 60,
+                                                height: 40,
+                                                borderRadius: 8,
+                                                justifyContent: 'center',
+                                                alignItems: 'center',
+                                            }}
+                                            onPress={() => handleUpdatePoints(player.id, player.points, 1)}
+                                        >
+                                            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>+1</Text>
+                                        </TouchableOpacity>
                                     </View>
-                                    <TouchableOpacity
-                                        style={{
-                                            backgroundColor: '#28a745',
-                                            width: 60,
-                                            height: 40,
-                                            borderRadius: 8,
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                        }}
-                                        onPress={() => handleUpdatePoints(player.id, player.points, 1)}
-                                    >
-                                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>+1</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                )}
 
                                 {/* Player's Assigned Rules */}
                                 {(() => {

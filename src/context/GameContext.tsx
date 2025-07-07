@@ -372,7 +372,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             const testPlayer: Player = {
                 id: Math.random().toString(36).substr(2, 9),
                 name: testPlayerNames[i] || `Player ${i + 1}`,
-                points: Math.floor(Math.random() * 10) + 15, // Random points between 15-24
+                points: 20, // All players start at 20 points
                 rules: [],
                 isHost: false,
             };
@@ -456,21 +456,21 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             {
                 id: player1Id,
                 name: "Alice",
-                points: 18,
+                points: 20,
                 rules: [],
                 isHost: false,
             },
             {
                 id: player2Id,
                 name: "Bob",
-                points: 22,
+                points: 20,
                 rules: [],
                 isHost: false,
             },
             {
                 id: player3Id,
                 name: "Charlie",
-                points: 16,
+                points: 20,
                 rules: [],
                 isHost: false,
             },

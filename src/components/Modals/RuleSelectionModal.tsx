@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { Rule, Player } from '../../types/game';
+import Plaque from '../Plaque';
+import { colors } from '../../styles/shared';
 
 interface RuleSelectionModalProps {
     visible: boolean;
@@ -37,6 +39,40 @@ export default function RuleSelectionModal({
         }
     }, [visible, rules, onClose]);
 
+    // Create 2-column grid layout
+    const renderRulesGrid = () => {
+        if (!rules || rules.length === 0) return null;
+
+        const rows = [];
+        for (let i = 0; i < rules.length; i += 2) {
+            const hasSecondItem = rules[i + 1];
+            const row = (
+                <View key={i} style={styles.ruleRow}>
+                    <View style={styles.ruleColumn}>
+                        <Plaque
+                            text={rules[i].text}
+                            plaqueColor={rules[i].plaqueColor || '#fff'}
+                            onPress={() => onSelectRule(rules[i].id)}
+                            style={styles.rulePlaque}
+                        />
+                    </View>
+                    {hasSecondItem && (
+                        <View style={styles.ruleColumn}>
+                            <Plaque
+                                text={rules[i + 1].text}
+                                plaqueColor={rules[i + 1].plaqueColor || '#fff'}
+                                onPress={() => onSelectRule(rules[i + 1].id)}
+                                style={styles.rulePlaque}
+                            />
+                        </View>
+                    )}
+                </View>
+            );
+            rows.push(row);
+        }
+        return rows;
+    };
+
     return (
         <Modal
             visible={visible}
@@ -50,16 +86,8 @@ export default function RuleSelectionModal({
                     <Text style={styles.modalTitle}>{title}</Text>
                     <Text style={styles.modalRuleText}>{description}</Text>
 
-                    <ScrollView style={styles.modalPlayerList}>
-                        {rules.map((rule) => (
-                            <TouchableOpacity
-                                key={rule.id}
-                                style={styles.modalPlayerItem}
-                                onPress={() => onSelectRule(rule.id)}
-                            >
-                                <Text style={styles.modalPlayerName}>{rule.text}</Text>
-                            </TouchableOpacity>
-                        ))}
+                    <ScrollView style={styles.modalRuleList} showsVerticalScrollIndicator={false}>
+                        {renderRulesGrid()}
                     </ScrollView>
 
                     <TouchableOpacity
@@ -77,53 +105,67 @@ export default function RuleSelectionModal({
 const styles = StyleSheet.create({
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: colors.background.overlay,
         justifyContent: 'center',
         alignItems: 'center'
     },
     modalContent: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 20,
-        width: '80%',
-        maxHeight: '70%',
+        backgroundColor: colors.background.primary,
+        borderRadius: 16,
+        padding: 24,
+        width: '90%',
+        maxHeight: '85%',
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 8,
     },
     modalTitle: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: 'bold',
-        color: '#1f2937',
+        color: colors.text.primary,
         marginBottom: 12,
         textAlign: 'center',
     },
     modalRuleText: {
-        fontSize: 14,
-        color: '#6b7280',
-        marginBottom: 16,
-        textAlign: 'center',
-    },
-    modalPlayerList: {
-        maxHeight: 200,
-    },
-    modalPlayerItem: {
-        backgroundColor: '#f3f4f6',
-        borderRadius: 8,
-        padding: 12,
-        marginBottom: 8,
-    },
-    modalPlayerName: {
         fontSize: 16,
-        color: '#1f2937',
+        color: colors.text.secondary,
+        marginBottom: 20,
         textAlign: 'center',
+        lineHeight: 22,
+    },
+    modalRuleList: {
+        maxHeight: 350,
+        marginBottom: 20,
+    },
+    ruleRow: {
+        flexDirection: 'row',
+        marginBottom: 16,
+        justifyContent: 'space-between',
+        width: '100%',
+    },
+    ruleColumn: {
+        width: '48%',
+    },
+    rulePlaque: {
+        minHeight: 80,
     },
     modalCancelButton: {
-        backgroundColor: '#6b7280',
+        backgroundColor: colors.gameChangerRed,
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
     },
     modalCancelText: {
-        color: '#ffffff',
+        color: colors.text.light,
         textAlign: 'center',
         fontWeight: 'bold',
+        fontSize: 16,
     },
 }); 
