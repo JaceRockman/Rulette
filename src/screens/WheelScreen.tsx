@@ -53,6 +53,8 @@ export default function WheelScreen() {
     const [selectedIndex, setSelectedIndex] = useState<number>(0);
     const [showExpandedPlaque, setShowExpandedPlaque] = useState(false);
     const [showPromptButtons, setShowPromptButtons] = useState(false);
+    const [isClosingPopup, setIsClosingPopup] = useState(false);
+    const [frozenSegment, setFrozenSegment] = useState<any>(null);
     const scrollY = useRef(new Animated.Value(0)).current;
     const flatListRef = useRef<FlatList>(null);
     const currentScrollOffset = useRef(0);
@@ -227,6 +229,11 @@ export default function WheelScreen() {
 
         alert(`${currentPlayer.name} passed the rule "${randomRule.text}" up to ${targetPlayer.name}!`);
 
+        // Freeze the current segment to prevent content from changing during animation
+        const selectedSegment = segments[selectedIndex];
+        setFrozenSegment(selectedSegment);
+        setIsClosingPopup(true);
+
         // Close the popup and navigate back
         Animated.parallel([
             Animated.timing(popupScale, {
@@ -240,11 +247,12 @@ export default function WheelScreen() {
                 useNativeDriver: true,
             })
         ]).start(() => {
-            const selectedSegment = segments[selectedIndex];
             if (selectedSegment) {
                 removeWheelLayer(selectedSegment.id);
             }
             setShowExpandedPlaque(false);
+            setIsClosingPopup(false);
+            setFrozenSegment(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
             navigation.goBack();
@@ -300,6 +308,11 @@ export default function WheelScreen() {
 
         alert(`${currentPlayer.name} passed the rule "${randomRule.text}" down to ${targetPlayer.name}!`);
 
+        // Freeze the current segment to prevent content from changing during animation
+        const selectedSegment = segments[selectedIndex];
+        setFrozenSegment(selectedSegment);
+        setIsClosingPopup(true);
+
         // Close the popup and navigate back
         Animated.parallel([
             Animated.timing(popupScale, {
@@ -313,11 +326,12 @@ export default function WheelScreen() {
                 useNativeDriver: true,
             })
         ]).start(() => {
-            const selectedSegment = segments[selectedIndex];
             if (selectedSegment) {
                 removeWheelLayer(selectedSegment.id);
             }
             setShowExpandedPlaque(false);
+            setIsClosingPopup(false);
+            setFrozenSegment(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
             navigation.goBack();
@@ -342,6 +356,11 @@ export default function WheelScreen() {
             payload: { ...selectedRuleForFlip, text: flippedText }
         });
 
+        // Freeze the current segment to prevent content from changing during animation
+        const selectedSegment = segments[selectedIndex];
+        setFrozenSegment(selectedSegment);
+        setIsClosingPopup(true);
+
         // Close the wheel popup and navigate back
         Animated.parallel([
             Animated.timing(popupScale, {
@@ -355,11 +374,12 @@ export default function WheelScreen() {
                 useNativeDriver: true,
             })
         ]).start(() => {
-            const selectedSegment = segments[selectedIndex];
             if (selectedSegment) {
                 removeWheelLayer(selectedSegment.id);
             }
             setShowExpandedPlaque(false);
+            setIsClosingPopup(false);
+            setFrozenSegment(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
             navigation.goBack();
@@ -578,7 +598,7 @@ export default function WheelScreen() {
                                     textAlign: 'center',
                                     marginBottom: 20,
                                     color: (() => {
-                                        const segment = segments[selectedIndex];
+                                        const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
                                         const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                         const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
                                         return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
@@ -586,7 +606,7 @@ export default function WheelScreen() {
                                 }}
                             >
                                 {(() => {
-                                    const segment = segments[selectedIndex];
+                                    const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
                                     const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                     if (!currentLayer) return 'NO CONTENT';
 
@@ -604,7 +624,7 @@ export default function WheelScreen() {
                                     fontSize: 18,
                                     textAlign: 'center',
                                     color: (() => {
-                                        const segment = segments[selectedIndex];
+                                        const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
                                         const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                         const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
                                         return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
@@ -613,7 +633,7 @@ export default function WheelScreen() {
                                 }}
                             >
                                 {(() => {
-                                    const segment = segments[selectedIndex];
+                                    const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
                                     const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                     if (!currentLayer) return 'No content available';
 
@@ -624,7 +644,7 @@ export default function WheelScreen() {
                                 })()}
                             </Text>
                             {(() => {
-                                const selectedSegment = segments[selectedIndex];
+                                const selectedSegment = isClosingPopup ? frozenSegment : segments[selectedIndex];
                                 const currentLayer = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
 
                                 if (currentLayer && currentLayer.type === 'prompt') {
@@ -644,7 +664,7 @@ export default function WheelScreen() {
                                                             textAlign: 'center',
                                                             marginBottom: 15,
                                                             color: (() => {
-                                                                const segment = segments[selectedIndex];
+                                                                const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
                                                                 const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                                                 const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
                                                                 return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
@@ -732,6 +752,10 @@ export default function WheelScreen() {
                                                     onPress={() => {
                                                         // No points lost for failure
 
+                                                        // Freeze the current segment to prevent content from changing during animation
+                                                        setFrozenSegment(selectedSegment);
+                                                        setIsClosingPopup(true);
+
                                                         // Animate the popup closing
                                                         Animated.parallel([
                                                             Animated.timing(popupScale, {
@@ -748,6 +772,8 @@ export default function WheelScreen() {
                                                             // Remove the current layer to reveal the next one
                                                             removeWheelLayer(selectedSegment.id);
                                                             setShowExpandedPlaque(false);
+                                                            setIsClosingPopup(false);
+                                                            setFrozenSegment(null);
                                                             popupScale.setValue(0);
                                                             popupOpacity.setValue(0);
                                                             navigation.goBack();
@@ -842,6 +868,9 @@ export default function WheelScreen() {
                                                     }}
                                                     onPress={() => {
                                                         alert('You have no rules to pass up.');
+                                                        // Freeze the current segment to prevent content from changing during animation
+                                                        setFrozenSegment(selectedSegment);
+                                                        setIsClosingPopup(true);
                                                         // Close the wheel popup and navigate back
                                                         Animated.parallel([
                                                             Animated.timing(popupScale, {
@@ -860,6 +889,8 @@ export default function WheelScreen() {
                                                                 removeWheelLayer(selectedSegment.id);
                                                             }
                                                             setShowExpandedPlaque(false);
+                                                            setIsClosingPopup(false);
+                                                            setFrozenSegment(null);
                                                             popupScale.setValue(0);
                                                             popupOpacity.setValue(0);
                                                             navigation.goBack();
@@ -912,6 +943,9 @@ export default function WheelScreen() {
                                                     }}
                                                     onPress={() => {
                                                         alert('You have no rules to pass down.');
+                                                        // Freeze the current segment to prevent content from changing during animation
+                                                        setFrozenSegment(selectedSegment);
+                                                        setIsClosingPopup(true);
                                                         // Close the wheel popup and navigate back
                                                         Animated.parallel([
                                                             Animated.timing(popupScale, {
@@ -930,6 +964,8 @@ export default function WheelScreen() {
                                                                 removeWheelLayer(selectedSegment.id);
                                                             }
                                                             setShowExpandedPlaque(false);
+                                                            setIsClosingPopup(false);
+                                                            setFrozenSegment(null);
                                                             popupScale.setValue(0);
                                                             popupOpacity.setValue(0);
                                                             navigation.goBack();
@@ -1005,6 +1041,10 @@ export default function WheelScreen() {
                                                     }
                                                 }
 
+                                                // Freeze the current segment to prevent content from changing during animation
+                                                setFrozenSegment(selectedSegment);
+                                                setIsClosingPopup(true);
+
                                                 // Animate the popup closing
                                                 Animated.parallel([
                                                     Animated.timing(popupScale, {
@@ -1026,6 +1066,8 @@ export default function WheelScreen() {
                                                         }
                                                     }
                                                     setShowExpandedPlaque(false);
+                                                    setIsClosingPopup(false);
+                                                    setFrozenSegment(null);
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
                                                     // Navigate back to the game room
@@ -1253,6 +1295,11 @@ export default function WheelScreen() {
                                                 }
                                                 setShowClonePlayerModal(false);
 
+                                                // Freeze the current segment to prevent content from changing during animation
+                                                const selectedSegment = segments[selectedIndex];
+                                                setFrozenSegment(selectedSegment);
+                                                setIsClosingPopup(true);
+
                                                 // Close the wheel popup and navigate back
                                                 Animated.parallel([
                                                     Animated.timing(popupScale, {
@@ -1266,11 +1313,12 @@ export default function WheelScreen() {
                                                         useNativeDriver: true,
                                                     })
                                                 ]).start(() => {
-                                                    const selectedSegment = segments[selectedIndex];
                                                     if (selectedSegment) {
                                                         removeWheelLayer(selectedSegment.id);
                                                     }
                                                     setShowExpandedPlaque(false);
+                                                    setIsClosingPopup(false);
+                                                    setFrozenSegment(null);
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
                                                     navigation.goBack();
@@ -1463,6 +1511,11 @@ export default function WheelScreen() {
                                                 shredRule(rule.id);
                                                 setShowShredModal(false);
 
+                                                // Freeze the current segment to prevent content from changing during animation
+                                                const selectedSegment = segments[selectedIndex];
+                                                setFrozenSegment(selectedSegment);
+                                                setIsClosingPopup(true);
+
                                                 // Close the wheel popup and navigate back
                                                 Animated.parallel([
                                                     Animated.timing(popupScale, {
@@ -1476,11 +1529,12 @@ export default function WheelScreen() {
                                                         useNativeDriver: true,
                                                     })
                                                 ]).start(() => {
-                                                    const selectedSegment = segments[selectedIndex];
                                                     if (selectedSegment) {
                                                         removeWheelLayer(selectedSegment.id);
                                                     }
                                                     setShowExpandedPlaque(false);
+                                                    setIsClosingPopup(false);
+                                                    setFrozenSegment(null);
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
                                                     navigation.goBack();
@@ -1684,6 +1738,11 @@ export default function WheelScreen() {
 
                                                                     setShowSwapModal(false);
 
+                                                                    // Freeze the current segment to prevent content from changing during animation
+                                                                    const selectedSegment = segments[selectedIndex];
+                                                                    setFrozenSegment(selectedSegment);
+                                                                    setIsClosingPopup(true);
+
                                                                     // Close the wheel popup and navigate back
                                                                     Animated.parallel([
                                                                         Animated.timing(popupScale, {
@@ -1697,11 +1756,12 @@ export default function WheelScreen() {
                                                                             useNativeDriver: true,
                                                                         })
                                                                     ]).start(() => {
-                                                                        const selectedSegment = segments[selectedIndex];
                                                                         if (selectedSegment) {
                                                                             removeWheelLayer(selectedSegment.id);
                                                                         }
                                                                         setShowExpandedPlaque(false);
+                                                                        setIsClosingPopup(false);
+                                                                        setFrozenSegment(null);
                                                                         popupScale.setValue(0);
                                                                         popupOpacity.setValue(0);
                                                                         navigation.goBack();
