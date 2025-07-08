@@ -261,7 +261,7 @@ io.on('connection', (socket) => {
     });
 
     // Spin wheel
-    socket.on('spin_wheel', ({ gameId }) => {
+    socket.on('spin_wheel', ({ gameId, playerId }) => {
         const game = games.get(gameId);
         if (!game) return;
 
@@ -277,10 +277,11 @@ io.on('connection', (socket) => {
         }
 
         game.isWheelSpinning = true;
+        game.currentPlayer = playerId; // Set the current player who is spinning
 
         // Generate random stack
         const stack = [];
-        const availableRules = game.rules.filter(r => r.isActive);
+        const availableRules = game.rules.filter(r => r.isActive && !r.assignedTo); // Only unassigned rules
         const availablePrompts = game.prompts;
 
         if (availableRules.length > 0) {
@@ -346,6 +347,39 @@ io.on('connection', (socket) => {
             rule.assignedTo = playerId;
             io.to(gameId).emit('game_updated', game);
         }
+    });
+
+    // Assign rule to current player (when wheel lands on a rule)
+    socket.on('assign_rule_to_current_player', ({ gameId, ruleId }) => {
+        const game = games.get(gameId);
+        if (!game || !game.currentPlayer) return;
+
+        const rule = game.rules.find(r => r.id === ruleId);
+        if (rule) {
+            rule.assignedTo = game.currentPlayer;
+            io.to(gameId).emit('game_updated', game);
+        }
+    });
+
+    // Remove wheel layer
+    socket.on('remove_wheel_layer', ({ gameId, segmentId }) => {
+        const game = games.get(gameId);
+        if (!game || !game.wheelSegments) return;
+
+        const segment = game.wheelSegments.find(s => s.id === segmentId);
+        if (segment) {
+            segment.currentLayerIndex = Math.min(segment.currentLayerIndex + 1, segment.layers.length - 1);
+            io.to(gameId).emit('game_updated', game);
+        }
+    });
+
+    // Sync wheel segments
+    socket.on('sync_wheel_segments', ({ gameId, wheelSegments }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.wheelSegments = wheelSegments;
+        io.to(gameId).emit('game_updated', game);
     });
 
     // Disconnect handling

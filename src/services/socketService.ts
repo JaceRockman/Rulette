@@ -162,8 +162,8 @@ class SocketService {
     }
 
     spinWheel() {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('spin_wheel', { gameId: this.gameState.id });
+        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
+        this.socket.emit('spin_wheel', { gameId: this.gameState.id, playerId: this.currentPlayerId });
     }
 
     updatePoints(playerId: string, points: number) {
@@ -190,6 +190,30 @@ class SocketService {
             gameId: this.gameState.id,
             ruleId,
             playerId
+        });
+    }
+
+    assignRuleToCurrentPlayer(ruleId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('assign_rule_to_current_player', {
+            gameId: this.gameState.id,
+            ruleId
+        });
+    }
+
+    removeWheelLayer(segmentId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('remove_wheel_layer', {
+            gameId: this.gameState.id,
+            segmentId
+        });
+    }
+
+    syncWheelSegments(wheelSegments: any[]) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('sync_wheel_segments', {
+            gameId: this.gameState.id,
+            wheelSegments
         });
     }
 

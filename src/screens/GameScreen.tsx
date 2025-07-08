@@ -395,8 +395,8 @@ export default function GameScreen() {
         if (selectedPlayerForAction && gameState) {
             const rule = gameState.rules.find(r => r.id === ruleId);
             if (rule) {
-                // Assign the rule to the player
-                dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: selectedPlayerForAction.id } });
+                // Assign the rule to the player via socket service
+                assignRule(ruleId, selectedPlayerForAction.id);
                 Alert.alert('Rule Given', `Gave rule "${rule.text}" to ${selectedPlayerForAction.name}`);
             }
             setShowGiveRuleModal(false);
@@ -447,8 +447,8 @@ export default function GameScreen() {
                 // Take point from accused
                 handleUpdatePoints(accusationTarget.id, accusationTarget.points, -1);
 
-                // Assign the rule to the accusation target
-                dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: accusationTarget.id } });
+                // Assign the rule to the accusation target via socket service
+                assignRule(ruleId, accusationTarget.id);
                 Alert.alert('Accusation Complete', `${selectedPlayerForAction.name} successfully accused ${accusationTarget.name} and gave them the rule "${rule.text}"`);
             }
             setShowAccusationRuleModal(false);
@@ -573,7 +573,7 @@ export default function GameScreen() {
         }
         if (targetPlayerIndex < 0 || targetPlayerIndex >= gameState.players.length) return;
         const targetPlayer = gameState.players[targetPlayerIndex];
-        dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: targetPlayer.id } });
+        assignRule(ruleId, targetPlayer.id);
         setTransferredRuleIds(prev => [...prev, ruleId]);
         let nextPlayerIndex = upDownCurrentPlayerIndex + 1;
         if (nextPlayerIndex < upDownPlayerOrder.length) {
@@ -638,7 +638,7 @@ export default function GameScreen() {
         setShowSwapPlayerModal(false);
 
         // Immediately give the first rule to the target player
-        dispatch({ type: 'UPDATE_RULE', payload: { ...swapOwnRule, assignedTo: targetPlayer.id } });
+        assignRule(swapOwnRule.id, targetPlayer.id);
 
         // Show the target player's rules for selection (excluding the rule we just gave them)
         setShowSwapTargetRuleModal(true);
@@ -652,7 +652,7 @@ export default function GameScreen() {
         if (!targetRule) return;
 
         // Immediately give the target rule to the original player
-        dispatch({ type: 'UPDATE_RULE', payload: { ...targetRule, assignedTo: selectedPlayerForAction.id } });
+        assignRule(targetRule.id, selectedPlayerForAction.id);
 
         Alert.alert('Swap Complete', `${selectedPlayerForAction.name} swapped "${swapOwnRule.text}" with ${swapTargetPlayer.name}'s "${targetRule.text}"!`);
 
@@ -863,37 +863,45 @@ export default function GameScreen() {
                                         {player.name}
                                     </Text>
 
-                                    {/* Only show points for non-host players */}
+                                    {/* Points display - score controls only for host */}
                                     <View style={styles.pointsRow}>
-                                        <TouchableOpacity
-                                            style={{
-                                                backgroundColor: '#dc3545',
-                                                width: 60,
-                                                height: 40,
-                                                borderRadius: 8,
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                            }}
-                                            onPress={() => handleUpdatePoints(player.id, player.points, -1)}
-                                        >
-                                            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>-1</Text>
-                                        </TouchableOpacity>
-                                        <View style={styles.pointsContainer}>
-                                            <DigitalClock value={player.points} />
-                                        </View>
-                                        <TouchableOpacity
-                                            style={{
-                                                backgroundColor: '#28a745',
-                                                width: 60,
-                                                height: 40,
-                                                borderRadius: 8,
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                            }}
-                                            onPress={() => handleUpdatePoints(player.id, player.points, 1)}
-                                        >
-                                            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>+1</Text>
-                                        </TouchableOpacity>
+                                        {currentPlayer?.isHost ? (
+                                            <>
+                                                <TouchableOpacity
+                                                    style={{
+                                                        backgroundColor: '#dc3545',
+                                                        width: 60,
+                                                        height: 40,
+                                                        borderRadius: 8,
+                                                        justifyContent: 'center',
+                                                        alignItems: 'center',
+                                                    }}
+                                                    onPress={() => handleUpdatePoints(player.id, player.points, -1)}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>-1</Text>
+                                                </TouchableOpacity>
+                                                <View style={styles.pointsContainer}>
+                                                    <DigitalClock value={player.points} />
+                                                </View>
+                                                <TouchableOpacity
+                                                    style={{
+                                                        backgroundColor: '#28a745',
+                                                        width: 60,
+                                                        height: 40,
+                                                        borderRadius: 8,
+                                                        justifyContent: 'center',
+                                                        alignItems: 'center',
+                                                    }}
+                                                    onPress={() => handleUpdatePoints(player.id, player.points, 1)}
+                                                >
+                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>+1</Text>
+                                                </TouchableOpacity>
+                                            </>
+                                        ) : (
+                                            <View style={styles.pointsContainer}>
+                                                <DigitalClock value={player.points} />
+                                            </View>
+                                        )}
                                     </View>
 
                                     {/* Player's Assigned Rules */}

@@ -286,6 +286,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 });
             }
 
+            // Sync wheel segments to backend
+            socketService.syncWheelSegments(newSegments);
+
             return {
                 ...state,
                 wheelSegments: newSegments,
@@ -635,7 +638,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             // Create updated plaque with new text but same ID and other properties
             const updatedPlaque = {
                 id: existingRule.id,
-                type: 'rule',
+                type: 'rule' as const,
                 text: text,
                 isActive: existingRule.isActive,
                 authorId: existingRule.authorId,
@@ -652,7 +655,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             // Create updated plaque with new text but same ID and other properties
             const updatedPlaque = {
                 id: existingPrompt.id,
-                type: 'prompt',
+                type: 'prompt' as const,
                 text: text,
                 category: existingPrompt.category,
                 authorId: existingPrompt.authorId,
@@ -681,6 +684,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const spinWheel = () => {
         if (!gameState) return;
 
+        // Send to backend via socket service
+        socketService.spinWheel();
+
         const stack: StackItem[] = [];
         const availableRules = gameState.rules.filter(r => r.isActive && !r.assignedTo);
         const availablePrompts = gameState.prompts;
@@ -708,6 +714,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const updatePoints = (playerId: string, points: number) => {
         dispatch({ type: 'UPDATE_POINTS', payload: { playerId, points } });
+        // Also sync to backend via socket service
+        socketService.updatePoints(playerId, points);
     };
 
     const swapRules = (player1Id: string, player2Id: string) => {
@@ -717,17 +725,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         const player2 = gameState.players.find((p: Player) => p.id === player2Id);
 
         if (player1 && player2) {
-            const player1Rules = gameState.rules.filter((r: Rule) => r.assignedTo === player1Id);
-            const player2Rules = gameState.rules.filter((r: Rule) => r.assignedTo === player2Id);
-
-            // Update rules to swap assignments
-            player1Rules.forEach((rule: Rule) => {
-                dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: player2Id } });
-            });
-
-            player2Rules.forEach((rule: Rule) => {
-                dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: player1Id } });
-            });
+            // Send to backend via socket service
+            socketService.swapRules(player1Id, player2Id);
         }
     };
 
@@ -745,7 +744,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         const rule = gameState.rules.find((r: Rule) => r.id === ruleId);
         if (rule) {
-            dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: targetPlayerId } });
+            // Send to backend via socket service
+            socketService.assignRule(ruleId, targetPlayerId);
         }
     };
 
@@ -785,7 +785,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         const rule = gameState.rules.find((r: Rule) => r.id === ruleId);
         if (rule) {
-            dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: playerId } });
+            // Send to backend via socket service
+            socketService.assignRule(ruleId, playerId);
         }
     };
 
@@ -794,12 +795,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         const rule = gameState.rules.find(r => r.id === ruleId);
         if (rule) {
-            dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: gameState.currentPlayer } });
+            // Send to backend via socket service
+            socketService.assignRuleToCurrentPlayer(ruleId);
         }
     };
 
     const removeWheelLayer = (segmentId: string) => {
         dispatch({ type: 'REMOVE_WHEEL_LAYER', payload: segmentId });
+        // Also sync to backend via socket service
+        socketService.removeWheelLayer(segmentId);
     };
 
     const endGame = () => {

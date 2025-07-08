@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Animated, FlatList, Dimensions, SafeAreaView, PanResponder, GestureResponderEvent, PanResponderGestureState, Modal, ScrollView } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useGame } from '../context/GameContext';
 import shared from '../styles/shared';
 import StripedBackground from '../components/StripedBackground';
@@ -14,7 +14,18 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default function WheelScreen() {
     const navigation = useNavigation();
-    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentPlayer, updatePoints, cloneRuleToPlayer, shredRule, dispatch } = useGame();
+    const route = useRoute();
+    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentPlayer, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule, spinWheel } = useGame();
+
+    // Get the player ID from navigation params if provided
+    const playerId = (route.params as { playerId?: string })?.playerId;
+
+    // Set the current player to the spinning player if provided
+    React.useEffect(() => {
+        if (playerId && gameState?.currentPlayer !== playerId) {
+            dispatch({ type: 'SET_CURRENT_PLAYER', payload: playerId });
+        }
+    }, [playerId, gameState?.currentPlayer, dispatch]);
     const [showCloneModal, setShowCloneModal] = useState(false);
     const [showClonePlayerModal, setShowClonePlayerModal] = useState(false);
     const [showFlipModal, setShowFlipModal] = useState(false);
@@ -72,6 +83,11 @@ export default function WheelScreen() {
 
     const handleSpin = () => {
         if (isSpinning || segments.length === 0) return;
+
+        // Notify backend about which player is spinning
+        if (gameState?.currentPlayer) {
+            spinWheel();
+        }
 
         setIsSpinning(true);
         setShowExpandedPlaque(false);
@@ -207,7 +223,7 @@ export default function WheelScreen() {
         const randomRule = currentPlayerRules[Math.floor(Math.random() * currentPlayerRules.length)];
 
         // Assign the rule to the target player
-        dispatch({ type: 'UPDATE_RULE', payload: { ...randomRule, assignedTo: targetPlayer.id } });
+        assignRule(randomRule.id, targetPlayer.id);
 
         alert(`${currentPlayer.name} passed the rule "${randomRule.text}" up to ${targetPlayer.name}!`);
 
@@ -280,7 +296,7 @@ export default function WheelScreen() {
         const randomRule = currentPlayerRules[Math.floor(Math.random() * currentPlayerRules.length)];
 
         // Assign the rule to the target player
-        dispatch({ type: 'UPDATE_RULE', payload: { ...randomRule, assignedTo: targetPlayer.id } });
+        assignRule(randomRule.id, targetPlayer.id);
 
         alert(`${currentPlayer.name} passed the rule "${randomRule.text}" down to ${targetPlayer.name}!`);
 
@@ -981,6 +997,10 @@ export default function WheelScreen() {
                                                         // Assign the rule to the current player
                                                         if (typeof currentLayer.content !== 'string' && currentLayer.content.id) {
                                                             assignRuleToCurrentPlayer(currentLayer.content.id);
+                                                            // Remove the wheel layer since the rule has been assigned
+                                                            if (selectedSegment) {
+                                                                removeWheelLayer(selectedSegment.id);
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -998,10 +1018,10 @@ export default function WheelScreen() {
                                                         useNativeDriver: true,
                                                     })
                                                 ]).start(() => {
-                                                    // Remove the current layer to reveal the next one
+                                                    // Remove the current layer to reveal the next one (only if not already removed for rule assignment)
                                                     if (selectedSegment) {
                                                         const currentLayer = selectedSegment.layers[selectedSegment.currentLayerIndex];
-                                                        if (currentLayer && currentLayer.type !== 'end') {
+                                                        if (currentLayer && currentLayer.type !== 'end' && currentLayer.type !== 'rule') {
                                                             removeWheelLayer(selectedSegment.id);
                                                         }
                                                     }
@@ -1657,14 +1677,8 @@ export default function WheelScreen() {
                                                                 // Perform the swap
                                                                 if (selectedOwnRule && gameState?.currentPlayer) {
                                                                     // Swap the rules
-                                                                    dispatch({
-                                                                        type: 'UPDATE_RULE',
-                                                                        payload: { ...selectedOwnRule, assignedTo: selectedOtherPlayer.id }
-                                                                    });
-                                                                    dispatch({
-                                                                        type: 'UPDATE_RULE',
-                                                                        payload: { ...rule, assignedTo: gameState.currentPlayer }
-                                                                    });
+                                                                    assignRule(selectedOwnRule.id, selectedOtherPlayer.id);
+                                                                    assignRule(rule.id, gameState.currentPlayer);
 
                                                                     alert(`${gameState.players.find(p => p.id === gameState.currentPlayer)?.name} swapped "${selectedOwnRule.text}" with ${selectedOtherPlayer.name}'s "${rule.text}"!`);
 
