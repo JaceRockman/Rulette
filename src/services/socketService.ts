@@ -1,7 +1,7 @@
 import io, { Socket } from 'socket.io-client';
 import { GameState, Player, Prompt, Rule } from '../types/game';
 
-const SERVER_URL = 'http://localhost:3001'; // Change this to your server URL
+const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
 
 class SocketService {
     private socket: Socket | null = null;

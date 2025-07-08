@@ -12,7 +12,7 @@ import Plaque from '../components/Plaque';
 
 export default function RuleWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addRule, updateRule } = useGame();
+    const { gameState, addRule, updateRule, currentPlayer } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -127,30 +127,45 @@ export default function RuleWritingScreen() {
         return rows;
     };
 
+    // Determine if player can add more rules
+    const nonFillerRuleCount = (gameState?.rules?.filter(rule => !rule.isFiller)?.length || 0);
+    const canAddRule = currentPlayer?.isHost || nonFillerRuleCount < numRules;
+    const canContinue = currentPlayer?.isHost || nonFillerRuleCount === numRules;
+
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
-                <View style={{ paddingTop: 100, alignItems: 'center' }}>
+                <View style={{ paddingTop: 100, alignItems: 'center', flex: 1 }}>
                     <TouchableOpacity
-                        style={[shared.button, { marginTop: 30, width: 180 }]}
+                        style={[
+                            shared.button,
+                            { marginTop: 30, width: 180 },
+                            !canAddRule && { opacity: 0.5 }
+                        ]}
                         onPress={handleAddRule}
-                        disabled={(gameState?.rules?.filter(rule => !rule.isFiller)?.length || 0) >= numRules}
+                        disabled={!canAddRule}
                     >
                         <Text style={shared.buttonText}>Add Rule</Text>
                     </TouchableOpacity>
 
-                    <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20 }}>
+                    <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20, flex: 1 }}>
                         {renderRulesGrid()}
                     </View>
 
-                    {(gameState?.rules?.filter(rule => !rule.isFiller)?.length || 0) === numRules && (
-                        <TouchableOpacity
-                            style={[shared.button, { width: 180 }]}
-                            onPress={handleContinue}
-                        >
-                            <Text style={shared.buttonText}>Done</Text>
-                        </TouchableOpacity>
-                    )}
+                    {/* Spacer to push Done button to bottom */}
+                    <View style={{ flex: 1 }} />
+
+                    <TouchableOpacity
+                        style={[
+                            shared.button,
+                            { width: 180, marginBottom: 30 },
+                            !canContinue && { opacity: 0.5 }
+                        ]}
+                        onPress={canContinue ? handleContinue : undefined}
+                        disabled={!canContinue}
+                    >
+                        <Text style={shared.buttonText}>Done</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <InputPlaque

@@ -272,7 +272,8 @@ app.get('/games', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/health`);
+    console.log(`Network access: http://192.168.1.201:${PORT}/health`);
 }); 

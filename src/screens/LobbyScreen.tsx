@@ -36,6 +36,13 @@ export default function LobbyScreen() {
     const isHost = currentPlayer?.isHost;
     const lobbyCode = gameState?.code || route.params.code;
 
+    // Navigate to rule writing when game starts
+    React.useEffect(() => {
+        if (gameState?.isGameStarted) {
+            navigation.navigate('RuleWriting');
+        }
+    }, [gameState?.isGameStarted, navigation]);
+
     const copyLobbyCode = async () => {
         await Clipboard.setStringAsync(lobbyCode);
         Alert.alert('Copied!', 'Lobby code copied to clipboard');
@@ -71,10 +78,8 @@ export default function LobbyScreen() {
             return;
         }
 
-        // Update game settings before starting
-        // This would typically update the game state with the new settings
+        // Start the game - navigation will be handled by useEffect when game state updates
         startGame();
-        navigation.navigate('RuleWriting');
     };
 
     return (
@@ -104,11 +109,11 @@ export default function LobbyScreen() {
                     )}
 
                     {/* Players Section */}
-                    {gameState?.players?.filter(player => !player.isHost)?.length && (
+                    {(gameState?.players?.filter(player => !player.isHost)?.length ?? 0) > 0 && (
                         <View style={styles.section}>
                             <OutlinedText>Players</OutlinedText>
                             <View style={styles.playerGrid}>
-                                {gameState?.players?.filter(player => !player.isHost).map((player) => (
+                                {(gameState?.players?.filter(player => !player.isHost) ?? []).map((player) => (
                                     <View key={player.id} style={styles.playerItem}>
                                         <Text style={styles.playerName}>{player.name}</Text>
                                     </View>

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { GameState, Player, Prompt, Rule, StackItem, GameEvent, WheelSegment, WheelLayer } from '../types/game';
+import socketService from '../services/socketService';
 
 interface GameContextType {
     gameState: GameState | null;
@@ -341,46 +342,42 @@ function getVariedModifierColor(existingModifierColors: string[]): string {
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
     const [gameState, dispatch] = useReducer(gameReducer, initialState);
+    const [currentPlayerId, setCurrentPlayerId] = React.useState<string | null>(null);
+    const currentPlayer = gameState?.players.find(p => p.id === currentPlayerId) || null;
 
-    const currentPlayer = gameState?.players.find(p => p.id === gameState.currentPlayer) || null;
+    // Connect to socket on mount
+    React.useEffect(() => {
+        socketService.connect();
+        // Listen for socket events
+        socketService.setOnLobbyCreated(({ playerId, game }) => {
+            setCurrentPlayerId(playerId);
+            dispatch({ type: 'SET_GAME_STATE', payload: game });
+        });
+        socketService.setOnJoinedLobby(({ playerId, game }) => {
+            setCurrentPlayerId(playerId);
+            dispatch({ type: 'SET_GAME_STATE', payload: game });
+        });
+        socketService.setOnGameUpdated((game) => {
+            dispatch({ type: 'SET_GAME_STATE', payload: game });
+        });
+        socketService.setOnGameStarted(() => {
+            // When game starts, all players should navigate to rule writing screen
+            // This will be handled by the navigation logic in the screens
+        });
+        return () => {
+            socketService.disconnect();
+        };
+    }, []);
 
     // No automatic test state initialization - will be created through UI
 
     const joinLobby = (code: string, playerName: string) => {
-        // This would connect to your backend/socket server
-        const player: Player = {
-            id: Math.random().toString(36).substr(2, 9),
-            name: playerName,
-            points: 20,
-            rules: [],
-            isHost: false,
-        };
-
-        dispatch({ type: 'ADD_PLAYER', payload: player });
-        dispatch({ type: 'SET_CURRENT_PLAYER', payload: player.id });
+        socketService.joinLobby(code, playerName);
     };
 
     const createLobby = (playerName: string, numRules = 3, numPrompts = 3, startingPoints = 20) => {
-        const code = Math.random().toString(36).substr(2, 6).toUpperCase();
-        const player: Player = {
-            id: Math.random().toString(36).substr(2, 9),
-            name: playerName,
-            points: startingPoints,
-            rules: [],
-            isHost: true,
-        };
-
-        const newGameState: GameState = {
-            ...initialState,
-            id: Math.random().toString(36).substr(2, 9),
-            code,
-            players: [player],
-            currentPlayer: player.id,
-            numRules,
-            numPrompts,
-        };
-
-        dispatch({ type: 'SET_GAME_STATE', payload: newGameState });
+        // Note: numRules, numPrompts, startingPoints can be sent to backend if supported
+        socketService.createLobby(playerName);
     };
 
     const addTestPlayers = (numPlayers: number) => {
@@ -579,8 +576,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const startGame = () => {
-        dispatch({ type: 'START_GAME' });
-        dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
+        if (!gameState) return;
+        // Use socket service to start the game for all players
+        socketService.startGame();
     };
 
     const spinWheel = () => {
@@ -716,38 +714,36 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const value: GameContextType = {
-        gameState,
-        currentPlayer,
-        dispatch,
-        joinLobby,
-        createLobby,
-        addTestPlayers,
-        addFillerRules,
-        addFillerPrompts,
-        createTestingState,
-        setNumRules,
-        setNumPrompts,
-        addPrompt,
-        addRule,
-        updatePrompt,
-        updateRule,
-        startGame,
-        spinWheel,
-        updatePoints,
-        swapRules,
-        swapRulesWithPlayer,
-        cloneRuleToPlayer,
-        shredRule,
-        flipRule,
-        assignRule,
-        assignRuleToCurrentPlayer,
-        removeWheelLayer,
-        endGame,
-    };
-
     return (
-        <GameContext.Provider value={value}>
+        <GameContext.Provider value={{
+            gameState,
+            currentPlayer,
+            dispatch,
+            joinLobby,
+            createLobby,
+            addTestPlayers,
+            addFillerRules,
+            addFillerPrompts,
+            createTestingState,
+            setNumRules,
+            setNumPrompts,
+            addPrompt,
+            addRule,
+            updatePrompt,
+            updateRule,
+            startGame,
+            spinWheel,
+            updatePoints,
+            swapRules,
+            swapRulesWithPlayer,
+            cloneRuleToPlayer,
+            shredRule,
+            flipRule,
+            assignRule,
+            assignRuleToCurrentPlayer,
+            removeWheelLayer,
+            endGame,
+        }}>
             {children}
         </GameContext.Provider>
     );

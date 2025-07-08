@@ -12,7 +12,7 @@ import Plaque from '../components/Plaque';
 
 export default function PromptWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addPrompt, updatePrompt, dispatch } = useGame();
+    const { gameState, addPrompt, updatePrompt, dispatch, currentPlayer } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -133,29 +133,46 @@ export default function PromptWritingScreen() {
         return rows;
     };
 
+    // Determine if player can add more prompts
+    const nonFillerPromptCount = (gameState?.prompts?.filter(prompt => !prompt.isFiller)?.length || 0);
+    const canAddPrompt = currentPlayer?.isHost || nonFillerPromptCount < numPrompts;
+    const canContinue = currentPlayer?.isHost || nonFillerPromptCount === numPrompts;
+
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
                 <ScrollView
                     style={{ flex: 1 }}
-                    contentContainerStyle={{ paddingTop: 100, alignItems: 'center', paddingBottom: 50 }}
+                    contentContainerStyle={{ paddingTop: 100, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
                     showsVerticalScrollIndicator={false}
                 >
                     <TouchableOpacity
-                        style={[shared.button, { marginTop: 30, width: 180 }]}
+                        style={[
+                            shared.button,
+                            { marginTop: 30, width: 180 },
+                            !canAddPrompt && { opacity: 0.5 }
+                        ]}
                         onPress={handleAddPrompt}
-                        disabled={(gameState?.prompts?.filter(prompt => !prompt.isFiller)?.length || 0) >= numPrompts}
+                        disabled={!canAddPrompt}
                     >
                         <Text style={shared.buttonText}>Add Prompt</Text>
                     </TouchableOpacity>
 
-                    <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20 }}>
+                    <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20, flex: 1 }}>
                         {renderPromptsGrid()}
                     </View>
 
+                    {/* Spacer to push Done button to bottom */}
+                    <View style={{ flex: 1 }} />
+
                     <TouchableOpacity
-                        style={[shared.button, { width: 180, marginBottom: 30 }]}
-                        onPress={handleDone}
+                        style={[
+                            shared.button,
+                            { width: 180, marginBottom: 30 },
+                            !canContinue && { opacity: 0.5 }
+                        ]}
+                        onPress={canContinue ? handleDone : undefined}
+                        disabled={!canContinue}
                     >
                         <Text style={shared.buttonText}>Done</Text>
                     </TouchableOpacity>

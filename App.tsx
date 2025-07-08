@@ -14,6 +14,8 @@ import OutlinedText from './src/components/OutlinedText';
 import StripedBackground from './src/components/StripedBackground';
 import { View } from 'react-native';
 
+console.log('App loaded');
+
 export type RootStackParamList = {
     Home: undefined;
     Lobby: { code: string };
