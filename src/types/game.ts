@@ -4,23 +4,29 @@ export interface Player {
     points: number;
     rules: Rule[];
     isHost: boolean;
+    rulesCompleted?: boolean;
+    promptsCompleted?: boolean;
 }
 
-export interface Prompt {
+export interface Plaque {
     id: string;
+    type: 'rule' | 'prompt';
     text: string;
     category?: string;
-    plaqueColor?: string;
+    assignedTo?: string; // player id (optional - assigned when wheel lands on it)
+    isActive?: boolean;
+    plaqueColor: string;
     isFiller?: boolean;
+    authorId: string; // player id who created this plaque
 }
 
-export interface Rule {
-    id: string;
-    text: string;
-    assignedTo?: string; // player id (optional - assigned when wheel lands on it)
+export interface Prompt extends Plaque {
+    type: 'prompt';
+}
+
+export interface Rule extends Plaque {
+    type: 'rule';
     isActive: boolean;
-    plaqueColor?: string;
-    isFiller?: boolean;
 }
 
 export interface WheelLayer {

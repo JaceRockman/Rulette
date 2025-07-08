@@ -6,6 +6,8 @@ interface GameContextType {
     gameState: GameState | null;
     currentPlayer: Player | null;
     dispatch: React.Dispatch<GameAction>;
+    getVisibleRules: () => Rule[];
+    getVisiblePrompts: () => Prompt[];
     joinLobby: (code: string, playerName: string) => void;
     createLobby: (playerName: string, numRules?: number, numPrompts?: number, startingPoints?: number) => void;
     addTestPlayers: (numPlayers: number) => void;
@@ -30,6 +32,8 @@ interface GameContextType {
     assignRuleToCurrentPlayer: (ruleId: string) => void;
     removeWheelLayer: (segmentId: string) => void;
     endGame: () => void;
+    markRulesCompleted: () => void;
+    markPromptsCompleted: () => void;
 }
 
 type GameAction =
@@ -51,7 +55,9 @@ type GameAction =
     | { type: 'REMOVE_WHEEL_LAYER'; payload: string }
     | { type: 'END_GAME'; payload: Player }
     | { type: 'CREATE_WHEEL_SEGMENTS' }
-    | { type: 'SET_HOST'; payload: string };
+    | { type: 'SET_HOST'; payload: string }
+    | { type: 'MARK_RULES_COMPLETED'; payload: string }
+    | { type: 'MARK_PROMPTS_COMPLETED'; payload: string };
 
 const initialState: GameState = {
     id: '',
@@ -77,37 +83,37 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         case 'ADD_PLAYER':
             return {
                 ...state,
-                players: [...state.players, action.payload],
+                players: [...(state.players || []), action.payload],
             };
 
         case 'REMOVE_PLAYER':
             return {
                 ...state,
-                players: state.players.filter(p => p.id !== action.payload),
+                players: (state.players || []).filter(p => p.id !== action.payload),
             };
 
         case 'ADD_PROMPT':
             return {
                 ...state,
-                prompts: [...state.prompts, action.payload],
+                prompts: [...(state.prompts || []), action.payload],
             };
 
         case 'ADD_RULE':
             return {
                 ...state,
-                rules: [...state.rules, action.payload],
+                rules: [...(state.rules || []), action.payload],
             };
 
         case 'UPDATE_RULE':
             return {
                 ...state,
-                rules: state.rules.map((r: Rule) => r.id === action.payload.id ? action.payload : r),
+                rules: (state.rules || []).map((r: Rule) => r.id === action.payload.id ? action.payload : r),
             };
 
         case 'UPDATE_PROMPT':
             return {
                 ...state,
-                prompts: state.prompts.map((p: Prompt) => p.id === action.payload.id ? action.payload : p),
+                prompts: (state.prompts || []).map((p: Prompt) => p.id === action.payload.id ? action.payload : p),
             };
 
         case 'START_GAME':
@@ -127,7 +133,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         case 'UPDATE_POINTS':
             return {
                 ...state,
-                players: state.players.map((p: Player) =>
+                players: (state.players || []).map((p: Player) =>
                     p.id === action.payload.playerId
                         ? { ...p, points: action.payload.points }
                         : p
@@ -149,7 +155,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             return { ...state, numPrompts: action.payload };
 
         case 'REMOVE_WHEEL_LAYER':
-            const updatedSegments = state.wheelSegments.map((segment: WheelSegment) => {
+            const updatedSegments = (state.wheelSegments || []).map((segment: WheelSegment) => {
                 if (segment.id === action.payload) {
                     const newLayerIndex = segment.currentLayerIndex + 1;
                     return { ...segment, currentLayerIndex: newLayerIndex };
@@ -170,17 +176,18 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             };
 
         case 'SET_HOST':
-            const oldHost = state.players.find(p => p.isHost);
+            const players = state.players || [];
+            const oldHost = players.find(p => p.isHost);
             return {
                 ...state,
-                players: state.players
+                players: players
                     .filter((p: Player) => !p.isHost) // Remove old host
                     .map((p: Player) => ({
                         ...p,
                         isHost: p.id === action.payload
                     }))
                     .concat(
-                        state.players
+                        players
                             .filter((p: Player) => p.id === action.payload)
                             .map((p: Player) => ({
                                 ...p,
@@ -194,7 +201,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
             // Create wheel segments with layers
             const newSegments: WheelSegment[] = [];
-            const totalSegments = state.rules.length; // Always create segments based on rules
+
+            // Ensure rules and prompts arrays exist
+            const rules = state.rules || [];
+            const prompts = state.prompts || [];
+            const totalSegments = Math.max(rules.length, prompts.length, 1); // At least 1 segment
 
             // Track modifier colors for balanced distribution
             const modifierColors: string[] = [];
@@ -202,21 +213,34 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             for (let i = 0; i < totalSegments; i++) {
                 const layers: WheelLayer[] = [];
 
-                // Add rule layer (always present) with its stored plaque color or balanced if not set
-                const rulePlaqueColor = state.rules[i].plaqueColor || LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length];
-                layers.push({
-                    type: 'rule',
-                    content: state.rules[i],
-                    isActive: true,
-                    plaqueColor: rulePlaqueColor
-                });
+                // Add rule layer if available, otherwise add modifier
+                if (i < rules.length) {
+                    const rulePlaqueColor = rules[i].plaqueColor || LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length];
+                    layers.push({
+                        type: 'rule',
+                        content: rules[i],
+                        isActive: true,
+                        plaqueColor: rulePlaqueColor
+                    });
+                } else {
+                    // Add modifier layer if no rule available
+                    const modifiers = ['Clone', 'Flip', 'Up', 'Down', 'Swap'];
+                    const modifierColor = getVariedModifierColor(modifierColors);
+                    modifierColors.push(modifierColor);
+                    layers.push({
+                        type: 'modifier',
+                        content: modifiers[Math.floor(Math.random() * modifiers.length)],
+                        isActive: true,
+                        plaqueColor: modifierColor
+                    });
+                }
 
                 // Add prompt layer if available, otherwise add modifier
-                if (i < state.prompts.length) {
-                    const promptPlaqueColor = state.prompts[i].plaqueColor || LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length];
+                if (i < prompts.length) {
+                    const promptPlaqueColor = prompts[i].plaqueColor || LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length];
                     layers.push({
                         type: 'prompt',
-                        content: state.prompts[i],
+                        content: prompts[i],
                         isActive: true,
                         plaqueColor: promptPlaqueColor
                     });
@@ -267,6 +291,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 wheelSegments: newSegments,
             };
 
+        case 'MARK_RULES_COMPLETED':
+            return {
+                ...state,
+                rules: state.rules.map(rule =>
+                    rule.id === action.payload ? { ...rule, isActive: false } : rule
+                ),
+            };
+
+        case 'MARK_PROMPTS_COMPLETED':
+            return {
+                ...state,
+                prompts: state.prompts.map(prompt =>
+                    prompt.id === action.payload ? { ...prompt, isActive: false } : prompt
+                ),
+            };
+
         default:
             return state;
     }
@@ -286,37 +326,9 @@ interface ColorUsage {
 }
 
 function getBalancedColor(type: 'prompt' | 'rule' | 'modifier', prompts: Prompt[], rules: Rule[]): string {
-    // Count color usage for the specific type
-    const colorCount: { [color: string]: number } = {};
-    LAYER_PLAQUE_COLORS.forEach(color => {
-        colorCount[color] = 0;
-    });
-
-    // Count existing colors for this type
-    if (type === 'prompt') {
-        prompts.forEach(prompt => {
-            if (prompt.plaqueColor && colorCount[prompt.plaqueColor] !== undefined) {
-                colorCount[prompt.plaqueColor]++;
-            }
-        });
-    } else if (type === 'rule') {
-        rules.forEach(rule => {
-            if (rule.plaqueColor && colorCount[rule.plaqueColor] !== undefined) {
-                colorCount[rule.plaqueColor]++;
-            }
-        });
-    }
-
-    // Find colors with minimum usage
-    const minCount = Math.min(...Object.values(colorCount));
-    const availableColors = LAYER_PLAQUE_COLORS.filter(color => colorCount[color] === minCount);
-
-    // If multiple colors have the same usage, randomly select one
-    if (availableColors.length > 1) {
-        return availableColors[Math.floor(Math.random() * availableColors.length)];
-    }
-
-    return availableColors[0];
+    // Simple random color selection for now
+    const colors = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
+    return colors[Math.floor(Math.random() * colors.length)];
 }
 
 function getVariedModifierColor(existingModifierColors: string[]): string {
@@ -345,6 +357,31 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const [currentPlayerId, setCurrentPlayerId] = React.useState<string | null>(null);
     const currentPlayer = gameState?.players.find(p => p.id === currentPlayerId) || null;
 
+    // Helper functions to filter rules and prompts based on player role
+    const getVisibleRules = () => {
+        if (!gameState?.rules || !currentPlayer) return [];
+
+        // Host sees all rules, players see only their own
+        if (currentPlayer.isHost) {
+            return gameState.rules.filter(rule => !rule.isFiller);
+        } else {
+            // Use currentPlayerId as fallback if currentPlayer.id doesn't match
+            const playerId = currentPlayer.id || socketService.getCurrentPlayerId();
+            return gameState.rules.filter(rule => rule.authorId === playerId && !rule.isFiller);
+        }
+    };
+
+    const getVisiblePrompts = () => {
+        if (!gameState?.prompts || !currentPlayer) return [];
+
+        // Host sees all prompts, players see only their own
+        if (currentPlayer.isHost) {
+            return gameState.prompts.filter(prompt => !prompt.isFiller);
+        } else {
+            return gameState.prompts.filter(prompt => prompt.authorId === currentPlayer.id && !prompt.isFiller);
+        }
+    };
+
     // Connect to socket on mount
     React.useEffect(() => {
         socketService.connect();
@@ -368,6 +405,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             socketService.disconnect();
         };
     }, []);
+
+    // Create wheel segments when all non-host players have completed
+    React.useEffect(() => {
+        if (!gameState || !gameState.isGameStarted) return;
+
+        const nonHostPlayers = gameState.players?.filter(player => !player.isHost) || [];
+        const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
+            player.rulesCompleted && player.promptsCompleted
+        );
+
+        // Only create wheel segments if all non-host players have completed and segments haven't been created yet
+        if (allNonHostPlayersCompleted && (gameState.wheelSegments?.length || 0) === 0) {
+            // Add a small delay to ensure all rules and prompts are synced from the backend
+            setTimeout(() => {
+                dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
+            }, 500);
+        }
+    }, [gameState?.players, gameState?.isGameStarted, gameState?.wheelSegments?.length, dispatch]);
 
     // No automatic test state initialization - will be created through UI
 
@@ -409,16 +464,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (!gameState || numRules <= 0) return;
 
         const fillerRules: Rule[] = [
-            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true, authorId: "system" },
         ];
 
         const selectedFillerRules = fillerRules.slice(0, Math.min(numRules, fillerRules.length));
@@ -435,16 +490,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (!gameState || numPrompts <= 0) return;
 
         const fillerPrompts: Prompt[] = [
-            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Explain why cats are secretly running the internet", category: "Conspiracy", plaqueColor: "#a861b3", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Describe your perfect day using only emojis", category: "Creative", plaqueColor: "#ed5c5d", isFiller: true },
-            { id: Math.random().toString(36).substr(2, 9), text: "Argue that breakfast foods are acceptable at any time", category: "Debate", plaqueColor: "#fff", isFiller: true },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Explain why cats are secretly running the internet", category: "Conspiracy", plaqueColor: "#a861b3", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Describe your perfect day using only emojis", category: "Creative", plaqueColor: "#ed5c5d", isFiller: true, authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Argue that breakfast foods are acceptable at any time", category: "Debate", plaqueColor: "#fff", isFiller: true, authorId: "system" },
         ];
 
         const selectedFillerPrompts = fillerPrompts.slice(0, Math.min(numPrompts, fillerPrompts.length));
@@ -495,26 +550,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         ];
 
         const rules: Rule[] = [
-            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", authorId: "system" },
         ];
 
         const prompts: Prompt[] = [
-            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff" },
-            { id: Math.random().toString(36).substr(2, 9), text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff", authorId: "system" },
+            { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3", authorId: "system" },
         ];
 
         const testingGameState: GameState = {
@@ -541,38 +596,80 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_NUM_PROMPTS', payload: num });
     };
 
-    const addPrompt = (text: string, category?: string, plaqueColor?: string) => {
-        const prompt: Prompt = {
-            id: Math.random().toString(36).substr(2, 9),
-            text,
-            category,
-            plaqueColor: plaqueColor || getBalancedColor('prompt', gameState?.prompts || [], gameState?.rules || [])
+    const createPlaque = (type: 'rule' | 'prompt', text: string, category?: string, plaqueColor?: string) => {
+        const currentPlayerId = socketService.getCurrentPlayerId();
+        if (!currentPlayerId) return;
+
+        // Create plaque with generated ID, color, and values
+        const plaqueId = Math.random().toString(36).substr(2, 9);
+        const finalPlaqueColor = plaqueColor || getBalancedColor(type, gameState?.prompts || [], gameState?.rules || []);
+
+        const plaque = {
+            id: plaqueId,
+            type: type,
+            text: text,
+            category: category,
+            authorId: currentPlayerId,
+            plaqueColor: finalPlaqueColor,
+            isActive: type === 'rule' ? true : undefined
         };
-        dispatch({ type: 'ADD_PROMPT', payload: prompt });
+
+        // Send plaque to backend
+        socketService.addPlaque(plaque);
     };
 
     const addRule = (text: string, plaqueColor?: string) => {
-        const rule: Rule = {
-            id: Math.random().toString(36).substr(2, 9),
-            text,
-            isActive: true,
-            plaqueColor: plaqueColor || getBalancedColor('rule', gameState?.prompts || [], gameState?.rules || [])
-        };
-        dispatch({ type: 'ADD_RULE', payload: rule });
+        createPlaque('rule', text, undefined, plaqueColor);
+    };
+
+    const addPrompt = (text: string, category?: string, plaqueColor?: string) => {
+        createPlaque('prompt', text, category, plaqueColor);
+    };
+
+    const updatePlaque = (id: string, text: string, type: 'rule' | 'prompt') => {
+        if (type === 'rule') {
+            // Find the existing rule to get its current data
+            const existingRule = gameState?.rules.find(r => r.id === id);
+            if (!existingRule || !existingRule.authorId || !existingRule.plaqueColor) return;
+
+            // Create updated plaque with new text but same ID and other properties
+            const updatedPlaque = {
+                id: existingRule.id,
+                type: 'rule',
+                text: text,
+                isActive: existingRule.isActive,
+                authorId: existingRule.authorId,
+                plaqueColor: existingRule.plaqueColor
+            };
+
+            // Send updated plaque to backend
+            socketService.updatePlaque(updatedPlaque);
+        } else {
+            // Find the existing prompt to get its current data
+            const existingPrompt = gameState?.prompts.find(p => p.id === id);
+            if (!existingPrompt || !existingPrompt.authorId || !existingPrompt.plaqueColor) return;
+
+            // Create updated plaque with new text but same ID and other properties
+            const updatedPlaque = {
+                id: existingPrompt.id,
+                type: 'prompt',
+                text: text,
+                category: existingPrompt.category,
+                authorId: existingPrompt.authorId,
+                plaqueColor: existingPrompt.plaqueColor
+            };
+
+            // Send updated plaque to backend
+            socketService.updatePlaque(updatedPlaque);
+        }
     };
 
     const updateRule = (id: string, text: string) => {
-        const rule = gameState?.rules.find(r => r.id === id);
-        if (rule) {
-            dispatch({ type: 'UPDATE_RULE', payload: { ...rule, text } });
-        }
+        updatePlaque(id, text, 'rule');
     };
 
     const updatePrompt = (id: string, text: string) => {
-        const prompt = gameState?.prompts.find(p => p.id === id);
-        if (prompt) {
-            dispatch({ type: 'UPDATE_PROMPT', payload: { ...prompt, text } });
-        }
+        updatePlaque(id, text, 'prompt');
     };
 
     const startGame = () => {
@@ -714,11 +811,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const markRulesCompleted = () => {
+        if (!gameState) return;
+        socketService.markRulesCompleted();
+    };
+
+    const markPromptsCompleted = () => {
+        if (!gameState) return;
+        socketService.markPromptsCompleted();
+    };
+
     return (
         <GameContext.Provider value={{
             gameState,
             currentPlayer,
             dispatch,
+            getVisibleRules,
+            getVisiblePrompts,
             joinLobby,
             createLobby,
             addTestPlayers,
@@ -743,6 +852,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             assignRuleToCurrentPlayer,
             removeWheelLayer,
             endGame,
+            markRulesCompleted,
+            markPromptsCompleted,
         }}>
             {children}
         </GameContext.Provider>

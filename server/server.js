@@ -38,7 +38,9 @@ function createGame(hostId, hostName) {
             name: hostName,
             points: 20,
             rules: [],
-            isHost: true
+            isHost: true,
+            rulesCompleted: false,
+            promptsCompleted: false
         }],
         prompts: [],
         rules: [],
@@ -64,7 +66,6 @@ function findGameByCode(code) {
 
 // Socket connection handling
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
 
     // Join lobby
     socket.on('join_lobby', ({ code, playerName }) => {
@@ -86,7 +87,9 @@ io.on('connection', (socket) => {
             name: playerName,
             points: 20,
             rules: [],
-            isHost: false
+            isHost: false,
+            rulesCompleted: false,
+            promptsCompleted: false
         };
 
         game.players.push(player);
@@ -109,15 +112,36 @@ io.on('connection', (socket) => {
         socket.emit('lobby_created', { playerId, game });
     });
 
-    // Add prompt
-    socket.on('add_prompt', ({ gameId, text, category }) => {
+    // Add plaque (unified handler for rules and prompts)
+    socket.on('add_plaque', ({ gameId, plaque }) => {
         const game = games.get(gameId);
         if (!game) return;
 
+        if (plaque.type === 'rule') {
+            const rule = {
+                ...plaque,
+                isActive: plaque.isActive || true,
+                assignedTo: undefined
+            };
+            game.rules.push(rule);
+        } else if (plaque.type === 'prompt') {
+            const prompt = {
+                ...plaque
+            };
+            game.prompts.push(prompt);
+        }
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Add prompt
+    socket.on('add_prompt', ({ gameId, plaqueObject }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Use the plaque object as the prompt (it already has id, text, category, authorId, plaqueColor)
         const prompt = {
-            id: uuidv4(),
-            text,
-            category
+            ...plaqueObject
         };
 
         game.prompts.push(prompt);
@@ -125,19 +149,79 @@ io.on('connection', (socket) => {
     });
 
     // Add rule
-    socket.on('add_rule', ({ gameId, text, assignedTo }) => {
+    socket.on('add_rule', (data) => {
+        const { gameId, plaqueObject } = data;
         const game = games.get(gameId);
         if (!game) return;
 
+        // Use the plaque object as the rule (it already has id, text, authorId, plaqueColor)
         const rule = {
-            id: uuidv4(),
-            text,
-            assignedTo,
+            ...plaqueObject,
             isActive: true
         };
 
         game.rules.push(rule);
         io.to(gameId).emit('game_updated', game);
+    });
+
+    // Update plaque (unified handler for rules and prompts)
+    socket.on('update_plaque', ({ gameId, plaque }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        if (plaque.type === 'rule') {
+            const ruleIndex = game.rules.findIndex(r => r.id === plaque.id);
+            if (ruleIndex !== -1) {
+                // Replace the rule with the updated plaque
+                game.rules[ruleIndex] = {
+                    ...game.rules[ruleIndex],
+                    ...plaque
+                };
+                io.to(gameId).emit('game_updated', game);
+            }
+        } else if (plaque.type === 'prompt') {
+            const promptIndex = game.prompts.findIndex(p => p.id === plaque.id);
+            if (promptIndex !== -1) {
+                // Replace the prompt with the updated plaque
+                game.prompts[promptIndex] = {
+                    ...game.prompts[promptIndex],
+                    ...plaque
+                };
+                io.to(gameId).emit('game_updated', game);
+            }
+        }
+    });
+
+    // Update rule
+    socket.on('update_rule', ({ gameId, plaqueObject }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const ruleIndex = game.rules.findIndex(r => r.id === plaqueObject.id);
+        if (ruleIndex !== -1) {
+            // Replace the rule with the updated plaque object
+            game.rules[ruleIndex] = {
+                ...game.rules[ruleIndex],
+                ...plaqueObject
+            };
+            io.to(gameId).emit('game_updated', game);
+        }
+    });
+
+    // Update prompt
+    socket.on('update_prompt', ({ gameId, plaqueObject }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const promptIndex = game.prompts.findIndex(p => p.id === plaqueObject.id);
+        if (promptIndex !== -1) {
+            // Replace the prompt with the updated plaque object
+            game.prompts[promptIndex] = {
+                ...game.prompts[promptIndex],
+                ...plaqueObject
+            };
+            io.to(gameId).emit('game_updated', game);
+        }
     });
 
     // Start game
@@ -152,10 +236,45 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_started');
     });
 
+    // Mark rules as completed
+    socket.on('rules_completed', ({ gameId, playerId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const player = game.players.find(p => p.id === playerId);
+        if (player) {
+            player.rulesCompleted = true;
+            io.to(gameId).emit('game_updated', game);
+        }
+    });
+
+    // Mark prompts as completed
+    socket.on('prompts_completed', ({ gameId, playerId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const player = game.players.find(p => p.id === playerId);
+        if (player) {
+            player.promptsCompleted = true;
+            io.to(gameId).emit('game_updated', game);
+        }
+    });
+
     // Spin wheel
     socket.on('spin_wheel', ({ gameId }) => {
         const game = games.get(gameId);
         if (!game) return;
+
+        // Check if all non-host players have completed both phases
+        const nonHostPlayers = game.players.filter(player => !player.isHost);
+        const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
+            player.rulesCompleted && player.promptsCompleted
+        );
+
+        if (!allNonHostPlayersCompleted) {
+            socket.emit('error', { message: 'All players must complete rules and prompts before spinning the wheel' });
+            return;
+        }
 
         game.isWheelSpinning = true;
 
@@ -231,7 +350,6 @@ io.on('connection', (socket) => {
 
     // Disconnect handling
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
 
         // Find and remove player
         for (const [playerId, playerData] of players.entries()) {

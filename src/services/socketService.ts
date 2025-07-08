@@ -31,14 +31,6 @@ class SocketService {
     private setupEventListeners() {
         if (!this.socket) return;
 
-        this.socket.on('connect', () => {
-            console.log('Connected to server');
-        });
-
-        this.socket.on('disconnect', () => {
-            console.log('Disconnected from server');
-        });
-
         this.socket.on('error', (error: { message: string }) => {
             console.error('Socket error:', error);
             this.onError?.(error.message);
@@ -106,21 +98,61 @@ class SocketService {
         this.socket.emit('join_lobby', { code, playerName });
     }
 
-    addPrompt(text: string, category?: string) {
+    markRulesCompleted() {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('add_prompt', {
+        this.socket.emit('rules_completed', { gameId: this.gameState.id, playerId: this.currentPlayerId });
+    }
+
+    markPromptsCompleted() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('prompts_completed', { gameId: this.gameState.id, playerId: this.currentPlayerId });
+    }
+
+    addPlaque(plaque: { id: string; type: 'rule' | 'prompt'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('add_plaque', {
             gameId: this.gameState.id,
-            text,
-            category
+            plaque
         });
     }
 
-    addRule(text: string, assignedTo: string) {
+    addPrompt(plaqueObject: { id: string; text: string; category?: string; authorId: string; plaqueColor: string }) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('add_prompt', {
+            gameId: this.gameState.id,
+            plaqueObject
+        });
+    }
+
+    addRule(plaqueObject: { id: string; text: string; isActive: boolean; authorId: string; plaqueColor: string }) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('add_rule', {
             gameId: this.gameState.id,
-            text,
-            assignedTo
+            plaqueObject
+        });
+    }
+
+    updatePlaque(plaque: { id: string; type: 'rule' | 'prompt'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_plaque', {
+            gameId: this.gameState.id,
+            plaque
+        });
+    }
+
+    updateRule(plaqueObject: { id: string; text: string; isActive: boolean; authorId: string; plaqueColor: string }) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_rule', {
+            gameId: this.gameState.id,
+            plaqueObject
+        });
+    }
+
+    updatePrompt(plaqueObject: { id: string; text: string; category?: string; authorId: string; plaqueColor: string }) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_prompt', {
+            gameId: this.gameState.id,
+            plaqueObject
         });
     }
 

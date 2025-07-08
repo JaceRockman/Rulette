@@ -105,8 +105,31 @@ export default function GameScreen() {
     }, [navigation, currentPlayer?.isHost]);
 
     const handleSpinWheel = () => {
+        // Check if all non-host players have completed both phases
+        if (!gameState) return;
+
+        const nonHostPlayers = gameState.players.filter(player => !player.isHost);
+        const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
+            player.rulesCompleted && player.promptsCompleted
+        );
+
+        if (!allNonHostPlayersCompleted) {
+            Alert.alert(
+                'Cannot Spin Wheel',
+                'All players must complete rules and prompts before spinning the wheel.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
+
         navigation.navigate('Wheel');
     };
+
+    // Check if all non-host players have completed both phases
+    const nonHostPlayers = gameState?.players.filter(player => !player.isHost) || [];
+    const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
+        player.rulesCompleted && player.promptsCompleted
+    ) || false;
 
     const handleUpdatePoints = (playerId: string, currentPoints: number, change: number) => {
         const newPoints = Math.max(0, Math.min(99, currentPoints + change));
@@ -193,6 +216,15 @@ export default function GameScreen() {
     // Host player action handlers
     const handlePlayerTap = (player: Player) => {
         if (currentPlayer?.isHost && player.id !== currentPlayer.id) {
+            // Check if all non-host players have completed both phases
+            if (!allNonHostPlayersCompleted) {
+                Alert.alert(
+                    'Actions Disabled',
+                    'All players must complete rules and prompts before host actions are available.',
+                    [{ text: 'OK' }]
+                );
+                return;
+            }
             setSelectedPlayerForAction(player);
             setShowPlayerActionModal(true);
         }
@@ -928,10 +960,16 @@ export default function GameScreen() {
                     {/* Spin Wheel Button */}
                     <View style={styles.section}>
                         <TouchableOpacity
-                            style={styles.spinButton}
+                            style={[
+                                styles.spinButton,
+                                !allNonHostPlayersCompleted && { opacity: 0.5 }
+                            ]}
                             onPress={handleSpinWheel}
+                            disabled={!allNonHostPlayersCompleted}
                         >
-                            <Text style={styles.spinButtonText}>Spin the Wheel!</Text>
+                            <Text style={styles.spinButtonText}>
+                                {allNonHostPlayersCompleted ? 'Spin the Wheel!' : 'Waiting for players to complete rules & prompts...'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
 

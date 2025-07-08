@@ -12,7 +12,7 @@ import Plaque from '../components/Plaque';
 
 export default function RuleWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addRule, updateRule, currentPlayer } = useGame();
+    const { gameState, addRule, updateRule, currentPlayer, markRulesCompleted, getVisibleRules } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -82,19 +82,18 @@ export default function RuleWritingScreen() {
     };
 
     const handleContinue = () => {
+        // Mark rules as completed for this player
+        markRulesCompleted();
         navigation.navigate('PromptWriting');
     };
 
     // Create 2-column grid layout
     const renderRulesGrid = () => {
-        if (!gameState?.rules) return null;
-
-        // Filter out filler rules
-        const nonFillerRules = gameState.rules.filter(rule => !rule.isFiller);
+        const visibleRules = getVisibleRules();
 
         const rows = [];
-        for (let i = 0; i < nonFillerRules.length; i += 2) {
-            const hasSecondItem = nonFillerRules[i + 1];
+        for (let i = 0; i < visibleRules.length; i += 2) {
+            const hasSecondItem = visibleRules[i + 1];
             const row = (
                 <View key={i} style={{
                     flexDirection: 'row',
@@ -104,18 +103,18 @@ export default function RuleWritingScreen() {
                 }}>
                     <View style={{ width: '45%' }}>
                         <Plaque
-                            text={nonFillerRules[i].text}
-                            plaqueColor={nonFillerRules[i].plaqueColor || '#fff'}
-                            onPress={() => handleEditRule(nonFillerRules[i].id, nonFillerRules[i].text, nonFillerRules[i].plaqueColor || '#fff')}
+                            text={visibleRules[i].text}
+                            plaqueColor={visibleRules[i].plaqueColor || '#fff'}
+                            onPress={() => handleEditRule(visibleRules[i].id, visibleRules[i].text, visibleRules[i].plaqueColor || '#fff')}
                             style={{ minHeight: 100 }}
                         />
                     </View>
                     {hasSecondItem && (
                         <View style={{ width: '45%', marginLeft: '5%' }}>
                             <Plaque
-                                text={nonFillerRules[i + 1].text}
-                                plaqueColor={nonFillerRules[i + 1].plaqueColor || '#fff'}
-                                onPress={() => handleEditRule(nonFillerRules[i + 1].id, nonFillerRules[i + 1].text, nonFillerRules[i + 1].plaqueColor || '#fff')}
+                                text={visibleRules[i + 1].text}
+                                plaqueColor={visibleRules[i + 1].plaqueColor || '#fff'}
+                                onPress={() => handleEditRule(visibleRules[i + 1].id, visibleRules[i + 1].text, visibleRules[i + 1].plaqueColor || '#fff')}
                                 style={{ minHeight: 100 }}
                             />
                         </View>
@@ -128,9 +127,9 @@ export default function RuleWritingScreen() {
     };
 
     // Determine if player can add more rules
-    const nonFillerRuleCount = (gameState?.rules?.filter(rule => !rule.isFiller)?.length || 0);
-    const canAddRule = currentPlayer?.isHost || nonFillerRuleCount < numRules;
-    const canContinue = currentPlayer?.isHost || nonFillerRuleCount === numRules;
+    const visibleRuleCount = getVisibleRules().length;
+    const canAddRule = currentPlayer?.isHost || visibleRuleCount < numRules;
+    const canContinue = currentPlayer?.isHost || visibleRuleCount === numRules;
 
     return (
         <StripedBackground>

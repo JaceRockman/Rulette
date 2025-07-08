@@ -12,7 +12,7 @@ import Plaque from '../components/Plaque';
 
 export default function PromptWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addPrompt, updatePrompt, dispatch, currentPlayer } = useGame();
+    const { gameState, addPrompt, updatePrompt, dispatch, currentPlayer, markPromptsCompleted, getVisiblePrompts } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -82,8 +82,8 @@ export default function PromptWritingScreen() {
     };
 
     const handleDone = () => {
-        // Create wheel segments after all prompts are entered
-        dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
+        // Mark prompts as completed for this player
+        markPromptsCompleted();
 
         navigation.reset({
             index: 0,
@@ -93,14 +93,11 @@ export default function PromptWritingScreen() {
 
     // Create 2-column grid layout
     const renderPromptsGrid = () => {
-        if (!gameState?.prompts) return null;
-
-        // Filter out filler prompts
-        const nonFillerPrompts = gameState.prompts.filter(prompt => !prompt.isFiller);
+        const visiblePrompts = getVisiblePrompts();
 
         const rows = [];
-        for (let i = 0; i < nonFillerPrompts.length; i += 2) {
-            const hasSecondItem = nonFillerPrompts[i + 1];
+        for (let i = 0; i < visiblePrompts.length; i += 2) {
+            const hasSecondItem = visiblePrompts[i + 1];
             const row = (
                 <View key={i} style={{
                     flexDirection: 'row',
@@ -110,18 +107,18 @@ export default function PromptWritingScreen() {
                 }}>
                     <View style={{ width: '45%' }}>
                         <Plaque
-                            text={nonFillerPrompts[i].text}
-                            plaqueColor={nonFillerPrompts[i].plaqueColor || '#fff'}
-                            onPress={() => handleEditPrompt(nonFillerPrompts[i].id, nonFillerPrompts[i].text, nonFillerPrompts[i].plaqueColor || '#fff')}
+                            text={visiblePrompts[i].text}
+                            plaqueColor={visiblePrompts[i].plaqueColor || '#fff'}
+                            onPress={() => handleEditPrompt(visiblePrompts[i].id, visiblePrompts[i].text, visiblePrompts[i].plaqueColor || '#fff')}
                             style={{ minHeight: 100 }}
                         />
                     </View>
                     {hasSecondItem && (
                         <View style={{ width: '45%', marginLeft: '5%' }}>
                             <Plaque
-                                text={nonFillerPrompts[i + 1].text}
-                                plaqueColor={nonFillerPrompts[i + 1].plaqueColor || '#fff'}
-                                onPress={() => handleEditPrompt(nonFillerPrompts[i + 1].id, nonFillerPrompts[i + 1].text, nonFillerPrompts[i + 1].plaqueColor || '#fff')}
+                                text={visiblePrompts[i + 1].text}
+                                plaqueColor={visiblePrompts[i + 1].plaqueColor || '#fff'}
+                                onPress={() => handleEditPrompt(visiblePrompts[i + 1].id, visiblePrompts[i + 1].text, visiblePrompts[i + 1].plaqueColor || '#fff')}
                                 style={{ minHeight: 100 }}
                             />
                         </View>
@@ -134,9 +131,9 @@ export default function PromptWritingScreen() {
     };
 
     // Determine if player can add more prompts
-    const nonFillerPromptCount = (gameState?.prompts?.filter(prompt => !prompt.isFiller)?.length || 0);
-    const canAddPrompt = currentPlayer?.isHost || nonFillerPromptCount < numPrompts;
-    const canContinue = currentPlayer?.isHost || nonFillerPromptCount === numPrompts;
+    const visiblePromptCount = getVisiblePrompts().length;
+    const canAddPrompt = currentPlayer?.isHost || visiblePromptCount < numPrompts;
+    const canContinue = currentPlayer?.isHost || visiblePromptCount === numPrompts;
 
     return (
         <StripedBackground>
