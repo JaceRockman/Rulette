@@ -1,36 +1,34 @@
 {
-    "expo": {
-        "name": "Spin That Wheel",
-        "slug": "spin-that-wheel",
-        "version": "1.0.0",
-        "orientation": "portrait",
-        "icon": "./assets/icon.png",
-        "userInterfaceStyle": "light",
-        "splash": {
-            "image": "./assets/splash.png",
-            "resizeMode": "contain",
-            "backgroundColor": "#ffffff"
-        },
-        "assetBundlePatterns": [
-            "**/*"
-        ],
-        "ios": {
-            "supportsTablet": true,
-            "bundleIdentifier": "com.yourcompany.spinthatwheel"
-        },
-        "android": {
-            "adaptiveIcon": {
-                "foregroundImage": "./assets/adaptive-icon.png",
-                "backgroundColor": "#FFFFFF"
-            },
-            "package": "com.yourcompany.spinthatwheel"
-        },
-        "web": {
-            "favicon": "./assets/favicon.png"
-        },
-        "plugins": [],
-        "experiments": {
-            "tsconfigPaths": true
-        }
-    }
+  "expo": {
+    "name": "Spin That Wheel",
+    "slug": "spin-that-wheel",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.spinthatwheel"
+    },
+    "android": {
+      "package": "com.yourcompany.spinthatwheel"
+    },
+    "web": {},
+    "plugins": [],
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0f972f81-914b-4e83-8209-6f48bcaa7367"
+      }
+    },
+    "owner": "jace_maverick"
+  }
 }
