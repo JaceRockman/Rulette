@@ -104,6 +104,14 @@ export default function WheelScreen() {
     }, [gameState?.gameEnded, gameState?.winner, navigation]);
 
     const handleSpin = () => {
+        // Check if the current player is the active player
+        const currentClientId = socketService.getCurrentPlayerId();
+        const isActivePlayer = gameState?.activePlayer === currentClientId;
+
+        if (!isActivePlayer) {
+            // Only the active player can spin the wheel
+            return;
+        }
 
         setIsSpinning(true);
         setHasAdvancedPlayer(false); // Reset the flag for new spin
@@ -191,8 +199,18 @@ export default function WheelScreen() {
     // PanResponder for swipe-to-spin
     const panResponder = React.useRef(
         PanResponder.create({
-            onStartShouldSetPanResponder: () => true,
-            onMoveShouldSetPanResponder: (_, gestureState) => Math.abs(gestureState.dy) > 10,
+            onStartShouldSetPanResponder: () => {
+                // Only allow the active player to start pan gestures
+                const currentClientId = socketService.getCurrentPlayerId();
+                const isActivePlayer = gameState?.activePlayer === currentClientId;
+                return isActivePlayer;
+            },
+            onMoveShouldSetPanResponder: (_, gestureState) => {
+                // Only allow the active player to move pan gestures
+                const currentClientId = socketService.getCurrentPlayerId();
+                const isActivePlayer = gameState?.activePlayer === currentClientId;
+                return isActivePlayer && Math.abs(gestureState.dy) > 10;
+            },
             onPanResponderRelease: (_: GestureResponderEvent, gestureState: PanResponderGestureState) => {
                 if (gestureState.dy > 30 && !isSpinning) {
                     handleSpin();
