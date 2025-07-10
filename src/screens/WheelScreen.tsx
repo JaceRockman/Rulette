@@ -9,7 +9,12 @@ import shared from '../styles/shared';
 import StripedBackground from '../components/StripedBackground';
 import OutlinedText from '../components/OutlinedText';
 import WheelSegment from '../components/WheelSegment';
-import FlipTextInputModal from '../components/Modals/FlipTextInputModal';
+import {
+    FlipTextInputModal,
+    PlayerSelectionModal,
+    RuleSelectionModal,
+    SwapModal
+} from '../components/Modals';
 import socketService from '../services/socketService';
 
 const ITEM_HEIGHT = 120;
@@ -396,6 +401,155 @@ export default function WheelScreen() {
                 setHasAdvancedPlayer(true);
             } else {
                 console.log('WheelScreen: Skipping advanceToNextPlayer() - already advanced at:', new Date().toISOString());
+            }
+        });
+    };
+
+    // Update the handlers to work with new modal interfaces:
+    const handleCloneRuleSelect = (rule: any, player: any) => {
+        setSelectedRuleForClone({ rule, player });
+        setShowCloneModal(false);
+        setShowClonePlayerModal(true);
+    };
+
+    const handleClonePlayerSelect = (player: any) => {
+        if (selectedRuleForClone) {
+            cloneRuleToPlayer(selectedRuleForClone.rule.id, player.id);
+        }
+        setShowClonePlayerModal(false);
+
+        // Freeze the current segment to prevent content from changing during animation
+        const selectedSegment = segments[selectedIndex];
+        setFrozenSegment(selectedSegment);
+        setIsClosingPopup(true);
+
+        // Close the wheel popup and navigate back
+        Animated.parallel([
+            Animated.timing(popupScale, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+            Animated.timing(popupOpacity, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            if (selectedSegment) {
+                removeWheelLayer(selectedSegment.id);
+            }
+            setShowExpandedPlaque(false);
+            setIsClosingPopup(false);
+            setFrozenSegment(null);
+            setSynchronizedSpinResult(null);
+            popupScale.setValue(0);
+            popupOpacity.setValue(0);
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
+
+            // Advance to next player after wheel spinning is complete (only once)
+            if (!hasAdvancedPlayer) {
+                socketService.advanceToNextPlayer();
+                setHasAdvancedPlayer(true);
+            }
+        });
+    };
+
+    const handleSwapOwnRuleSelect = (rule: any) => {
+        setSelectedOwnRule(rule);
+        setSwapStep('selectOtherRule');
+    };
+
+    const handleSwapOtherPlayerSelect = (player: any) => {
+        setSelectedOtherPlayer(player);
+    };
+
+    const handleSwapOtherRuleSelect = (rule: any) => {
+        // Perform the swap
+        if (selectedOwnRule && gameState?.activePlayer) {
+            // Swap the rules
+            assignRule(selectedOwnRule.id, selectedOtherPlayer.id);
+            assignRule(rule.id, gameState.activePlayer);
+
+            alert(`${gameState.players.find(p => p.id === gameState.activePlayer)?.name} swapped "${selectedOwnRule.text}" with ${selectedOtherPlayer.name}'s "${rule.text}"!`);
+
+            setShowSwapModal(false);
+
+            // Freeze the current segment to prevent content from changing during animation
+            const selectedSegment = segments[selectedIndex];
+            setFrozenSegment(selectedSegment);
+            setIsClosingPopup(true);
+
+            // Close the wheel popup and navigate back
+            Animated.parallel([
+                Animated.timing(popupScale, {
+                    toValue: 0,
+                    duration: 400,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(popupOpacity, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                })
+            ]).start(() => {
+                if (selectedSegment) {
+                    removeWheelLayer(selectedSegment.id);
+                }
+                setShowExpandedPlaque(false);
+                setIsClosingPopup(false);
+                setFrozenSegment(null);
+                setSynchronizedSpinResult(null);
+                popupScale.setValue(0);
+                popupOpacity.setValue(0);
+                socketService.broadcastNavigateToScreen('GAME_ROOM');
+
+                // Advance to next player after wheel spinning is complete (only once)
+                if (!hasAdvancedPlayer) {
+                    socketService.advanceToNextPlayer();
+                    setHasAdvancedPlayer(true);
+                }
+            });
+        }
+    };
+
+    const handleShredRuleSelect = (rule: any) => {
+        shredRule(rule.id);
+        setShowShredModal(false);
+
+        // Freeze the current segment to prevent content from changing during animation
+        const selectedSegment = segments[selectedIndex];
+        setFrozenSegment(selectedSegment);
+        setIsClosingPopup(true);
+
+        // Close the wheel popup and navigate back
+        Animated.parallel([
+            Animated.timing(popupScale, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+            Animated.timing(popupOpacity, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            if (selectedSegment) {
+                removeWheelLayer(selectedSegment.id);
+            }
+            setShowExpandedPlaque(false);
+            setIsClosingPopup(false);
+            setFrozenSegment(null);
+            setSynchronizedSpinResult(null);
+            popupScale.setValue(0);
+            popupOpacity.setValue(0);
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
+
+            // Advance to next player after wheel spinning is complete (only once)
+            if (!hasAdvancedPlayer) {
+                socketService.advanceToNextPlayer();
+                setHasAdvancedPlayer(true);
             }
         });
     };
@@ -1051,517 +1205,65 @@ export default function WheelScreen() {
                     </View>
                 )}
 
-                {/* Clone Rule Selection Modal */}
-                <Modal
+                <RuleSelectionModal
                     visible={showCloneModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowCloneModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>
-                                Select Rule to Clone
-                            </Text>
-                            <Text style={styles.modalDescription}>
-                                {(() => {
-                                    const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive);
-                                    if (currentPlayerRules && currentPlayerRules.length > 0) {
-                                        return "Choose one of your rules to give to another player";
-                                    } else {
-                                        return "Choose any rule to give to another player";
-                                    }
-                                })()}
-                            </Text>
-
-                            <ScrollView style={{ maxHeight: 300 }}>
-                                {(() => {
-                                    const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive);
-                                    if (currentPlayerRules && currentPlayerRules.length > 0) {
-                                        // Show current player's rules
-                                        return currentPlayerRules.map((rule) => (
-                                            <TouchableOpacity
-                                                key={rule.id}
-                                                style={styles.ruleButton}
-                                                onPress={() => {
-                                                    setSelectedRuleForClone({ rule, player: gameState?.players.find(player => player.id === gameState?.activePlayer) });
-                                                    setShowCloneModal(false);
-                                                    // Show player selection modal for the clone
-                                                    setShowClonePlayerModal(true);
-                                                }}
-                                            >
-                                                <Text style={styles.ruleButtonText}>
-                                                    {rule.text}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ));
-                                    } else {
-                                        // Show all active rules assigned to any player
-                                        return gameState?.rules
-                                            .filter(rule => rule.assignedTo && rule.isActive)
-                                            .map((rule) => {
-                                                const ruleOwner = gameState?.players.find(player => player.id === rule.assignedTo);
-                                                return (
-                                                    <TouchableOpacity
-                                                        key={rule.id}
-                                                        style={styles.ruleButton}
-                                                        onPress={() => {
-                                                            setSelectedRuleForClone({ rule, player: ruleOwner });
-                                                            setShowCloneModal(false);
-                                                            // Show player selection modal for the clone
-                                                            setShowClonePlayerModal(true);
-                                                        }}
-                                                    >
-                                                        <Text style={styles.ruleButtonText}>
-                                                            {rule.text}
-                                                        </Text>
-                                                        <Text style={styles.ownerText}>
-                                                            (Owned by {ruleOwner?.name})
-                                                        </Text>
-                                                    </TouchableOpacity>
-                                                );
-                                            });
-                                    }
-                                })()}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={() => setShowCloneModal(false)}
-                            >
-                                <Text style={styles.modalButtonText}>
-                                    Cancel
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* Clone Player Selection Modal */}
-                <Modal
+                    title="Select Rule to Clone"
+                    description={(() => {
+                        const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive);
+                        if (currentPlayerRules && currentPlayerRules.length > 0) {
+                            return "Choose one of your rules to give to another player";
+                        } else {
+                            return "Choose any rule to give to another player";
+                        }
+                    })()}
+                    rules={(() => {
+                        const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive);
+                        if (currentPlayerRules && currentPlayerRules.length > 0) {
+                            return currentPlayerRules;
+                        } else {
+                            return gameState?.rules.filter(rule => rule.assignedTo && rule.isActive) || [];
+                        }
+                    })()}
+                    onSelectRule={(ruleId) => {
+                        const rule = gameState?.rules.find(r => r.id === ruleId);
+                        const player = gameState?.players.find(p => p.id === rule?.assignedTo);
+                        handleCloneRuleSelect(rule, player);
+                    }}
+                    onClose={() => setShowCloneModal(false)}
+                />
+                <PlayerSelectionModal
                     visible={showClonePlayerModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowClonePlayerModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>
-                                Select Player to Give Rule To
-                            </Text>
-                            <Text style={styles.modalDescription}>
-                                Choose who to give "{selectedRuleForClone?.rule.text}" to
-                            </Text>
-
-                            <ScrollView style={{ maxHeight: 300 }}>
-                                {gameState?.players
-                                    .map((player) => (
-                                        <TouchableOpacity
-                                            key={player.id}
-                                            style={styles.ruleButton}
-                                            onPress={() => {
-                                                if (selectedRuleForClone) {
-                                                    cloneRuleToPlayer(selectedRuleForClone.rule.id, player.id);
-                                                }
-                                                setShowClonePlayerModal(false);
-
-                                                // Freeze the current segment to prevent content from changing during animation
-                                                const selectedSegment = segments[selectedIndex];
-                                                setFrozenSegment(selectedSegment);
-                                                setIsClosingPopup(true);
-
-                                                // Close the wheel popup and navigate back
-                                                Animated.parallel([
-                                                    Animated.timing(popupScale, {
-                                                        toValue: 0,
-                                                        duration: 400,
-                                                        useNativeDriver: true,
-                                                    }),
-                                                    Animated.timing(popupOpacity, {
-                                                        toValue: 0,
-                                                        duration: 300,
-                                                        useNativeDriver: true,
-                                                    })
-                                                ]).start(() => {
-                                                    if (selectedSegment) {
-                                                        removeWheelLayer(selectedSegment.id);
-                                                    }
-                                                    setShowExpandedPlaque(false);
-                                                    setIsClosingPopup(false);
-                                                    setFrozenSegment(null);
-                                                    setSynchronizedSpinResult(null);
-                                                    popupScale.setValue(0);
-                                                    popupOpacity.setValue(0);
-                                                    socketService.broadcastNavigateToScreen('GAME_ROOM');
-
-                                                    // Advance to next player after wheel spinning is complete (only once)
-                                                    if (!hasAdvancedPlayer) {
-                                                        socketService.advanceToNextPlayer();
-                                                        setHasAdvancedPlayer(true);
-                                                    }
-                                                });
-                                            }}
-                                        >
-                                            <Text style={styles.ruleButtonText}>
-                                                {player.name}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={() => setShowClonePlayerModal(false)}
-                            >
-                                <Text style={styles.modalButtonText}>
-                                    Cancel
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* Flip Rule Selection Modal */}
-                <Modal
-                    visible={showFlipModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowFlipModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>
-                                Select Rule to Flip
-                            </Text>
-                            <Text style={styles.modalDescription}>
-                                Choose a rule to flip its meaning
-                            </Text>
-
-                            <ScrollView style={{ maxHeight: 300 }}>
-                                {gameState?.rules
-                                    .filter(rule => rule.assignedTo && rule.isActive)
-                                    .map((rule) => (
-                                        <TouchableOpacity
-                                            key={rule.id}
-                                            style={styles.ruleButton}
-                                            onPress={() => {
-                                                handleFlipRuleSelect(rule.id);
-                                            }}
-                                        >
-                                            <Text style={styles.ruleButtonText}>
-                                                {rule.text}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={() => setShowFlipModal(false)}
-                            >
-                                <Text style={styles.modalButtonText}>
-                                    Cancel
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* Shred Rule Selection Modal */}
-                <Modal
-                    visible={showShredModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowShredModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>
-                                Select Rule to Shred
-                            </Text>
-                            <Text style={styles.modalDescription}>
-                                Choose a rule to remove from your collection
-                            </Text>
-
-                            <ScrollView style={{ maxHeight: 300 }}>
-                                {gameState?.rules
-                                    .filter(rule => rule.assignedTo === gameState?.activePlayer)
-                                    .map((rule) => (
-                                        <TouchableOpacity
-                                            key={rule.id}
-                                            style={styles.ruleButton}
-                                            onPress={() => {
-                                                shredRule(rule.id);
-                                                setShowShredModal(false);
-
-                                                // Freeze the current segment to prevent content from changing during animation
-                                                const selectedSegment = segments[selectedIndex];
-                                                setFrozenSegment(selectedSegment);
-                                                setIsClosingPopup(true);
-
-                                                // Close the wheel popup and navigate back
-                                                Animated.parallel([
-                                                    Animated.timing(popupScale, {
-                                                        toValue: 0,
-                                                        duration: 400,
-                                                        useNativeDriver: true,
-                                                    }),
-                                                    Animated.timing(popupOpacity, {
-                                                        toValue: 0,
-                                                        duration: 300,
-                                                        useNativeDriver: true,
-                                                    })
-                                                ]).start(() => {
-                                                    if (selectedSegment) {
-                                                        removeWheelLayer(selectedSegment.id);
-                                                    }
-                                                    setShowExpandedPlaque(false);
-                                                    setIsClosingPopup(false);
-                                                    setFrozenSegment(null);
-                                                    setSynchronizedSpinResult(null);
-                                                    popupScale.setValue(0);
-                                                    popupOpacity.setValue(0);
-                                                    socketService.broadcastNavigateToScreen('GAME_ROOM');
-
-                                                    // Advance to next player after wheel spinning is complete (only once)
-                                                    if (!hasAdvancedPlayer) {
-                                                        socketService.advanceToNextPlayer();
-                                                        setHasAdvancedPlayer(true);
-                                                    }
-                                                });
-                                            }}
-                                        >
-                                            <Text style={styles.ruleButtonText}>
-                                                {rule.text}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
-                            </ScrollView>
-
-                            <TouchableOpacity
-                                style={styles.modalButton}
-                                onPress={() => setShowShredModal(false)}
-                            >
-                                <Text style={styles.modalButtonText}>
-                                    Cancel
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
-
-                {/* Swap Rules Modal */}
-                <Modal
+                    title="Select Player to Give Rule To"
+                    description={`Choose who to give "${selectedRuleForClone?.rule.text}" to`}
+                    players={gameState?.players || []}
+                    onSelectPlayer={handleClonePlayerSelect}
+                    onClose={() => setShowClonePlayerModal(false)}
+                />
+                <SwapModal
                     visible={showSwapModal}
-                    transparent={true}
-                    animationType="fade"
-                    onRequestClose={() => setShowSwapModal(false)}
-                >
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.modalContent}>
-                            <Text style={styles.modalTitle}>
-                                {swapStep === 'selectOwnRule' ? 'Select Your Rule to Swap' : 'Select Other Player\'s Rule'}
-                            </Text>
-                            <Text style={styles.modalDescription}>
-                                {swapStep === 'selectOwnRule'
-                                    ? 'Choose one of your rules to swap with another player'
-                                    : `Choose a rule from ${selectedOtherPlayer?.name} to swap with "${selectedOwnRule?.text}"`
-                                }
-                            </Text>
-
-                            <ScrollView style={{ maxHeight: 300 }}>
-                                {swapStep === 'selectOwnRule' ? (
-                                    // Step 1: Select own rule
-                                    <>
-                                        <Text style={{
-                                            fontSize: 16,
-                                            fontWeight: 'bold',
-                                            color: '#1f2937',
-                                            marginBottom: 8,
-                                            textAlign: 'center',
-                                        }}>
-                                            Your Rules:
-                                        </Text>
-                                        {gameState?.rules
-                                            .filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive)
-                                            .map((rule) => (
-                                                <TouchableOpacity
-                                                    key={rule.id}
-                                                    style={styles.ruleButton}
-                                                    onPress={() => {
-                                                        setSelectedOwnRule(rule);
-                                                        setSwapStep('selectOtherRule');
-                                                    }}
-                                                >
-                                                    <Text style={styles.ruleButtonText}>
-                                                        {rule.text}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            ))}
-
-                                        <Text style={{
-                                            fontSize: 16,
-                                            fontWeight: 'bold',
-                                            color: '#1f2937',
-                                            marginTop: 16,
-                                            marginBottom: 8,
-                                            textAlign: 'center',
-                                        }}>
-                                            Other Players:
-                                        </Text>
-                                        {gameState?.players
-                                            .filter(player => player.id !== gameState?.activePlayer && !player.isHost)
-                                            .map((player) => {
-                                                const playerRules = gameState?.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
-                                                if (playerRules && playerRules.length > 0) {
-                                                    return (
-                                                        <TouchableOpacity
-                                                            key={player.id}
-                                                            style={styles.ruleButton}
-                                                            onPress={() => {
-                                                                setSelectedOtherPlayer(player);
-                                                                setSwapStep('selectOtherRule');
-                                                            }}
-                                                        >
-                                                            <Text style={styles.ruleButtonText}>
-                                                                {player.name} ({playerRules.length} rules)
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    );
-                                                }
-                                                return null;
-                                            })}
-                                    </>
-                                ) : (
-                                    // Step 2: Select other player's rule
-                                    <>
-                                        {selectedOtherPlayer && (
-                                            <>
-                                                <Text style={{
-                                                    fontSize: 16,
-                                                    fontWeight: 'bold',
-                                                    color: '#1f2937',
-                                                    marginBottom: 8,
-                                                    textAlign: 'center',
-                                                }}>
-                                                    {selectedOtherPlayer.name}'s Rules:
-                                                </Text>
-                                                {gameState?.rules
-                                                    .filter(rule => rule.assignedTo === selectedOtherPlayer.id && rule.isActive)
-                                                    .map((rule) => (
-                                                        <TouchableOpacity
-                                                            key={rule.id}
-                                                            style={styles.ruleButton}
-                                                            onPress={() => {
-                                                                // Perform the swap
-                                                                if (selectedOwnRule && gameState?.activePlayer) {
-                                                                    // Swap the rules
-                                                                    assignRule(selectedOwnRule.id, selectedOtherPlayer.id);
-                                                                    assignRule(rule.id, gameState.activePlayer);
-
-                                                                    alert(`${gameState.players.find(p => p.id === gameState.activePlayer)?.name} swapped "${selectedOwnRule.text}" with ${selectedOtherPlayer.name}'s "${rule.text}"!`);
-
-                                                                    setShowSwapModal(false);
-
-                                                                    // Freeze the current segment to prevent content from changing during animation
-                                                                    const selectedSegment = segments[selectedIndex];
-                                                                    setFrozenSegment(selectedSegment);
-                                                                    setIsClosingPopup(true);
-
-                                                                    // Close the wheel popup and navigate back
-                                                                    Animated.parallel([
-                                                                        Animated.timing(popupScale, {
-                                                                            toValue: 0,
-                                                                            duration: 400,
-                                                                            useNativeDriver: true,
-                                                                        }),
-                                                                        Animated.timing(popupOpacity, {
-                                                                            toValue: 0,
-                                                                            duration: 300,
-                                                                            useNativeDriver: true,
-                                                                        })
-                                                                    ]).start(() => {
-                                                                        if (selectedSegment) {
-                                                                            removeWheelLayer(selectedSegment.id);
-                                                                        }
-                                                                        setShowExpandedPlaque(false);
-                                                                        setIsClosingPopup(false);
-                                                                        setFrozenSegment(null);
-                                                                        setSynchronizedSpinResult(null);
-                                                                        popupScale.setValue(0);
-                                                                        popupOpacity.setValue(0);
-                                                                        socketService.broadcastNavigateToScreen('GAME_ROOM');
-
-                                                                        // Advance to next player after wheel spinning is complete (only once)
-                                                                        if (!hasAdvancedPlayer) {
-                                                                            socketService.advanceToNextPlayer();
-                                                                            setHasAdvancedPlayer(true);
-                                                                        }
-                                                                    });
-                                                                }
-                                                            }}
-                                                        >
-                                                            <Text style={styles.ruleButtonText}>
-                                                                {rule.text}
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    ))}
-                                            </>
-                                        )}
-                                    </>
-                                )}
-                            </ScrollView>
-
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-                                <TouchableOpacity
-                                    style={{
-                                        backgroundColor: '#6b7280',
-                                        borderRadius: 8,
-                                        padding: 16,
-                                        flex: 1,
-                                        marginRight: 8,
-                                    }}
-                                    onPress={() => {
-                                        if (swapStep === 'selectOtherRule') {
-                                            setSwapStep('selectOwnRule');
-                                            setSelectedOwnRule(null);
-                                            setSelectedOtherPlayer(null);
-                                        } else {
-                                            setShowSwapModal(false);
-                                        }
-                                    }}
-                                >
-                                    <Text style={styles.modalButtonText}>
-                                        {swapStep === 'selectOtherRule' ? 'Back' : 'Cancel'}
-                                    </Text>
-                                </TouchableOpacity>
-
-                                {swapStep === 'selectOtherRule' && (
-                                    <TouchableOpacity
-                                        style={{
-                                            backgroundColor: '#dc3545',
-                                            borderRadius: 8,
-                                            padding: 16,
-                                            flex: 1,
-                                            marginLeft: 8,
-                                        }}
-                                        onPress={() => {
-                                            setShowSwapModal(false);
-                                            setSwapStep('selectOwnRule');
-                                            setSelectedOwnRule(null);
-                                            setSelectedOtherPlayer(null);
-                                        }}
-                                    >
-                                        <Text style={styles.modalButtonText}>
-                                            Cancel Swap
-                                        </Text>
-                                    </TouchableOpacity>
-                                )}
-                            </View>
-                        </View>
-                    </View>
-                </Modal>
-
+                    onClose={() => {
+                        setShowSwapModal(false);
+                        setSwapStep('selectOwnRule');
+                        setSelectedOwnRule(null);
+                        setSelectedOtherPlayer(null);
+                    }}
+                    onOwnRuleSelect={handleSwapOwnRuleSelect}
+                    onOtherPlayerSelect={handleSwapOtherPlayerSelect}
+                    onOtherRuleSelect={handleSwapOtherRuleSelect}
+                    swapStep={swapStep}
+                    selectedOwnRule={selectedOwnRule}
+                    selectedOtherPlayer={selectedOtherPlayer}
+                    gameState={gameState}
+                    activePlayerId={gameState?.activePlayer || ''}
+                />
+                <RuleSelectionModal
+                    visible={showShredModal}
+                    title="Select Rule to Shred"
+                    description="Choose a rule to remove from your collection"
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive) || []}
+                    onSelectRule={handleShredRuleSelect}
+                    onClose={() => setShowShredModal(false)}
+                />
                 {/* Flip Text Input Modal */}
                 <FlipTextInputModal
                     visible={showFlipTextInputModal}
