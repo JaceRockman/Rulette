@@ -47,11 +47,23 @@ export default function PromptWritingScreen() {
     };
 
     const handleConfirmPrompt = () => {
-        if (inputValue.trim() && (gameState?.prompts?.length || 0) < numPrompts) {
-            addPrompt(inputValue.trim(), undefined, currentPlaqueColor);
-            setInputValue('');
-            setShowInputPlaque(false);
+        const trimmedValue = inputValue.trim();
+
+        if (!trimmedValue) {
+            // This shouldn't happen due to InputPlaque validation, but just in case
+            return;
         }
+
+        // Check if current player has reached their prompt limit
+        const visiblePromptCount = getVisiblePrompts().length;
+        if (visiblePromptCount >= numPrompts) {
+            // This shouldn't happen due to button disabled state, but just in case
+            return;
+        }
+
+        addPrompt(trimmedValue, undefined, currentPlaqueColor);
+        setInputValue('');
+        setShowInputPlaque(false);
     };
 
     const handleCancelPrompt = () => {
@@ -67,8 +79,15 @@ export default function PromptWritingScreen() {
     };
 
     const handleConfirmEdit = () => {
-        if (inputValue.trim() && editingPromptId) {
-            updatePrompt(editingPromptId, inputValue.trim());
+        const trimmedValue = inputValue.trim();
+
+        if (!trimmedValue) {
+            // This shouldn't happen due to InputPlaque validation, but just in case
+            return;
+        }
+
+        if (editingPromptId) {
+            updatePrompt(editingPromptId, trimmedValue);
             setInputValue('');
             setShowEditPlaque(false);
             setEditingPromptId(null);
@@ -152,8 +171,22 @@ export default function PromptWritingScreen() {
                         onPress={handleAddPrompt}
                         disabled={!canAddPrompt}
                     >
-                        <Text style={shared.buttonText}>Add Prompt</Text>
+                        <Text style={shared.buttonText}>
+                            {canAddPrompt ? 'Add Prompt' : `Max Prompts (${numPrompts})`}
+                        </Text>
                     </TouchableOpacity>
+
+                    {!canAddPrompt && (
+                        <Text style={{
+                            fontSize: 14,
+                            color: '#666',
+                            textAlign: 'center',
+                            marginTop: 10,
+                            fontStyle: 'italic'
+                        }}>
+                            You've reached the maximum number of prompts
+                        </Text>
+                    )}
 
                     <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20, flex: 1 }}>
                         {renderPromptsGrid()}

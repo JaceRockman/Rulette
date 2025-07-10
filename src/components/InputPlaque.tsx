@@ -10,6 +10,7 @@ interface InputPlaqueProps {
     onConfirm: () => void;
     onCancel: () => void;
     maxLength?: number;
+    minLength?: number;
     plaqueColor?: string;
 }
 
@@ -22,6 +23,7 @@ export default function InputPlaque({
     onConfirm,
     onCancel,
     maxLength = 100,
+    minLength = 1,
     plaqueColor = '#fff'
 }: InputPlaqueProps) {
     const popupScale = useRef(new Animated.Value(0)).current;
@@ -31,6 +33,10 @@ export default function InputPlaque({
     // Determine text color based on plaque color (same logic as wheel segments)
     const isLightPlaque = plaqueColor === '#fbbf24' || plaqueColor === '#fff';
     const textColor = isLightPlaque ? '#000' : '#fff';
+
+    // Check if input is valid
+    const trimmedValue = value.trim();
+    const isValid = trimmedValue.length >= minLength;
 
     useEffect(() => {
         if (visible) {
@@ -124,7 +130,7 @@ export default function InputPlaque({
                         borderColor: '#000',
                         borderRadius: 10,
                         padding: 15,
-                        marginBottom: 20,
+                        marginBottom: 10,
                         backgroundColor: '#fff',
                         color: '#000',
                         textAlign: 'center',
@@ -136,6 +142,30 @@ export default function InputPlaque({
                     maxLength={maxLength}
                     multiline={false}
                 />
+
+                {/* Character count and validation feedback */}
+                <View style={{ marginBottom: 20, alignItems: 'center' }}>
+                    {trimmedValue.length >= maxLength - 10 && (
+                        <Text style={{
+                            fontSize: 14,
+                            color: trimmedValue.length >= maxLength ? '#dc3545' : '#ffa500',
+                            textAlign: 'center',
+                            fontWeight: 'bold'
+                        }}>
+                            {trimmedValue.length}/{maxLength} characters
+                        </Text>
+                    )}
+                    {trimmedValue.length > 0 && trimmedValue.length < minLength && (
+                        <Text style={{
+                            fontSize: 12,
+                            color: '#dc3545',
+                            textAlign: 'center',
+                            marginTop: 5
+                        }}>
+                            Minimum {minLength} characters required
+                        </Text>
+                    )}
+                </View>
 
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 15 }}>
                     <TouchableOpacity
@@ -155,17 +185,22 @@ export default function InputPlaque({
 
                     <TouchableOpacity
                         style={{
-                            backgroundColor: '#000',
+                            backgroundColor: isValid ? '#000' : '#999',
                             paddingHorizontal: 30,
                             paddingVertical: 15,
                             borderRadius: 10,
                             flex: 1,
-                            opacity: value.trim() ? 1 : 0.5,
                         }}
                         onPress={onConfirm}
-                        disabled={!value.trim()}
+                        disabled={!isValid}
                     >
-                        <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                        <Text style={{
+                            color: '#fff',
+                            fontSize: 16,
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            opacity: isValid ? 1 : 0.7
+                        }}>
                             CONFIRM
                         </Text>
                     </TouchableOpacity>
