@@ -13,7 +13,8 @@ import {
     FlipTextInputModal,
     PlayerSelectionModal,
     RuleSelectionModal,
-    SwapModal
+    SwapModal,
+    EndGameConfirmationModal
 } from '../components/Modals';
 import socketService from '../services/socketService';
 
@@ -45,6 +46,7 @@ export default function WheelScreen() {
     const [swapStep, setSwapStep] = useState<'selectOwnRule' | 'selectOtherRule'>('selectOwnRule');
     const [selectedOwnRule, setSelectedOwnRule] = useState<any>(null);
     const [selectedOtherPlayer, setSelectedOtherPlayer] = useState<any>(null);
+    const [showEndGameConfirmationModal, setShowEndGameConfirmationModal] = useState(false);
 
     // Use wheel segments from game state
     const segments = gameState?.wheelSegments || [];
@@ -554,6 +556,83 @@ export default function WheelScreen() {
         });
     };
 
+    // Handle end game confirmation - continue game
+    const handleContinueGame = () => {
+        setShowEndGameConfirmationModal(false);
+
+        // Close the wheel popup without removing the layer or advancing the player
+        const selectedSegment = segments[selectedIndex];
+        setFrozenSegment(selectedSegment);
+        setIsClosingPopup(true);
+
+        Animated.parallel([
+            Animated.timing(popupScale, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+            Animated.timing(popupOpacity, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            // Don't remove the wheel layer - keep it for the next spin
+            setShowExpandedPlaque(false);
+            setIsClosingPopup(false);
+            setFrozenSegment(null);
+            setSynchronizedSpinResult(null);
+            popupScale.setValue(0);
+            popupOpacity.setValue(0);
+
+            // Don't advance player or navigate - stay on wheel screen
+            // The player can spin again
+        });
+    };
+
+    // Handle end game confirmation - end game
+    const handleEndGame = () => {
+        setShowEndGameConfirmationModal(false);
+
+        // Close the wheel popup
+        const selectedSegment = segments[selectedIndex];
+        setFrozenSegment(selectedSegment);
+        setIsClosingPopup(true);
+
+        Animated.parallel([
+            Animated.timing(popupScale, {
+                toValue: 0,
+                duration: 400,
+                useNativeDriver: true,
+            }),
+            Animated.timing(popupOpacity, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            })
+        ]).start(() => {
+            if (selectedSegment) {
+                removeWheelLayer(selectedSegment.id);
+            }
+            setShowExpandedPlaque(false);
+            setIsClosingPopup(false);
+            setFrozenSegment(null);
+            setSynchronizedSpinResult(null);
+            popupScale.setValue(0);
+            popupOpacity.setValue(0);
+
+            // Find player with most points and end the game
+            const winner = gameState?.players.reduce((prev, current) =>
+                (prev.points > current.points) ? prev : current
+            );
+            if (winner) {
+                endGame();
+                // Navigate to game room to show game over screen
+                socketService.broadcastNavigateToScreen('GAME_ROOM');
+            }
+        });
+    };
+
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
@@ -703,7 +782,7 @@ export default function WheelScreen() {
                                         case 'rule': return 'RULE';
                                         case 'prompt': return 'PROMPT';
                                         case 'modifier': return 'MODIFIER';
-                                        case 'end': return 'GAME OVER';
+                                        case 'end': return 'END SEGMENT';
                                         default: return 'CONTENT';
                                     }
                                 })()}
@@ -736,7 +815,44 @@ export default function WheelScreen() {
                                 const selectedSegment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                 const currentLayer = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
 
-                                if (currentLayer && currentLayer.type === 'prompt') {
+                                if (currentLayer && currentLayer.type === 'end') {
+                                    // For end segments, show confirmation modal for host or waiting message for others
+                                    const currentClientId = socketService.getCurrentPlayerId();
+                                    const isHost = gameState?.players.find(p => p.id === currentClientId)?.isHost;
+
+                                    if (isHost) {
+                                        // Show confirmation modal for host
+                                        setTimeout(() => {
+                                            setShowEndGameConfirmationModal(true);
+                                        }, 100);
+                                        return (
+                                            <View style={{ marginTop: 30, alignItems: 'center' }}>
+                                                <Text style={{
+                                                    color: '#666',
+                                                    fontSize: 16,
+                                                    textAlign: 'center',
+                                                    fontStyle: 'italic'
+                                                }}>
+                                                    Preparing end game confirmation...
+                                                </Text>
+                                            </View>
+                                        );
+                                    } else {
+                                        // Non-host players see waiting message
+                                        return (
+                                            <View style={{ marginTop: 30, alignItems: 'center' }}>
+                                                <Text style={{
+                                                    color: '#666',
+                                                    fontSize: 16,
+                                                    textAlign: 'center',
+                                                    fontStyle: 'italic'
+                                                }}>
+                                                    Waiting for host to decide whether to continue or end the game...
+                                                </Text>
+                                            </View>
+                                        );
+                                    }
+                                } else if (currentLayer && currentLayer.type === 'prompt') {
                                     // Get spinning player's rules (always use the active player)
                                     const spinningPlayerId = gameState?.activePlayer;
                                     const spinningPlayer = gameState?.players.find(p => p.id === spinningPlayerId);
@@ -944,6 +1060,7 @@ export default function WheelScreen() {
                                                     alignSelf: 'center',
                                                 }}
                                                 onPress={() => {
+                                                    // Use the same workflow as host actions - show RuleSelectionModal first
                                                     setShowFlipModal(true);
                                                 }}
                                             >
@@ -969,7 +1086,7 @@ export default function WheelScreen() {
                                                         alignSelf: 'center',
                                                     }}
                                                     onPress={() => {
-                                                        // Handle Up modifier - pass rule to player above
+                                                        // Use the same workflow as host actions
                                                         handleUpModifier();
                                                     }}
                                                 >
@@ -1019,7 +1136,7 @@ export default function WheelScreen() {
                                                         alignSelf: 'center',
                                                     }}
                                                     onPress={() => {
-                                                        // Handle Down modifier - pass rule to player below
+                                                        // Use the same workflow as host actions
                                                         handleDownModifier();
                                                     }}
                                                 >
@@ -1078,10 +1195,17 @@ export default function WheelScreen() {
                                         );
                                     }
                                 } else {
-                                    // Only show CLOSE button for the active player (spinning player)
+                                    // Only show CLOSE button for the active player (spinning player) and not for end segments
                                     const spinningPlayerId = gameState?.activePlayer;
                                     const currentClientId = socketService.getCurrentPlayerId();
                                     const isActivePlayer = spinningPlayerId === currentClientId;
+                                    const selectedSegment = segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
+                                    const currentLayer = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
+
+                                    // Don't show close button for end segments
+                                    if (currentLayer && currentLayer.type === 'end') {
+                                        return null;
+                                    }
 
                                     if (!isActivePlayer) {
                                         return (
@@ -1114,19 +1238,8 @@ export default function WheelScreen() {
                                                 if (selectedSegment) {
                                                     const currentLayer = selectedSegment.layers[selectedSegment.currentLayerIndex];
 
-                                                    // If the CURRENT layer is an end layer, end the game
-                                                    if (currentLayer && currentLayer.type === 'end') {
-                                                        // Find player with most points
-                                                        const winner = gameState?.players.reduce((prev, current) =>
-                                                            (prev.points > current.points) ? prev : current
-                                                        );
-                                                        if (winner) {
-                                                            endGame();
-                                                            // Don't advance to next player or navigate to game room
-                                                            // The game over screen will be shown in GameScreen
-                                                            return;
-                                                        }
-                                                    } else if (currentLayer && currentLayer.type === 'rule') {
+                                                    // Handle rule assignment
+                                                    if (currentLayer && currentLayer.type === 'rule') {
                                                         // Assign the rule to the spinning player (not the current player)
                                                         if (typeof currentLayer.content !== 'string' && currentLayer.content.id) {
                                                             const spinningPlayerId = gameState?.activePlayer;
@@ -1273,6 +1386,22 @@ export default function WheelScreen() {
                         setShowFlipTextInputModal(false);
                         setSelectedRuleForFlip(null);
                     }}
+                />
+                <RuleSelectionModal
+                    visible={showFlipModal}
+                    title="Select Rule to Flip"
+                    description="Choose a rule to flip its meaning"
+                    rules={gameState?.rules.filter(rule => rule.assignedTo && rule.isActive) || []}
+                    onSelectRule={(ruleId) => {
+                        handleFlipRuleSelect(ruleId);
+                    }}
+                    onClose={() => setShowFlipModal(false)}
+                />
+                <EndGameConfirmationModal
+                    visible={showEndGameConfirmationModal}
+                    onContinue={handleContinueGame}
+                    onEnd={handleEndGame}
+                    onClose={() => setShowEndGameConfirmationModal(false)}
                 />
             </SafeAreaView>
         </StripedBackground>

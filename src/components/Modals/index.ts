@@ -5,4 +5,5 @@ export { default as HostActionModal } from './HostActionModal';
 export { default as RuleSelectionModal } from './RuleSelectionModal';
 export { default as PlayerSelectionModal } from './PlayerSelectionModal';
 export { default as FlipTextInputModal } from './FlipTextInputModal';
-export { default as SwapModal } from './SwapModal'; 
+export { default as SwapModal } from './SwapModal';
+export { default as EndGameConfirmationModal } from './EndGameConfirmationModal'; 
