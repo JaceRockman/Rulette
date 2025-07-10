@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Animated, FlatList, Dimensions, SafeAreaView, PanResponder, GestureResponderEvent, PanResponderGestureState, Modal, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Animated, FlatList, Dimensions, SafeAreaView, PanResponder, GestureResponderEvent, PanResponderGestureState, Modal, ScrollView, StyleSheet } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
@@ -403,21 +403,14 @@ export default function WheelScreen() {
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
-                <View style={{ paddingTop: 100, alignItems: 'center', flex: 1 }}>
+                <View style={styles.mainContainer}>
                     <View style={{ height: 90 }} />
                     <View
                         ref={wheelContainerRef}
-                        style={{
-                            backgroundColor: 'black',
-                            height: ITEM_HEIGHT * VISIBLE_ITEMS,
-                            overflow: 'hidden',
-                            marginVertical: 32,
-                            width: '70%',
-                            position: 'relative',
-                            borderWidth: 8,
-                            borderColor: '#000',
-                            borderRadius: 8,
-                        }}
+                        style={[
+                            styles.wheelContainer,
+                            { height: ITEM_HEIGHT * VISIBLE_ITEMS, width: '70%' } // dynamic height and width inline
+                        ]}
                         onLayout={(event) => {
                             const { height } = event.nativeEvent.layout;
                             setWheelHeight(height);
@@ -466,93 +459,42 @@ export default function WheelScreen() {
 
                         {/* Top fade overlay - gradient effect */}
                         <View
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                height: 100,
-                                zIndex: 10,
-                            }}
+                            style={[
+                                styles.fadeOverlay,
+                                { top: 0 }
+                            ]}
                         >
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 1.0 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.9 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.8 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.7 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.6 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.5 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.4 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.3 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.2 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.1 }} />
+                            {[1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1].map((opacity, i) => (
+                                <View key={i} style={{ height: 12, backgroundColor: 'black', opacity }} />
+                            ))}
                         </View>
 
                         {/* Bottom fade overlay - gradient effect */}
                         <View
-                            style={{
-                                position: 'absolute',
-                                bottom: 0,
-                                left: 0,
-                                right: 0,
-                                height: 100,
-                                zIndex: 10,
-                            }}
+                            style={[
+                                styles.fadeOverlay,
+                                { bottom: 0 }
+                            ]}
                         >
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.1 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.2 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.3 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.4 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.5 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.6 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.7 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.8 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 0.9 }} />
-                            <View style={{ height: 12, backgroundColor: 'black', opacity: 1.0 }} />
+                            {[0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0].map((opacity, i) => (
+                                <View key={i} style={{ height: 12, backgroundColor: 'black', opacity }} />
+                            ))}
                         </View>
                     </View>
 
                     {/* Tick mark positioned outside the wheel container */}
                     <Animated.View
                         pointerEvents="none"
-                        style={{
-                            position: 'absolute',
-                            top: '50%',
-                            right: '16%',
-                            height: ITEM_HEIGHT,
-                            width: 30,
-                            zIndex: 1000,
-                            justifyContent: 'center',
-                            alignItems: 'flex-end',
-                        }}
+                        style={[
+                            styles.tickMarkContainer,
+                            { top: '50%', right: '16%' } // keep percentage-based values inline
+                        ]}
                     >
                         <View
-                            style={{
-                                width: 0,
-                                height: 0,
-                                borderTopWidth: 18,
-                                borderBottomWidth: 18,
-                                borderRightWidth: 35,
-                                borderTopColor: 'transparent',
-                                borderBottomColor: 'transparent',
-                                borderRightColor: '#000',
-                                shadowColor: '#000',
-                                shadowOffset: { width: -2, height: 2 },
-                                shadowOpacity: 0.8,
-                                shadowRadius: 2,
-                            }}
+                            style={styles.tickMarkBlack}
                         />
                         <View
-                            style={{
-                                position: 'absolute',
-                                width: 0,
-                                height: 0,
-                                borderTopWidth: 15,
-                                borderBottomWidth: 15,
-                                borderRightWidth: 30,
-                                borderTopColor: 'transparent',
-                                borderBottomColor: 'transparent',
-                                borderRightColor: '#ff0000',
-                            }}
+                            style={styles.tickMarkRed}
                         />
                     </Animated.View>
                 </View>
@@ -560,17 +502,7 @@ export default function WheelScreen() {
                 {/* Expanded plaque overlay */}
                 {(showExpandedPlaque || synchronizedSpinResult?.showPopup) && (
                     <View
-                        style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            zIndex: 2000,
-                        }}
+                        style={styles.expandedPlaqueOverlay}
                     >
                         <Animated.View
                             style={{
@@ -685,28 +617,10 @@ export default function WheelScreen() {
                                                         {playerRules.map((rule, index) => (
                                                             <View
                                                                 key={rule.id}
-                                                                style={{
-                                                                    backgroundColor: rule.plaqueColor || '#fff',
-                                                                    borderRadius: 12,
-                                                                    padding: 12,
-                                                                    marginHorizontal: 5,
-                                                                    minWidth: 120,
-                                                                    maxWidth: 150,
-                                                                    borderWidth: 2,
-                                                                    borderColor: '#000',
-                                                                    shadowColor: '#000',
-                                                                    shadowOffset: { width: 0, height: 2 },
-                                                                    shadowOpacity: 0.3,
-                                                                    shadowRadius: 4,
-                                                                }}
+                                                                style={styles.ruleButton}
                                                             >
                                                                 <Text
-                                                                    style={{
-                                                                        fontSize: 12,
-                                                                        textAlign: 'center',
-                                                                        color: (rule.plaqueColor === '#fbbf24' || rule.plaqueColor === '#fff' || rule.plaqueColor === '#ffffff') ? '#000' : '#fff',
-                                                                        fontWeight: 'bold',
-                                                                    }}
+                                                                    style={styles.ruleButtonText}
                                                                 >
                                                                     {rule.text}
                                                                 </Text>
@@ -1144,41 +1058,12 @@ export default function WheelScreen() {
                     animationType="fade"
                     onRequestClose={() => setShowCloneModal(false)}
                 >
-                    <View style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        zIndex: 9999,
-                        elevation: 9999,
-                    }}>
-                        <View style={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: 12,
-                            padding: 20,
-                            width: '80%',
-                            maxHeight: '70%',
-                        }}>
-                            <Text style={{
-                                fontSize: 18,
-                                fontWeight: 'bold',
-                                color: '#1f2937',
-                                marginBottom: 12,
-                                textAlign: 'center',
-                            }}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>
                                 Select Rule to Clone
                             </Text>
-                            <Text style={{
-                                fontSize: 14,
-                                color: '#6b7280',
-                                marginBottom: 16,
-                                textAlign: 'center',
-                                fontStyle: 'italic',
-                            }}>
+                            <Text style={styles.modalDescription}>
                                 {(() => {
                                     const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive);
                                     if (currentPlayerRules && currentPlayerRules.length > 0) {
@@ -1197,12 +1082,7 @@ export default function WheelScreen() {
                                         return currentPlayerRules.map((rule) => (
                                             <TouchableOpacity
                                                 key={rule.id}
-                                                style={{
-                                                    backgroundColor: '#f3f4f6',
-                                                    borderRadius: 8,
-                                                    padding: 12,
-                                                    marginBottom: 8,
-                                                }}
+                                                style={styles.ruleButton}
                                                 onPress={() => {
                                                     setSelectedRuleForClone({ rule, player: gameState?.players.find(player => player.id === gameState?.activePlayer) });
                                                     setShowCloneModal(false);
@@ -1210,11 +1090,7 @@ export default function WheelScreen() {
                                                     setShowClonePlayerModal(true);
                                                 }}
                                             >
-                                                <Text style={{
-                                                    fontSize: 16,
-                                                    color: '#1f2937',
-                                                    textAlign: 'center',
-                                                }}>
+                                                <Text style={styles.ruleButtonText}>
                                                     {rule.text}
                                                 </Text>
                                             </TouchableOpacity>
@@ -1228,12 +1104,7 @@ export default function WheelScreen() {
                                                 return (
                                                     <TouchableOpacity
                                                         key={rule.id}
-                                                        style={{
-                                                            backgroundColor: '#f3f4f6',
-                                                            borderRadius: 8,
-                                                            padding: 12,
-                                                            marginBottom: 8,
-                                                        }}
+                                                        style={styles.ruleButton}
                                                         onPress={() => {
                                                             setSelectedRuleForClone({ rule, player: ruleOwner });
                                                             setShowCloneModal(false);
@@ -1241,19 +1112,10 @@ export default function WheelScreen() {
                                                             setShowClonePlayerModal(true);
                                                         }}
                                                     >
-                                                        <Text style={{
-                                                            fontSize: 16,
-                                                            color: '#1f2937',
-                                                            textAlign: 'center',
-                                                        }}>
+                                                        <Text style={styles.ruleButtonText}>
                                                             {rule.text}
                                                         </Text>
-                                                        <Text style={{
-                                                            fontSize: 12,
-                                                            color: '#6b7280',
-                                                            textAlign: 'center',
-                                                            fontStyle: 'italic',
-                                                        }}>
+                                                        <Text style={styles.ownerText}>
                                                             (Owned by {ruleOwner?.name})
                                                         </Text>
                                                     </TouchableOpacity>
@@ -1264,19 +1126,10 @@ export default function WheelScreen() {
                             </ScrollView>
 
                             <TouchableOpacity
-                                style={{
-                                    backgroundColor: '#6b7280',
-                                    borderRadius: 8,
-                                    padding: 16,
-                                    marginTop: 16,
-                                }}
+                                style={styles.modalButton}
                                 onPress={() => setShowCloneModal(false)}
                             >
-                                <Text style={{
-                                    color: '#ffffff',
-                                    textAlign: 'center',
-                                    fontWeight: 'bold',
-                                }}>
+                                <Text style={styles.modalButtonText}>
                                     Cancel
                                 </Text>
                             </TouchableOpacity>
@@ -1291,41 +1144,12 @@ export default function WheelScreen() {
                     animationType="fade"
                     onRequestClose={() => setShowClonePlayerModal(false)}
                 >
-                    <View style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        zIndex: 9999,
-                        elevation: 9999,
-                    }}>
-                        <View style={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: 12,
-                            padding: 20,
-                            width: '80%',
-                            maxHeight: '70%',
-                        }}>
-                            <Text style={{
-                                fontSize: 18,
-                                fontWeight: 'bold',
-                                color: '#1f2937',
-                                marginBottom: 12,
-                                textAlign: 'center',
-                            }}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>
                                 Select Player to Give Rule To
                             </Text>
-                            <Text style={{
-                                fontSize: 14,
-                                color: '#6b7280',
-                                marginBottom: 16,
-                                textAlign: 'center',
-                                fontStyle: 'italic',
-                            }}>
+                            <Text style={styles.modalDescription}>
                                 Choose who to give "{selectedRuleForClone?.rule.text}" to
                             </Text>
 
@@ -1334,12 +1158,7 @@ export default function WheelScreen() {
                                     .map((player) => (
                                         <TouchableOpacity
                                             key={player.id}
-                                            style={{
-                                                backgroundColor: '#f3f4f6',
-                                                borderRadius: 8,
-                                                padding: 12,
-                                                marginBottom: 8,
-                                            }}
+                                            style={styles.ruleButton}
                                             onPress={() => {
                                                 if (selectedRuleForClone) {
                                                     cloneRuleToPlayer(selectedRuleForClone.rule.id, player.id);
@@ -1383,11 +1202,7 @@ export default function WheelScreen() {
                                                 });
                                             }}
                                         >
-                                            <Text style={{
-                                                fontSize: 16,
-                                                color: '#1f2937',
-                                                textAlign: 'center',
-                                            }}>
+                                            <Text style={styles.ruleButtonText}>
                                                 {player.name}
                                             </Text>
                                         </TouchableOpacity>
@@ -1395,19 +1210,10 @@ export default function WheelScreen() {
                             </ScrollView>
 
                             <TouchableOpacity
-                                style={{
-                                    backgroundColor: '#6b7280',
-                                    borderRadius: 8,
-                                    padding: 16,
-                                    marginTop: 16,
-                                }}
+                                style={styles.modalButton}
                                 onPress={() => setShowClonePlayerModal(false)}
                             >
-                                <Text style={{
-                                    color: '#ffffff',
-                                    textAlign: 'center',
-                                    fontWeight: 'bold',
-                                }}>
+                                <Text style={styles.modalButtonText}>
                                     Cancel
                                 </Text>
                             </TouchableOpacity>
@@ -1422,41 +1228,12 @@ export default function WheelScreen() {
                     animationType="fade"
                     onRequestClose={() => setShowFlipModal(false)}
                 >
-                    <View style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        zIndex: 9999,
-                        elevation: 9999,
-                    }}>
-                        <View style={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: 12,
-                            padding: 20,
-                            width: '80%',
-                            maxHeight: '70%',
-                        }}>
-                            <Text style={{
-                                fontSize: 18,
-                                fontWeight: 'bold',
-                                color: '#1f2937',
-                                marginBottom: 12,
-                                textAlign: 'center',
-                            }}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>
                                 Select Rule to Flip
                             </Text>
-                            <Text style={{
-                                fontSize: 14,
-                                color: '#6b7280',
-                                marginBottom: 16,
-                                textAlign: 'center',
-                                fontStyle: 'italic',
-                            }}>
+                            <Text style={styles.modalDescription}>
                                 Choose a rule to flip its meaning
                             </Text>
 
@@ -1466,21 +1243,12 @@ export default function WheelScreen() {
                                     .map((rule) => (
                                         <TouchableOpacity
                                             key={rule.id}
-                                            style={{
-                                                backgroundColor: '#f3f4f6',
-                                                borderRadius: 8,
-                                                padding: 12,
-                                                marginBottom: 8,
-                                            }}
+                                            style={styles.ruleButton}
                                             onPress={() => {
                                                 handleFlipRuleSelect(rule.id);
                                             }}
                                         >
-                                            <Text style={{
-                                                fontSize: 16,
-                                                color: '#1f2937',
-                                                textAlign: 'center',
-                                            }}>
+                                            <Text style={styles.ruleButtonText}>
                                                 {rule.text}
                                             </Text>
                                         </TouchableOpacity>
@@ -1488,19 +1256,10 @@ export default function WheelScreen() {
                             </ScrollView>
 
                             <TouchableOpacity
-                                style={{
-                                    backgroundColor: '#6b7280',
-                                    borderRadius: 8,
-                                    padding: 16,
-                                    marginTop: 16,
-                                }}
+                                style={styles.modalButton}
                                 onPress={() => setShowFlipModal(false)}
                             >
-                                <Text style={{
-                                    color: '#ffffff',
-                                    textAlign: 'center',
-                                    fontWeight: 'bold',
-                                }}>
+                                <Text style={styles.modalButtonText}>
                                     Cancel
                                 </Text>
                             </TouchableOpacity>
@@ -1515,41 +1274,12 @@ export default function WheelScreen() {
                     animationType="fade"
                     onRequestClose={() => setShowShredModal(false)}
                 >
-                    <View style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        zIndex: 9999,
-                        elevation: 9999,
-                    }}>
-                        <View style={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: 12,
-                            padding: 20,
-                            width: '80%',
-                            maxHeight: '70%',
-                        }}>
-                            <Text style={{
-                                fontSize: 18,
-                                fontWeight: 'bold',
-                                color: '#1f2937',
-                                marginBottom: 12,
-                                textAlign: 'center',
-                            }}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>
                                 Select Rule to Shred
                             </Text>
-                            <Text style={{
-                                fontSize: 14,
-                                color: '#6b7280',
-                                marginBottom: 16,
-                                textAlign: 'center',
-                                fontStyle: 'italic',
-                            }}>
+                            <Text style={styles.modalDescription}>
                                 Choose a rule to remove from your collection
                             </Text>
 
@@ -1559,12 +1289,7 @@ export default function WheelScreen() {
                                     .map((rule) => (
                                         <TouchableOpacity
                                             key={rule.id}
-                                            style={{
-                                                backgroundColor: '#f3f4f6',
-                                                borderRadius: 8,
-                                                padding: 12,
-                                                marginBottom: 8,
-                                            }}
+                                            style={styles.ruleButton}
                                             onPress={() => {
                                                 shredRule(rule.id);
                                                 setShowShredModal(false);
@@ -1606,11 +1331,7 @@ export default function WheelScreen() {
                                                 });
                                             }}
                                         >
-                                            <Text style={{
-                                                fontSize: 16,
-                                                color: '#1f2937',
-                                                textAlign: 'center',
-                                            }}>
+                                            <Text style={styles.ruleButtonText}>
                                                 {rule.text}
                                             </Text>
                                         </TouchableOpacity>
@@ -1618,19 +1339,10 @@ export default function WheelScreen() {
                             </ScrollView>
 
                             <TouchableOpacity
-                                style={{
-                                    backgroundColor: '#6b7280',
-                                    borderRadius: 8,
-                                    padding: 16,
-                                    marginTop: 16,
-                                }}
+                                style={styles.modalButton}
                                 onPress={() => setShowShredModal(false)}
                             >
-                                <Text style={{
-                                    color: '#ffffff',
-                                    textAlign: 'center',
-                                    fontWeight: 'bold',
-                                }}>
+                                <Text style={styles.modalButtonText}>
                                     Cancel
                                 </Text>
                             </TouchableOpacity>
@@ -1645,41 +1357,12 @@ export default function WheelScreen() {
                     animationType="fade"
                     onRequestClose={() => setShowSwapModal(false)}
                 >
-                    <View style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        zIndex: 9999,
-                        elevation: 9999,
-                    }}>
-                        <View style={{
-                            backgroundColor: '#ffffff',
-                            borderRadius: 12,
-                            padding: 20,
-                            width: '80%',
-                            maxHeight: '70%',
-                        }}>
-                            <Text style={{
-                                fontSize: 18,
-                                fontWeight: 'bold',
-                                color: '#1f2937',
-                                marginBottom: 12,
-                                textAlign: 'center',
-                            }}>
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <Text style={styles.modalTitle}>
                                 {swapStep === 'selectOwnRule' ? 'Select Your Rule to Swap' : 'Select Other Player\'s Rule'}
                             </Text>
-                            <Text style={{
-                                fontSize: 14,
-                                color: '#6b7280',
-                                marginBottom: 16,
-                                textAlign: 'center',
-                                fontStyle: 'italic',
-                            }}>
+                            <Text style={styles.modalDescription}>
                                 {swapStep === 'selectOwnRule'
                                     ? 'Choose one of your rules to swap with another player'
                                     : `Choose a rule from ${selectedOtherPlayer?.name} to swap with "${selectedOwnRule?.text}"`
@@ -1704,22 +1387,13 @@ export default function WheelScreen() {
                                             .map((rule) => (
                                                 <TouchableOpacity
                                                     key={rule.id}
-                                                    style={{
-                                                        backgroundColor: '#f3f4f6',
-                                                        borderRadius: 8,
-                                                        padding: 12,
-                                                        marginBottom: 8,
-                                                    }}
+                                                    style={styles.ruleButton}
                                                     onPress={() => {
                                                         setSelectedOwnRule(rule);
                                                         setSwapStep('selectOtherRule');
                                                     }}
                                                 >
-                                                    <Text style={{
-                                                        fontSize: 16,
-                                                        color: '#1f2937',
-                                                        textAlign: 'center',
-                                                    }}>
+                                                    <Text style={styles.ruleButtonText}>
                                                         {rule.text}
                                                     </Text>
                                                 </TouchableOpacity>
@@ -1743,22 +1417,13 @@ export default function WheelScreen() {
                                                     return (
                                                         <TouchableOpacity
                                                             key={player.id}
-                                                            style={{
-                                                                backgroundColor: '#e5e7eb',
-                                                                borderRadius: 8,
-                                                                padding: 12,
-                                                                marginBottom: 8,
-                                                            }}
+                                                            style={styles.ruleButton}
                                                             onPress={() => {
                                                                 setSelectedOtherPlayer(player);
                                                                 setSwapStep('selectOtherRule');
                                                             }}
                                                         >
-                                                            <Text style={{
-                                                                fontSize: 16,
-                                                                color: '#1f2937',
-                                                                textAlign: 'center',
-                                                            }}>
+                                                            <Text style={styles.ruleButtonText}>
                                                                 {player.name} ({playerRules.length} rules)
                                                             </Text>
                                                         </TouchableOpacity>
@@ -1786,12 +1451,7 @@ export default function WheelScreen() {
                                                     .map((rule) => (
                                                         <TouchableOpacity
                                                             key={rule.id}
-                                                            style={{
-                                                                backgroundColor: '#f3f4f6',
-                                                                borderRadius: 8,
-                                                                padding: 12,
-                                                                marginBottom: 8,
-                                                            }}
+                                                            style={styles.ruleButton}
                                                             onPress={() => {
                                                                 // Perform the swap
                                                                 if (selectedOwnRule && gameState?.activePlayer) {
@@ -1841,11 +1501,7 @@ export default function WheelScreen() {
                                                                 }
                                                             }}
                                                         >
-                                                            <Text style={{
-                                                                fontSize: 16,
-                                                                color: '#1f2937',
-                                                                textAlign: 'center',
-                                                            }}>
+                                                            <Text style={styles.ruleButtonText}>
                                                                 {rule.text}
                                                             </Text>
                                                         </TouchableOpacity>
@@ -1875,11 +1531,7 @@ export default function WheelScreen() {
                                         }
                                     }}
                                 >
-                                    <Text style={{
-                                        color: '#ffffff',
-                                        textAlign: 'center',
-                                        fontWeight: 'bold',
-                                    }}>
+                                    <Text style={styles.modalButtonText}>
                                         {swapStep === 'selectOtherRule' ? 'Back' : 'Cancel'}
                                     </Text>
                                 </TouchableOpacity>
@@ -1900,11 +1552,7 @@ export default function WheelScreen() {
                                             setSelectedOtherPlayer(null);
                                         }}
                                     >
-                                        <Text style={{
-                                            color: '#ffffff',
-                                            textAlign: 'center',
-                                            fontWeight: 'bold',
-                                        }}>
+                                        <Text style={styles.modalButtonText}>
                                             Cancel Swap
                                         </Text>
                                     </TouchableOpacity>
@@ -1927,4 +1575,141 @@ export default function WheelScreen() {
             </SafeAreaView>
         </StripedBackground>
     );
-} 
+}
+
+const styles = StyleSheet.create({
+    mainContainer: {
+        paddingTop: 100,
+        alignItems: 'center',
+        flex: 1,
+    },
+    wheelContainer: {
+        backgroundColor: 'black',
+        overflow: 'hidden',
+        marginVertical: 32,
+        width: '70%',
+        position: 'relative',
+        borderWidth: 8,
+        borderColor: '#000',
+        borderRadius: 8,
+    },
+    fadeOverlay: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: 100,
+        zIndex: 10,
+    },
+    fadeBlock: {
+        height: 12,
+        backgroundColor: 'black',
+    },
+    tickMarkContainer: {
+        position: 'absolute',
+        top: '50%',
+        right: '16%',
+        height: ITEM_HEIGHT,
+        width: 30,
+        zIndex: 1000,
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+    },
+    tickMarkBlack: {
+        width: 0,
+        height: 0,
+        borderTopWidth: 18,
+        borderBottomWidth: 18,
+        borderRightWidth: 35,
+        borderTopColor: 'transparent',
+        borderBottomColor: 'transparent',
+        borderRightColor: '#000',
+        shadowColor: '#000',
+        shadowOffset: { width: -2, height: 2 },
+        shadowOpacity: 0.8,
+        shadowRadius: 2,
+    },
+    tickMarkRed: {
+        position: 'absolute',
+        width: 0,
+        height: 0,
+        borderTopWidth: 15,
+        borderBottomWidth: 15,
+        borderRightWidth: 30,
+        borderTopColor: 'transparent',
+        borderBottomColor: 'transparent',
+        borderRightColor: '#ff0000',
+    },
+    expandedPlaqueOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 2000,
+    },
+    modalOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 9999,
+        elevation: 9999,
+    },
+    modalContent: {
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 20,
+        width: '80%',
+        maxHeight: '70%',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#1f2937',
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    modalDescription: {
+        fontSize: 14,
+        color: '#6b7280',
+        marginBottom: 16,
+        textAlign: 'center',
+        fontStyle: 'italic',
+    },
+    modalButton: {
+        backgroundColor: '#6b7280',
+        borderRadius: 8,
+        padding: 16,
+        marginTop: 16,
+    },
+    modalButtonText: {
+        color: '#ffffff',
+        textAlign: 'center',
+        fontWeight: 'bold',
+    },
+    ruleButton: {
+        backgroundColor: '#f3f4f6',
+        borderRadius: 8,
+        padding: 12,
+        marginBottom: 8,
+    },
+    ruleButtonText: {
+        fontSize: 16,
+        color: '#1f2937',
+        textAlign: 'center',
+    },
+    ownerText: {
+        fontSize: 12,
+        color: '#6b7280',
+        textAlign: 'center',
+        fontStyle: 'italic',
+    },
+    // Add more as needed for all unique style objects
+}); 
