@@ -82,6 +82,10 @@ const initialState: GameState = {
 function gameReducer(state: GameState, action: GameAction): GameState {
     switch (action.type) {
         case 'SET_GAME_STATE':
+            console.log('GameContext: SET_GAME_STATE reducer called at:', new Date().toISOString());
+            console.log('GameContext: Previous activePlayer:', state?.activePlayer);
+            console.log('GameContext: New activePlayer:', action.payload.activePlayer);
+            console.log('GameContext: New game state:', action.payload);
             return action.payload;
 
         case 'ADD_PLAYER':
@@ -138,7 +142,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             return {
                 ...state,
                 isWheelSpinning: true,
-                activePlayer: action.payload.spinningPlayerId,
             };
 
         case 'UPDATE_POINTS':
@@ -378,6 +381,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const currentUser = gameState?.players.find(p => p.id === currentUserId) || null;
     const activePlayer = gameState?.players.find(p => p.id === gameState?.activePlayer) || null;
 
+    // Debug active player computation
+    console.log('GameContext: Computing activePlayer at:', new Date().toISOString());
+    console.log('GameContext: gameState?.activePlayer:', gameState?.activePlayer);
+    console.log('GameContext: gameState?.players:', gameState?.players?.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
+    console.log('GameContext: Computed activePlayer:', activePlayer);
+
+    // Use a ref to track the previous game state for debugging
+    const previousGameStateRef = React.useRef<GameState | null>(null);
+
     // Connect to socket on mount
     React.useEffect(() => {
         socketService.connect();
@@ -401,6 +413,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             dispatch({ type: 'SPIN_WHEEL', payload: stack });
         });
         socketService.setOnSynchronizedWheelSpin((data) => {
+            console.log('GameContext: Dispatching SYNCHRONIZED_WHEEL_SPIN action at:', new Date().toISOString());
+            console.log('GameContext: SYNCHRONIZED_WHEEL_SPIN data:', data);
             dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: data });
         });
         socketService.setOnNavigateToScreen((data) => {

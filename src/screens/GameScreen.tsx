@@ -131,6 +131,16 @@ export default function GameScreen() {
         // Check if all non-host players have completed both phases
         if (!gameState) return;
 
+        // Check if current user is the active player
+        if (currentUser?.id !== gameState.activePlayer) {
+            Alert.alert(
+                'Not Your Turn',
+                'Only the active player can spin the wheel.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
+
         const nonHostPlayers = gameState.players.filter(player => !player.isHost);
         const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
             player.rulesCompleted && player.promptsCompleted
@@ -1022,8 +1032,8 @@ export default function GameScreen() {
 
 
 
-                    {/* Spin Wheel Button - Only for Host */}
-                    {currentUser?.isHost && (
+                    {/* Spin Wheel Button - Only for Active Player */}
+                    {currentUser?.id === gameState?.activePlayer && !currentUser?.isHost && (
                         <View style={styles.section}>
                             <TouchableOpacity
                                 style={[
@@ -1037,6 +1047,46 @@ export default function GameScreen() {
                                     {allNonHostPlayersCompleted ? 'Spin That Wheel!' : 'Waiting for players to complete rules & prompts...'}
                                 </Text>
                             </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {/* Show current active player info */}
+                    {gameState?.activePlayer && (
+                        <View style={styles.section}>
+                            <Text style={{
+                                fontSize: 16,
+                                color: '#e5e7eb',
+                                textAlign: 'center',
+                                fontStyle: 'italic',
+                                marginBottom: 10
+                            }}>
+                                Current Turn: {gameState.players.find(p => p.id === gameState.activePlayer)?.name}
+                                {currentUser?.id === gameState.activePlayer && ' (You)'}
+                            </Text>
+                            <Text style={{
+                                fontSize: 12,
+                                color: '#9ca3af',
+                                textAlign: 'center',
+                                fontStyle: 'italic'
+                            }}>
+                                Active Player ID: {gameState.activePlayer}
+                            </Text>
+                            <Text style={{
+                                fontSize: 10,
+                                color: '#6b7280',
+                                textAlign: 'center',
+                                fontStyle: 'italic'
+                            }}>
+                                Debug: Current User ID: {currentUser?.id} | Is Active: {currentUser?.id === gameState.activePlayer ? 'YES' : 'NO'}
+                            </Text>
+                            <Text style={{
+                                fontSize: 10,
+                                color: '#6b7280',
+                                textAlign: 'center',
+                                fontStyle: 'italic'
+                            }}>
+                                Debug: All Players: {gameState.players.map(p => `${p.name}(${p.id}${p.isHost ? ',H' : ''})`).join(', ')}
+                            </Text>
                         </View>
                     )}
 

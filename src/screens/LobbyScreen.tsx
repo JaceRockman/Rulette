@@ -17,6 +17,7 @@ import * as Clipboard from 'expo-clipboard';
 import StripedBackground from '../components/StripedBackground';
 import shared from '../styles/shared';
 import OutlinedText from '../components/OutlinedText';
+import socketService from '../services/socketService';
 
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -24,7 +25,7 @@ type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 export default function LobbyScreen() {
     const navigation = useNavigation<LobbyScreenNavigationProp>();
     const route = useRoute<LobbyScreenRouteProp>();
-    const { gameState, currentUser, startGame, addTestPlayers, addFillerRules, addFillerPrompts } = useGame();
+    const { gameState, currentUser, startGame, addTestPlayers, addFillerRules, addFillerPrompts, dispatch } = useGame();
 
     const [startingPoints, setStartingPoints] = useState('');
     const [numRules, setNumRules] = useState('');
@@ -76,6 +77,27 @@ export default function LobbyScreen() {
         if (!gameState?.players.length) {
             Alert.alert('Error', 'Need at least one player to start');
             return;
+        }
+
+        // Get the game settings from the UI
+        const settings = {
+            numRules: parseInt(numRules) || 3,
+            numPrompts: parseInt(numPrompts) || 3,
+            startingPoints: parseInt(startingPoints) || 20
+        };
+
+        // Send the settings to the server
+        socketService.updateGameSettings(settings);
+
+        // Update the game state with the settings before starting
+        if (gameState) {
+            const updatedGameState = {
+                ...gameState,
+                numRules: settings.numRules,
+                numPrompts: settings.numPrompts
+            };
+            // Dispatch the updated game state
+            dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
         }
 
         // Start the game - navigation will be handled by useEffect when game state updates

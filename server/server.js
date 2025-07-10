@@ -56,6 +56,8 @@ function createGame(hostId, hostName) {
         isWheelSpinning: false,
         currentStack: [],
         roundNumber: 0,
+        numRules: 3, // Default number of rules per player
+        numPrompts: 3, // Default number of prompts per player
         createdAt: Date.now()
     };
 
@@ -251,6 +253,29 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_started');
     });
 
+    // Update game settings
+    socket.on('update_game_settings', ({ gameId, settings }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Update the game settings
+        if (settings.numRules !== undefined) {
+            game.numRules = settings.numRules;
+        }
+        if (settings.numPrompts !== undefined) {
+            game.numPrompts = settings.numPrompts;
+        }
+        if (settings.startingPoints !== undefined) {
+            // Update all players' starting points
+            game.players.forEach(player => {
+                player.points = settings.startingPoints;
+            });
+        }
+
+        console.log('Server: Updated game settings:', settings, 'for game:', gameId);
+        io.to(gameId).emit('game_updated', game);
+    });
+
     // Mark rules as completed
     socket.on('rules_completed', ({ gameId, playerId }) => {
         const game = games.get(gameId);
@@ -287,6 +312,12 @@ io.on('connection', (socket) => {
             return;
         }
 
+        // Check if the spinning player is the current active player
+        if (game.activePlayer !== playerId) {
+            socket.emit('error', { message: 'Only the active player can spin the wheel' });
+            return;
+        }
+
         // Check if all non-host players have completed both phases
         const nonHostPlayers = game.players.filter(player => !player.isHost);
         const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
@@ -300,16 +331,7 @@ io.on('connection', (socket) => {
 
         game.isWheelSpinning = true;
 
-        // Ensure the active player is not a host
-        const playerToSpin = game.players.find(p => p.id === playerId);
-        if (playerToSpin && playerToSpin.isHost) {
-            console.error('Server: Attempted to set host as active player!');
-            socket.emit('error', { message: 'Host players cannot be active players' });
-            return;
-        }
-
-        game.activePlayer = playerId; // Set the active player who is spinning
-        console.log('Server: Setting activePlayer to:', playerId, 'for game:', gameId);
+        console.log('Server: Active player', playerId, 'is spinning the wheel for game:', gameId);
 
         // Generate random stack
         const stack = [];
@@ -443,23 +465,53 @@ io.on('connection', (socket) => {
 
     // Advance to next player after wheel spinning
     socket.on('advance_to_next_player', ({ gameId }) => {
+        console.log('Server: Received advance_to_next_player event for game:', gameId, 'at:', new Date().toISOString());
         const game = games.get(gameId);
-        if (!game) return;
+        if (!game) {
+            console.log('Server: Game not found for advance_to_next_player');
+            return;
+        }
+
+        console.log('Server: Current game state before advancement:');
+        console.log('Server: - activePlayer:', game.activePlayer);
+        console.log('Server: - players:', game.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
 
         // Find non-host players
         const nonHostPlayers = game.players.filter(player => !player.isHost);
-        if (nonHostPlayers.length === 0) return;
+        console.log('Server: Non-host players:', nonHostPlayers.map(p => ({ id: p.id, name: p.name })));
+
+        if (nonHostPlayers.length === 0) {
+            console.log('Server: No non-host players found for advance_to_next_player');
+            return;
+        }
 
         // Find active player index
         const activePlayerIndex = nonHostPlayers.findIndex(player => player.id === game.activePlayer);
+        console.log('Server: Current activePlayer:', game.activePlayer, 'at index:', activePlayerIndex);
+
+        // Check if active player is not found in non-host players
+        if (activePlayerIndex === -1) {
+            console.log('Server: Current activePlayer not found in non-host players, setting to first non-host player');
+            game.activePlayer = nonHostPlayers[0].id;
+            console.log('Server: Set activePlayer to:', game.activePlayer, '(', nonHostPlayers[0].name, ') for game:', gameId);
+            io.to(gameId).emit('game_updated', game);
+            return;
+        }
 
         // Move to next player (or back to first if at end)
         const nextPlayerIndex = (activePlayerIndex + 1) % nonHostPlayers.length;
-        game.activePlayer = nonHostPlayers[nextPlayerIndex].id;
-        console.log('Server: Advancing activePlayer to:', game.activePlayer, 'for game:', gameId);
+        const oldActivePlayer = game.activePlayer;
+        const newActivePlayer = nonHostPlayers[nextPlayerIndex];
+        game.activePlayer = newActivePlayer.id;
+        console.log('Server: Advancing activePlayer from:', oldActivePlayer, 'to:', newActivePlayer.id, '(', newActivePlayer.name, ') for game:', gameId);
+
+        console.log('Server: Game state after advancement:');
+        console.log('Server: - activePlayer:', game.activePlayer);
+        console.log('Server: - players:', game.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
 
         // Broadcast the updated game state to all players
-        console.log('Server: Broadcasting game_updated after advancing player with activePlayer:', game.activePlayer, 'for game:', gameId);
+        console.log('Server: Broadcasting game_updated after advancing player with activePlayer:', game.activePlayer, 'for game:', gameId, 'at:', new Date().toISOString());
+        console.log('Server: Full game state being sent:', JSON.stringify(game, null, 2));
         io.to(gameId).emit('game_updated', game);
     });
 

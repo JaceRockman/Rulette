@@ -205,9 +205,26 @@ class SocketService {
     }
 
     advanceToNextPlayer() {
-        if (!this.socket || !this.gameState) return;
+        if (!this.socket || !this.gameState) {
+            console.log('SocketService: Cannot advance to next player - socket or gameState not available');
+            return;
+        }
+        console.log('SocketService: Calling advanceToNextPlayer for game:', this.gameState.id);
+        console.log('SocketService: Current activePlayer:', this.gameState.activePlayer);
         this.socket.emit('advance_to_next_player', {
             gameId: this.gameState.id
+        });
+    }
+
+    updateGameSettings(settings: { numRules?: number; numPrompts?: number; startingPoints?: number }) {
+        if (!this.socket || !this.gameState) {
+            console.log('SocketService: Cannot update game settings - socket or gameState not available');
+            return;
+        }
+        console.log('SocketService: Updating game settings:', settings, 'for game:', this.gameState.id);
+        this.socket.emit('update_game_settings', {
+            gameId: this.gameState.id,
+            settings
         });
     }
 

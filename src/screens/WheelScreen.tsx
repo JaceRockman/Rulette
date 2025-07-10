@@ -27,12 +27,8 @@ export default function WheelScreen() {
     // Get the player ID from navigation params if provided
     const playerId = route.params?.playerId;
 
-    // Set the active player to the spinning player if provided
-    React.useEffect(() => {
-        if (playerId && gameState?.activePlayer !== playerId) {
-            dispatch({ type: 'SET_ACTIVE_PLAYER', payload: playerId });
-        }
-    }, [playerId, gameState?.activePlayer, dispatch]);
+    // Note: We don't set the active player here - the server manages it
+    // The playerId param is just for reference to know who is spinning
     const [showCloneModal, setShowCloneModal] = useState(false);
     const [showClonePlayerModal, setShowClonePlayerModal] = useState(false);
     const [showFlipModal, setShowFlipModal] = useState(false);
@@ -71,6 +67,7 @@ export default function WheelScreen() {
     const currentRotation = useRef(0);
     const popupScale = useRef(new Animated.Value(0)).current;
     const popupOpacity = useRef(new Animated.Value(0)).current;
+    const [hasAdvancedPlayer, setHasAdvancedPlayer] = useState(false);
 
     // Pad the segments so the selected item can be centered and create a continuous loop
     const paddedSegments = [
@@ -108,20 +105,19 @@ export default function WheelScreen() {
 
     const handleSpin = () => {
 
-        // Generate deterministic spin parameters
+        setIsSpinning(true);
+        setHasAdvancedPlayer(false); // Reset the flag for new spin
+
+        // Generate random final index
         const randomSpins = 40 + Math.floor(Math.random() * 11);
         const scrollAmount = randomSpins * ITEM_HEIGHT;
         const finalIndex = (selectedIndex + randomSpins) % segments.length;
-
-        // Calculate duration with minimum and maximum bounds
-        const minDuration = 2000; // 2 seconds minimum
-        const maxDuration = 5000; // 5 seconds maximum
-        const duration = Math.random() * (maxDuration - minDuration) + minDuration;
+        const duration = 3000 + Math.random() * 2000; // 3-5 seconds
 
         // Broadcast the synchronized spin to all players
         socketService.broadcastSynchronizedWheelSpin(finalIndex, scrollAmount, duration);
 
-        // Start the local spin animation
+        // Perform the spin locally
         performSynchronizedSpin(finalIndex, scrollAmount, duration);
     };
 
@@ -254,40 +250,8 @@ export default function WheelScreen() {
 
         alert(`${currentPlayer.name} passed the rule "${randomRule.text}" up to ${targetPlayer.name}!`);
 
-        // Freeze the current segment to prevent content from changing during animation
-        const selectedSegment = segments[selectedIndex];
-        setFrozenSegment(selectedSegment);
-        setIsClosingPopup(true);
-
-        // Close the popup and navigate back
-        Animated.parallel([
-            Animated.timing(popupScale, {
-                toValue: 0,
-                duration: 400,
-                useNativeDriver: true,
-            }),
-            Animated.timing(popupOpacity, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true,
-            })
-        ]).start(() => {
-            if (selectedSegment) {
-                removeWheelLayer(selectedSegment.id);
-            }
-            setShowExpandedPlaque(false);
-            setIsClosingPopup(false);
-            setFrozenSegment(null);
-            setSynchronizedSpinResult(null);
-            popupScale.setValue(0);
-            popupOpacity.setValue(0);
-            // Broadcast navigation to game room for all players and host
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
-
-            // Advance to next player after wheel spinning is complete
-            socketService.advanceToNextPlayer();
-        });
+        // Use centralized wheel completion function
+        handleWheelCompletion();
     };
 
     // Handle Down modifier - pass rule to player below
@@ -339,40 +303,8 @@ export default function WheelScreen() {
 
         alert(`${currentPlayer.name} passed the rule "${randomRule.text}" down to ${targetPlayer.name}!`);
 
-        // Freeze the current segment to prevent content from changing during animation
-        const selectedSegment = segments[selectedIndex];
-        setFrozenSegment(selectedSegment);
-        setIsClosingPopup(true);
-
-        // Close the popup and navigate back
-        Animated.parallel([
-            Animated.timing(popupScale, {
-                toValue: 0,
-                duration: 400,
-                useNativeDriver: true,
-            }),
-            Animated.timing(popupOpacity, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true,
-            })
-        ]).start(() => {
-            if (selectedSegment) {
-                removeWheelLayer(selectedSegment.id);
-            }
-            setShowExpandedPlaque(false);
-            setIsClosingPopup(false);
-            setFrozenSegment(null);
-            setSynchronizedSpinResult(null);
-            popupScale.setValue(0);
-            popupOpacity.setValue(0);
-            // Broadcast navigation to game room for all players and host
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
-
-            // Advance to next player after wheel spinning is complete
-            socketService.advanceToNextPlayer();
-        });
+        // Use centralized wheel completion function
+        handleWheelCompletion();
     };
 
     const handleFlipRuleSelect = (ruleId: string) => {
@@ -393,6 +325,21 @@ export default function WheelScreen() {
             payload: { ...selectedRuleForFlip, text: flippedText }
         });
 
+        // Freeze the current segment to prevent content from changing during animation
+        const selectedSegment = segments[selectedIndex];
+        setFrozenSegment(selectedSegment);
+        setIsClosingPopup(true);
+
+        // Use centralized wheel completion function
+        handleWheelCompletion();
+
+        // Reset flip state
+        setSelectedRuleForFlip(null);
+        setShowFlipTextInputModal(false);
+    };
+
+    // Centralized function to handle wheel completion and ensure advanceToNextPlayer is called only once
+    const handleWheelCompletion = () => {
         // Freeze the current segment to prevent content from changing during animation
         const selectedSegment = segments[selectedIndex];
         setFrozenSegment(selectedSegment);
@@ -420,15 +367,19 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
+            // Broadcast navigation to game room for all players and host
             socketService.broadcastNavigateToScreen('GAME_ROOM');
 
-            // Advance to next player after wheel spinning is complete
-            socketService.advanceToNextPlayer();
+            // Advance to next player after wheel spinning is complete (only once)
+            if (!hasAdvancedPlayer) {
+                console.log('WheelScreen: Calling advanceToNextPlayer() at:', new Date().toISOString());
+                console.log('WheelScreen: Current activePlayer:', gameState?.activePlayer);
+                socketService.advanceToNextPlayer();
+                setHasAdvancedPlayer(true);
+            } else {
+                console.log('WheelScreen: Skipping advanceToNextPlayer() - already advanced at:', new Date().toISOString());
+            }
         });
-
-        // Reset flip state
-        setSelectedRuleForFlip(null);
-        setShowFlipTextInputModal(false);
     };
 
     return (
@@ -586,16 +537,6 @@ export default function WheelScreen() {
                             }}
                         />
                     </Animated.View>
-                    {/* Only show spin button for the current player (spinning player) */}
-                    {gameState?.activePlayer === socketService.getCurrentPlayerId() && (
-                        <TouchableOpacity
-                            style={[shared.button, { width: 180, marginTop: 16 }]}
-                            onPress={handleSpin}
-                            disabled={isSpinning || segments.length === 0}
-                        >
-                            <Text style={shared.buttonText}>{isSpinning ? 'Spinning...' : 'SPIN!'}</Text>
-                        </TouchableOpacity>
-                    )}
                 </View>
 
                 {/* Expanded plaque overlay */}
@@ -846,8 +787,11 @@ export default function WheelScreen() {
                                                                         popupOpacity.setValue(0);
                                                                         socketService.broadcastNavigateToScreen('GAME_ROOM');
 
-                                                                        // Advance to next player after wheel spinning is complete
-                                                                        socketService.advanceToNextPlayer();
+                                                                        // Advance to next player after wheel spinning is complete (only once)
+                                                                        if (!hasAdvancedPlayer) {
+                                                                            socketService.advanceToNextPlayer();
+                                                                            setHasAdvancedPlayer(true);
+                                                                        }
                                                                     });
                                                                 }}
                                                             >
@@ -962,37 +906,8 @@ export default function WheelScreen() {
                                                     }}
                                                     onPress={() => {
                                                         alert('You have no rules to pass up.');
-                                                        // Freeze the current segment to prevent content from changing during animation
-                                                        setFrozenSegment(selectedSegment);
-                                                        setIsClosingPopup(true);
-                                                        // Close the wheel popup and navigate back
-                                                        Animated.parallel([
-                                                            Animated.timing(popupScale, {
-                                                                toValue: 0,
-                                                                duration: 400,
-                                                                useNativeDriver: true,
-                                                            }),
-                                                            Animated.timing(popupOpacity, {
-                                                                toValue: 0,
-                                                                duration: 300,
-                                                                useNativeDriver: true,
-                                                            })
-                                                        ]).start(() => {
-                                                            const selectedSegment = segments[selectedIndex];
-                                                            if (selectedSegment) {
-                                                                removeWheelLayer(selectedSegment.id);
-                                                            }
-                                                            setShowExpandedPlaque(false);
-                                                            setIsClosingPopup(false);
-                                                            setFrozenSegment(null);
-                                                            setSynchronizedSpinResult(null);
-                                                            popupScale.setValue(0);
-                                                            popupOpacity.setValue(0);
-                                                            socketService.broadcastNavigateToScreen('GAME_ROOM');
-
-                                                            // Advance to next player after wheel spinning is complete
-                                                            socketService.advanceToNextPlayer();
-                                                        });
+                                                        // Use centralized wheel completion function
+                                                        handleWheelCompletion();
                                                     }}
                                                 >
                                                     <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
@@ -1041,37 +956,8 @@ export default function WheelScreen() {
                                                     }}
                                                     onPress={() => {
                                                         alert('You have no rules to pass down.');
-                                                        // Freeze the current segment to prevent content from changing during animation
-                                                        setFrozenSegment(selectedSegment);
-                                                        setIsClosingPopup(true);
-                                                        // Close the wheel popup and navigate back
-                                                        Animated.parallel([
-                                                            Animated.timing(popupScale, {
-                                                                toValue: 0,
-                                                                duration: 400,
-                                                                useNativeDriver: true,
-                                                            }),
-                                                            Animated.timing(popupOpacity, {
-                                                                toValue: 0,
-                                                                duration: 300,
-                                                                useNativeDriver: true,
-                                                            })
-                                                        ]).start(() => {
-                                                            const selectedSegment = segments[selectedIndex];
-                                                            if (selectedSegment) {
-                                                                removeWheelLayer(selectedSegment.id);
-                                                            }
-                                                            setShowExpandedPlaque(false);
-                                                            setIsClosingPopup(false);
-                                                            setFrozenSegment(null);
-                                                            setSynchronizedSpinResult(null);
-                                                            popupScale.setValue(0);
-                                                            popupOpacity.setValue(0);
-                                                            socketService.broadcastNavigateToScreen('GAME_ROOM');
-
-                                                            // Advance to next player after wheel spinning is complete
-                                                            socketService.advanceToNextPlayer();
-                                                        });
+                                                        // Use centralized wheel completion function
+                                                        handleWheelCompletion();
                                                     }}
                                                 >
                                                     <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
@@ -1214,8 +1100,11 @@ export default function WheelScreen() {
                                                     // Broadcast navigation to game room for all players and host
                                                     socketService.broadcastNavigateToScreen("GAME_ROOM");
 
-                                                    // Advance to next player after wheel spinning is complete
-                                                    socketService.advanceToNextPlayer();
+                                                    // Advance to next player after wheel spinning is complete (only once)
+                                                    if (!hasAdvancedPlayer) {
+                                                        socketService.advanceToNextPlayer();
+                                                        setHasAdvancedPlayer(true);
+                                                    }
                                                 });
                                             }}
                                         >
@@ -1468,8 +1357,11 @@ export default function WheelScreen() {
                                                     popupOpacity.setValue(0);
                                                     socketService.broadcastNavigateToScreen('GAME_ROOM');
 
-                                                    // Advance to next player after wheel spinning is complete
-                                                    socketService.advanceToNextPlayer();
+                                                    // Advance to next player after wheel spinning is complete (only once)
+                                                    if (!hasAdvancedPlayer) {
+                                                        socketService.advanceToNextPlayer();
+                                                        setHasAdvancedPlayer(true);
+                                                    }
                                                 });
                                             }}
                                         >
@@ -1688,8 +1580,11 @@ export default function WheelScreen() {
                                                     popupOpacity.setValue(0);
                                                     socketService.broadcastNavigateToScreen('GAME_ROOM');
 
-                                                    // Advance to next player after wheel spinning is complete
-                                                    socketService.advanceToNextPlayer();
+                                                    // Advance to next player after wheel spinning is complete (only once)
+                                                    if (!hasAdvancedPlayer) {
+                                                        socketService.advanceToNextPlayer();
+                                                        setHasAdvancedPlayer(true);
+                                                    }
                                                 });
                                             }}
                                         >
@@ -1919,8 +1814,11 @@ export default function WheelScreen() {
                                                                         popupOpacity.setValue(0);
                                                                         socketService.broadcastNavigateToScreen('GAME_ROOM');
 
-                                                                        // Advance to next player after wheel spinning is complete
-                                                                        socketService.advanceToNextPlayer();
+                                                                        // Advance to next player after wheel spinning is complete (only once)
+                                                                        if (!hasAdvancedPlayer) {
+                                                                            socketService.advanceToNextPlayer();
+                                                                            setHasAdvancedPlayer(true);
+                                                                        }
                                                                     });
                                                                 }
                                                             }}
