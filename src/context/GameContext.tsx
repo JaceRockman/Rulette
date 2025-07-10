@@ -391,9 +391,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnGameUpdated((game) => {
-            console.log('Client: Received game_updated event');
-            console.log('Client: activePlayer in received game state:', game.activePlayer);
-            console.log('Client: current game state activePlayer:', gameState?.activePlayer);
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnGameStarted(() => {
@@ -408,7 +405,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         });
         socketService.setOnNavigateToScreen((data) => {
             // Handle navigation to different screens
-            console.log('Client: Received navigation event:', data);
             // This will be handled by individual screens that need to respond to navigation
         });
         return () => {

@@ -18,7 +18,7 @@ export type RootStackParamList = {
     Home: undefined;
     Lobby: { code: string };
     Game: undefined;
-    Wheel: undefined;
+    Wheel: { playerId?: string };
     RuleWriting: undefined;
     PromptWriting: undefined;
 };

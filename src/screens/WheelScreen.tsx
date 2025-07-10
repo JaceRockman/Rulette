@@ -1,6 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Animated, FlatList, Dimensions, SafeAreaView, PanResponder, GestureResponderEvent, PanResponderGestureState, Modal, ScrollView } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import shared from '../styles/shared';
 import StripedBackground from '../components/StripedBackground';
@@ -13,13 +16,16 @@ const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+type WheelScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wheel'>;
+type WheelScreenRouteProp = RouteProp<RootStackParamList, 'Wheel'>;
+
 export default function WheelScreen() {
-    const navigation = useNavigation();
-    const route = useRoute();
+    const navigation = useNavigation<WheelScreenNavigationProp>();
+    const route = useRoute<WheelScreenRouteProp>();
     const { gameState, removeWheelLayer, endGame, assignRuleToCurrentUser, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule, spinWheel } = useGame();
 
     // Get the player ID from navigation params if provided
-    const playerId = (route.params as { playerId?: string })?.playerId;
+    const playerId = route.params?.playerId;
 
     // Set the active player to the spinning player if provided
     React.useEffect(() => {
@@ -95,9 +101,8 @@ export default function WheelScreen() {
     // Check if game has ended
     React.useEffect(() => {
         if (gameState?.gameEnded && gameState?.winner) {
-            // Navigate to game over screen or show winner
-            alert(`Game Over! ${gameState.winner.name} wins with ${gameState.winner.points} points!`);
-            navigation.goBack();
+            // Navigate to game screen to show the game over screen
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
         }
     }, [gameState?.gameEnded, gameState?.winner, navigation]);
 
@@ -276,7 +281,9 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
-            navigation.goBack();
+            // Broadcast navigation to game room for all players and host
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
 
             // Advance to next player after wheel spinning is complete
             socketService.advanceToNextPlayer();
@@ -359,7 +366,9 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
-            navigation.goBack();
+            // Broadcast navigation to game room for all players and host
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
 
             // Advance to next player after wheel spinning is complete
             socketService.advanceToNextPlayer();
@@ -411,7 +420,7 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
-            navigation.goBack();
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
 
             // Advance to next player after wheel spinning is complete
             socketService.advanceToNextPlayer();
@@ -835,7 +844,7 @@ export default function WheelScreen() {
                                                                         setSynchronizedSpinResult(null);
                                                                         popupScale.setValue(0);
                                                                         popupOpacity.setValue(0);
-                                                                        navigation.goBack();
+                                                                        socketService.broadcastNavigateToScreen('GAME_ROOM');
 
                                                                         // Advance to next player after wheel spinning is complete
                                                                         socketService.advanceToNextPlayer();
@@ -979,7 +988,7 @@ export default function WheelScreen() {
                                                             setSynchronizedSpinResult(null);
                                                             popupScale.setValue(0);
                                                             popupOpacity.setValue(0);
-                                                            navigation.goBack();
+                                                            socketService.broadcastNavigateToScreen('GAME_ROOM');
 
                                                             // Advance to next player after wheel spinning is complete
                                                             socketService.advanceToNextPlayer();
@@ -1058,7 +1067,7 @@ export default function WheelScreen() {
                                                             setSynchronizedSpinResult(null);
                                                             popupScale.setValue(0);
                                                             popupOpacity.setValue(0);
-                                                            navigation.goBack();
+                                                            socketService.broadcastNavigateToScreen('GAME_ROOM');
 
                                                             // Advance to next player after wheel spinning is complete
                                                             socketService.advanceToNextPlayer();
@@ -1141,6 +1150,9 @@ export default function WheelScreen() {
                                                         );
                                                         if (winner) {
                                                             endGame();
+                                                            // Don't advance to next player or navigate to game room
+                                                            // The game over screen will be shown in GameScreen
+                                                            return;
                                                         }
                                                     } else if (currentLayer && currentLayer.type === 'rule') {
                                                         // Assign the rule to the spinning player (not the current player)
@@ -1174,6 +1186,18 @@ export default function WheelScreen() {
                                                         useNativeDriver: true,
                                                     })
                                                 ]).start(() => {
+                                                    // Check if the game has ended before proceeding
+                                                    if (gameState?.gameEnded) {
+                                                        // Game has ended, don't advance or navigate
+                                                        setShowExpandedPlaque(false);
+                                                        setIsClosingPopup(false);
+                                                        setFrozenSegment(null);
+                                                        setSynchronizedSpinResult(null);
+                                                        popupScale.setValue(0);
+                                                        popupOpacity.setValue(0);
+                                                        return;
+                                                    }
+
                                                     // Remove the current layer to reveal the next one (only if not already removed for rule assignment)
                                                     if (selectedSegment) {
                                                         const currentLayer = selectedSegment.layers[selectedSegment.currentLayerIndex];
@@ -1189,8 +1213,6 @@ export default function WheelScreen() {
                                                     popupOpacity.setValue(0);
                                                     // Broadcast navigation to game room for all players and host
                                                     socketService.broadcastNavigateToScreen("GAME_ROOM");
-                                                    // Navigate back to the game room
-                                                    navigation.goBack();
 
                                                     // Advance to next player after wheel spinning is complete
                                                     socketService.advanceToNextPlayer();
@@ -1444,7 +1466,7 @@ export default function WheelScreen() {
                                                     setSynchronizedSpinResult(null);
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
-                                                    navigation.goBack();
+                                                    socketService.broadcastNavigateToScreen('GAME_ROOM');
 
                                                     // Advance to next player after wheel spinning is complete
                                                     socketService.advanceToNextPlayer();
@@ -1664,7 +1686,7 @@ export default function WheelScreen() {
                                                     setSynchronizedSpinResult(null);
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
-                                                    navigation.goBack();
+                                                    socketService.broadcastNavigateToScreen('GAME_ROOM');
 
                                                     // Advance to next player after wheel spinning is complete
                                                     socketService.advanceToNextPlayer();
@@ -1895,7 +1917,7 @@ export default function WheelScreen() {
                                                                         setSynchronizedSpinResult(null);
                                                                         popupScale.setValue(0);
                                                                         popupOpacity.setValue(0);
-                                                                        navigation.goBack();
+                                                                        socketService.broadcastNavigateToScreen('GAME_ROOM');
 
                                                                         // Advance to next player after wheel spinning is complete
                                                                         socketService.advanceToNextPlayer();

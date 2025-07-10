@@ -108,14 +108,15 @@ export default function GameScreen() {
     // Listen for navigation events
     React.useEffect(() => {
         const handleNavigateToScreen = (data: { screen: string; params?: any }) => {
-            console.log('GameScreen: Received navigation event:', data);
-
             if (data.screen === 'WHEEL') {
                 // Navigate to wheel screen with the provided parameters
-                navigation.navigate('Wheel' as any, data.params || {});
+                navigation.navigate('Wheel', data.params || {});
             } else if (data.screen === 'GAME_ROOM') {
                 // Navigate back to game room
-                navigation.goBack();
+                navigation.navigate('Game');
+            } else if (data.screen === 'HOME') {
+                // Navigate to home screen
+                navigation.navigate('Home');
             }
         };
 
@@ -148,7 +149,7 @@ export default function GameScreen() {
         socketService.broadcastNavigateToScreen('WHEEL', { playerId: gameState.activePlayer });
 
         // Navigate to wheel screen with active player ID to indicate who is spinning
-        navigation.navigate('Wheel' as any, { playerId: gameState.activePlayer });
+        navigation.navigate('Wheel', { playerId: gameState.activePlayer });
     };
 
     // Check if all non-host players have completed both phases
@@ -167,6 +168,9 @@ export default function GameScreen() {
     const handleAssignRule = (rule: Rule, playerId: string) => {
         assignRule(rule.id, playerId);
         setSelectedRule(null);
+
+        // Broadcast navigation to game room for all players and host
+        socketService.broadcastNavigateToScreen('GAME_ROOM');
     };
 
     const openRuleModal = (rule: Rule) => {
@@ -236,6 +240,9 @@ export default function GameScreen() {
             setAcceptedAccusationDetails(null);
             setAccusationDetails(null);
             setIsAccusationInProgress(false);
+
+            // Broadcast navigation to game room for all players and host
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
         }
     };
 
@@ -313,6 +320,9 @@ export default function GameScreen() {
         setCloneSelectedRule(null);
         setSelectedPlayerForAction(null);
         setShowCloneTargetModal(false);
+
+        // Broadcast navigation to game room for all players and host
+        socketService.broadcastNavigateToScreen('GAME_ROOM');
     };
 
     const handleSuccessfulPromptAction = () => {
@@ -387,6 +397,9 @@ export default function GameScreen() {
         // Reset all flip state
         setFlipSelectedRule(null);
         setSelectedPlayerForAction(null);
+
+        // Broadcast navigation to game room for all players and host
+        socketService.broadcastNavigateToScreen('GAME_ROOM');
     };
 
     const handleShredRule = (ruleId: string) => {
@@ -399,6 +412,9 @@ export default function GameScreen() {
             }
             setShowShredRuleModal(false);
             setSelectedPlayerForAction(null);
+
+            // Broadcast navigation to game room for all players and host
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
         }
     };
 
@@ -427,6 +443,9 @@ export default function GameScreen() {
             }
             setShowGiveRuleModal(false);
             setSelectedPlayerForAction(null);
+
+            // Broadcast navigation to game room for all players and host
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
         }
     };
 
@@ -462,6 +481,9 @@ export default function GameScreen() {
             'Accusation Complete',
             `${accuser.name} successfully accused ${accused.name}${ruleContext}!\n\n${accuser.name} has no rules to give.`
         );
+
+        // Broadcast navigation to game room for all players and host
+        socketService.broadcastNavigateToScreen('GAME_ROOM');
     };
 
     const handleAccusationRuleSelect = (ruleId: string) => {
@@ -480,13 +502,16 @@ export default function GameScreen() {
             setShowAccusationRuleModal(false);
             setSelectedPlayerForAction(null);
             setAccusationTarget(null);
+
+            // Broadcast navigation to game room for all players and host
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
         }
     };
 
     const handleSpinWheelForPlayer = () => {
         if (selectedPlayerForAction) {
             // Navigate to wheel screen for this player
-            navigation.navigate('Wheel', { playerId: selectedPlayerForAction.id } as any);
+            navigation.navigate('Wheel', { playerId: selectedPlayerForAction.id });
             setShowPlayerActionModal(false);
         }
     };
@@ -613,6 +638,9 @@ export default function GameScreen() {
             setUpDownPlayerOrder([]);
             setShowUpRuleModal(false);
             setShowDownRuleModal(false);
+
+            // Broadcast navigation to game room for all players and host
+            socketService.broadcastNavigateToScreen('GAME_ROOM');
         }
     };
 
@@ -687,6 +715,9 @@ export default function GameScreen() {
         setSwapTargetPlayer(null);
         setSelectedPlayerForAction(null);
         setShowSwapTargetRuleModal(false);
+
+        // Broadcast navigation to game room for all players and host
+        socketService.broadcastNavigateToScreen('GAME_ROOM');
     };
 
     // Host action handlers
@@ -717,7 +748,7 @@ export default function GameScreen() {
         if (isCurrentPlayerRemoved) {
             // If current player was removed, navigate to home screen
             Alert.alert('Host Changed', `${newHost.name} is now the host! You have been removed from the game.`, [
-                { text: 'OK', onPress: () => navigation.navigate('Home' as never) }
+                { text: 'OK', onPress: () => navigation.navigate('Home') }
             ]);
         } else {
             Alert.alert('Host Changed', `${newHost.name} is now the host!`);
@@ -773,7 +804,7 @@ export default function GameScreen() {
 
                     <TouchableOpacity
                         style={[shared.button, { marginTop: 30 }]}
-                        onPress={() => navigation.navigate('Home' as never)}
+                        onPress={() => socketService.broadcastNavigateToScreen('HOME')}
                     >
                         <Text style={shared.buttonText}>Back to Home</Text>
                     </TouchableOpacity>
