@@ -24,7 +24,7 @@ type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 export default function LobbyScreen() {
     const navigation = useNavigation<LobbyScreenNavigationProp>();
     const route = useRoute<LobbyScreenRouteProp>();
-    const { gameState, currentPlayer, startGame, addTestPlayers, addFillerRules, addFillerPrompts } = useGame();
+    const { gameState, currentUser, startGame, addTestPlayers, addFillerRules, addFillerPrompts } = useGame();
 
     const [startingPoints, setStartingPoints] = useState('');
     const [numRules, setNumRules] = useState('');
@@ -33,7 +33,7 @@ export default function LobbyScreen() {
     const [numFillerRules, setNumFillerRules] = useState('');
     const [numFillerPrompts, setNumFillerPrompts] = useState('');
 
-    const isHost = currentPlayer?.isHost;
+    const isHost = currentUser?.isHost;
     const lobbyCode = gameState?.code || route.params.code;
 
     // Navigate to rule writing when game starts

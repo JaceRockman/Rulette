@@ -12,7 +12,7 @@ import Plaque from '../components/Plaque';
 
 export default function RuleWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addRule, updateRule, currentPlayer, markRulesCompleted, getVisibleRules } = useGame();
+    const { gameState, addRule, updateRule, currentUser, markRulesCompleted, getVisibleRules } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -128,8 +128,8 @@ export default function RuleWritingScreen() {
 
     // Determine if player can add more rules
     const visibleRuleCount = getVisibleRules().length;
-    const canAddRule = currentPlayer?.isHost || visibleRuleCount < numRules;
-    const canContinue = currentPlayer?.isHost || visibleRuleCount === numRules;
+    const canAddRule = currentUser?.isHost || visibleRuleCount < numRules;
+    const canContinue = currentUser?.isHost || visibleRuleCount === numRules;
 
     return (
         <StripedBackground>

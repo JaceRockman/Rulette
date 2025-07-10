@@ -5,7 +5,7 @@ import { Rule, Player } from '../../types/game';
 interface RuleAccusationPopupProps {
     visible: boolean;
     selectedRuleForAccusation: { rule: Rule; accusedPlayer: Player } | null;
-    currentPlayer: Player | null;
+    currentUser: Player | null;
     isAccusationInProgress: boolean;
     onAccuse: () => void;
     onClose: () => void;
@@ -14,7 +14,7 @@ interface RuleAccusationPopupProps {
 export default function RuleAccusationPopup({
     visible,
     selectedRuleForAccusation,
-    currentPlayer,
+    currentUser,
     isAccusationInProgress,
     onAccuse,
     onClose
@@ -51,13 +51,13 @@ export default function RuleAccusationPopup({
                     <Text style={[styles.modalRuleText, { color: textColor }]}>
                         {selectedRuleForAccusation?.rule.text}
                     </Text>
-                    {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
+                    {(!currentUser || selectedRuleForAccusation?.accusedPlayer.id !== currentUser.id) && (
                         <Text style={[styles.modalSubtitle, { color: textColor }]}>
                             Accusing {selectedRuleForAccusation?.accusedPlayer.name} of breaking this rule
                         </Text>
                     )}
 
-                    {(!currentPlayer || selectedRuleForAccusation?.accusedPlayer.id !== currentPlayer.id) && (
+                    {(!currentUser || selectedRuleForAccusation?.accusedPlayer.id !== currentUser.id) && (
                         <TouchableOpacity
                             style={[
                                 styles.accuseButton,

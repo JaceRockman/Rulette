@@ -15,6 +15,8 @@ class SocketService {
     private onLobbyCreated: ((data: { playerId: string; game: GameState }) => void) | null = null;
     private onGameStarted: (() => void) | null = null;
     private onWheelSpun: ((stack: any[]) => void) | null = null;
+    private onSynchronizedWheelSpin: ((data: { spinningPlayerId: string; finalIndex: number; scrollAmount: number; duration: number }) => void) | null = null;
+    private onNavigateToScreen: ((data: { screen: string; params?: any }) => void) | null = null;
 
     connect() {
         if (this.socket) {
@@ -60,6 +62,14 @@ class SocketService {
         this.socket.on('wheel_spun', (stack: any[]) => {
             this.onWheelSpun?.(stack);
         });
+
+        this.socket.on('synchronized_wheel_spin', (data: { spinningPlayerId: string; finalIndex: number; scrollAmount: number; duration: number }) => {
+            this.onSynchronizedWheelSpin?.(data);
+        });
+
+        this.socket.on('navigate_to_screen', (data: { screen: string; params?: any }) => {
+            this.onNavigateToScreen?.(data);
+        });
     }
 
     // Event setters
@@ -85,6 +95,14 @@ class SocketService {
 
     setOnWheelSpun(callback: (stack: any[]) => void) {
         this.onWheelSpun = callback;
+    }
+
+    setOnSynchronizedWheelSpin(callback: ((data: { spinningPlayerId: string; finalIndex: number; scrollAmount: number; duration: number }) => void) | null) {
+        this.onSynchronizedWheelSpin = callback;
+    }
+
+    setOnNavigateToScreen(callback: ((data: { screen: string; params?: any }) => void) | null) {
+        this.onNavigateToScreen = callback;
     }
 
     // Game actions
@@ -164,6 +182,33 @@ class SocketService {
     spinWheel() {
         if (!this.socket || !this.gameState || !this.currentPlayerId) return;
         this.socket.emit('spin_wheel', { gameId: this.gameState.id, playerId: this.currentPlayerId });
+    }
+
+    broadcastSynchronizedWheelSpin(finalIndex: number, scrollAmount: number, duration: number) {
+        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
+        this.socket.emit('broadcast_synchronized_wheel_spin', {
+            gameId: this.gameState.id,
+            spinningPlayerId: this.gameState.activePlayer || this.currentPlayerId,
+            finalIndex,
+            scrollAmount,
+            duration
+        });
+    }
+
+    broadcastNavigateToScreen(screen: string, params?: any) {
+        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
+        this.socket.emit('broadcast_navigate_to_screen', {
+            gameId: this.gameState.id,
+            screen,
+            params
+        });
+    }
+
+    advanceToNextPlayer() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('advance_to_next_player', {
+            gameId: this.gameState.id
+        });
     }
 
     updatePoints(playerId: string, points: number) {

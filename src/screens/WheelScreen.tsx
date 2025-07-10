@@ -7,6 +7,7 @@ import StripedBackground from '../components/StripedBackground';
 import OutlinedText from '../components/OutlinedText';
 import WheelSegment from '../components/WheelSegment';
 import FlipTextInputModal from '../components/Modals/FlipTextInputModal';
+import socketService from '../services/socketService';
 
 const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
@@ -15,17 +16,17 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 export default function WheelScreen() {
     const navigation = useNavigation();
     const route = useRoute();
-    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentPlayer, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule, spinWheel } = useGame();
+    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentUser, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule, spinWheel } = useGame();
 
     // Get the player ID from navigation params if provided
     const playerId = (route.params as { playerId?: string })?.playerId;
 
-    // Set the current player to the spinning player if provided
+    // Set the active player to the spinning player if provided
     React.useEffect(() => {
-        if (playerId && gameState?.currentPlayer !== playerId) {
-            dispatch({ type: 'SET_CURRENT_PLAYER', payload: playerId });
+        if (playerId && gameState?.activePlayer !== playerId) {
+            dispatch({ type: 'SET_ACTIVE_PLAYER', payload: playerId });
         }
-    }, [playerId, gameState?.currentPlayer, dispatch]);
+    }, [playerId, gameState?.activePlayer, dispatch]);
     const [showCloneModal, setShowCloneModal] = useState(false);
     const [showClonePlayerModal, setShowClonePlayerModal] = useState(false);
     const [showFlipModal, setShowFlipModal] = useState(false);
@@ -55,6 +56,7 @@ export default function WheelScreen() {
     const [showPromptButtons, setShowPromptButtons] = useState(false);
     const [isClosingPopup, setIsClosingPopup] = useState(false);
     const [frozenSegment, setFrozenSegment] = useState<any>(null);
+    const [synchronizedSpinResult, setSynchronizedSpinResult] = useState<{ finalIndex: number; showPopup: boolean } | null>(null);
     const scrollY = useRef(new Animated.Value(0)).current;
     const flatListRef = useRef<FlatList>(null);
     const currentScrollOffset = useRef(0);
@@ -74,6 +76,22 @@ export default function WheelScreen() {
         ...segments.slice(0, Math.floor(VISIBLE_ITEMS / 2)),
     ];
 
+    // Listen for synchronized wheel spin events
+    React.useEffect(() => {
+        const handleSynchronizedSpin = (data: { spinningPlayerId: string; finalIndex: number; scrollAmount: number; duration: number }) => {
+            // Only perform the spin if we're not already spinning
+            if (!isSpinning) {
+                performSynchronizedSpin(data.finalIndex, data.scrollAmount, data.duration);
+            }
+        };
+
+        socketService.setOnSynchronizedWheelSpin(handleSynchronizedSpin);
+
+        return () => {
+            socketService.setOnSynchronizedWheelSpin(null);
+        };
+    }, [isSpinning]);
+
     // Check if game has ended
     React.useEffect(() => {
         if (gameState?.gameEnded && gameState?.winner) {
@@ -84,28 +102,27 @@ export default function WheelScreen() {
     }, [gameState?.gameEnded, gameState?.winner, navigation]);
 
     const handleSpin = () => {
-        if (isSpinning || segments.length === 0) return;
 
-        // Notify backend about which player is spinning
-        if (gameState?.currentPlayer) {
-            spinWheel();
-        }
-
-        setIsSpinning(true);
-        setShowExpandedPlaque(false);
-
-        // 1. Randomly determine the scroll amount (40-50 segments)
+        // Generate deterministic spin parameters
         const randomSpins = 40 + Math.floor(Math.random() * 11);
         const scrollAmount = randomSpins * ITEM_HEIGHT;
-
-        // 2. Calculate which result we end up on
         const finalIndex = (selectedIndex + randomSpins) % segments.length;
-        setSelectedIndex(finalIndex);
 
         // Calculate duration with minimum and maximum bounds
         const minDuration = 2000; // 2 seconds minimum
         const maxDuration = 5000; // 5 seconds maximum
         const duration = Math.random() * (maxDuration - minDuration) + minDuration;
+
+        // Broadcast the synchronized spin to all players
+        socketService.broadcastSynchronizedWheelSpin(finalIndex, scrollAmount, duration);
+
+        // Start the local spin animation
+        performSynchronizedSpin(finalIndex, scrollAmount, duration);
+    };
+
+    const performSynchronizedSpin = (finalIndex: number, scrollAmount: number, duration: number) => {
+        setIsSpinning(true);
+        setSelectedIndex(finalIndex);
 
         // Animate the scroll with a "spin" effect - always go top to bottom
         Animated.timing(scrollY, {
@@ -123,6 +140,9 @@ export default function WheelScreen() {
             // Store the selected segment for later processing
             const selectedSegment = segments[finalIndex];
             // Don't process the layer yet - wait until popup is closed
+
+            // Set synchronized spin result for all players to see the popup
+            setSynchronizedSpinResult({ finalIndex, showPopup: true });
 
             // Show expanded plaque after a short delay
             setTimeout(() => {
@@ -182,16 +202,16 @@ export default function WheelScreen() {
 
     // Handle Up modifier - pass rule to player above
     const handleUpModifier = () => {
-        if (!gameState?.currentPlayer || !gameState?.players) return;
+        if (!gameState?.activePlayer || !gameState?.players) return;
 
-        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayer);
+        const currentPlayer = gameState.players.find(p => p.id === gameState.activePlayer);
         if (!currentPlayer || currentPlayer.isHost) {
             alert('Host players cannot use the Up modifier.');
             return;
         }
 
         // Find current player's index in the players array
-        const currentPlayerIndex = gameState.players.findIndex(p => p.id === gameState.currentPlayer);
+        const currentPlayerIndex = gameState.players.findIndex(p => p.id === gameState.activePlayer);
         if (currentPlayerIndex === -1) return;
 
         // Find the player above (previous in array, excluding host)
@@ -253,24 +273,28 @@ export default function WheelScreen() {
             setShowExpandedPlaque(false);
             setIsClosingPopup(false);
             setFrozenSegment(null);
+            setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
             navigation.goBack();
+
+            // Advance to next player after wheel spinning is complete
+            socketService.advanceToNextPlayer();
         });
     };
 
     // Handle Down modifier - pass rule to player below
     const handleDownModifier = () => {
-        if (!gameState?.currentPlayer || !gameState?.players) return;
+        if (!gameState?.activePlayer || !gameState?.players) return;
 
-        const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayer);
+        const currentPlayer = gameState.players.find(p => p.id === gameState.activePlayer);
         if (!currentPlayer || currentPlayer.isHost) {
             alert('Host players cannot use the Down modifier.');
             return;
         }
 
         // Find current player's index in the players array
-        const currentPlayerIndex = gameState.players.findIndex(p => p.id === gameState.currentPlayer);
+        const currentPlayerIndex = gameState.players.findIndex(p => p.id === gameState.activePlayer);
         if (currentPlayerIndex === -1) return;
 
         // Find the player below (next in array, excluding host)
@@ -332,9 +356,13 @@ export default function WheelScreen() {
             setShowExpandedPlaque(false);
             setIsClosingPopup(false);
             setFrozenSegment(null);
+            setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
             navigation.goBack();
+
+            // Advance to next player after wheel spinning is complete
+            socketService.advanceToNextPlayer();
         });
     };
 
@@ -380,9 +408,13 @@ export default function WheelScreen() {
             setShowExpandedPlaque(false);
             setIsClosingPopup(false);
             setFrozenSegment(null);
+            setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
             navigation.goBack();
+
+            // Advance to next player after wheel spinning is complete
+            socketService.advanceToNextPlayer();
         });
 
         // Reset flip state
@@ -545,17 +577,20 @@ export default function WheelScreen() {
                             }}
                         />
                     </Animated.View>
-                    <TouchableOpacity
-                        style={[shared.button, { width: 180, marginTop: 16 }]}
-                        onPress={handleSpin}
-                        disabled={isSpinning || segments.length === 0}
-                    >
-                        <Text style={shared.buttonText}>{isSpinning ? 'Spinning...' : 'SPIN!'}</Text>
-                    </TouchableOpacity>
+                    {/* Only show spin button for the current player (spinning player) */}
+                    {gameState?.activePlayer === socketService.getCurrentPlayerId() && (
+                        <TouchableOpacity
+                            style={[shared.button, { width: 180, marginTop: 16 }]}
+                            onPress={handleSpin}
+                            disabled={isSpinning || segments.length === 0}
+                        >
+                            <Text style={shared.buttonText}>{isSpinning ? 'Spinning...' : 'SPIN!'}</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* Expanded plaque overlay */}
-                {showExpandedPlaque && (
+                {(showExpandedPlaque || synchronizedSpinResult?.showPopup) && (
                     <View
                         style={{
                             position: 'absolute',
@@ -572,7 +607,7 @@ export default function WheelScreen() {
                         <Animated.View
                             style={{
                                 backgroundColor: (() => {
-                                    const segment = segments[selectedIndex];
+                                    const segment = segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                     const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                     return currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
                                 })(),
@@ -598,7 +633,7 @@ export default function WheelScreen() {
                                     textAlign: 'center',
                                     marginBottom: 20,
                                     color: (() => {
-                                        const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
+                                        const segment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                         const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                         const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
                                         return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
@@ -606,7 +641,7 @@ export default function WheelScreen() {
                                 }}
                             >
                                 {(() => {
-                                    const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
+                                    const segment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                     const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                     if (!currentLayer) return 'NO CONTENT';
 
@@ -624,7 +659,7 @@ export default function WheelScreen() {
                                     fontSize: 18,
                                     textAlign: 'center',
                                     color: (() => {
-                                        const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
+                                        const segment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                         const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                         const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
                                         return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
@@ -633,7 +668,7 @@ export default function WheelScreen() {
                                 }}
                             >
                                 {(() => {
-                                    const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
+                                    const segment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                     const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
                                     if (!currentLayer) return 'No content available';
 
@@ -644,13 +679,14 @@ export default function WheelScreen() {
                                 })()}
                             </Text>
                             {(() => {
-                                const selectedSegment = isClosingPopup ? frozenSegment : segments[selectedIndex];
+                                const selectedSegment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                 const currentLayer = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
 
                                 if (currentLayer && currentLayer.type === 'prompt') {
-                                    // Get current player's rules
-                                    const currentPlayer = gameState?.players.find(p => p.id === gameState?.currentPlayer);
-                                    const playerRules = gameState?.rules.filter(rule => rule.assignedTo === currentPlayer?.id && rule.isActive) || [];
+                                    // Get spinning player's rules (always use the active player)
+                                    const spinningPlayerId = gameState?.activePlayer;
+                                    const spinningPlayer = gameState?.players.find(p => p.id === spinningPlayerId);
+                                    const playerRules = gameState?.rules.filter(rule => rule.assignedTo === spinningPlayer?.id && rule.isActive) || [];
 
                                     return (
                                         <View style={{ width: '100%' }}>
@@ -714,80 +750,129 @@ export default function WheelScreen() {
 
                                             {/* Success/Failure Buttons */}
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 10 }}>
-                                                <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: '#28a745',
-                                                        paddingHorizontal: 30,
-                                                        paddingVertical: 15,
-                                                        borderRadius: 10,
-                                                        flex: 1,
-                                                        marginRight: 10,
-                                                    }}
-                                                    onPress={() => {
-                                                        // Give 2 points for success
-                                                        if (gameState?.currentPlayer) {
-                                                            const currentPlayer = gameState.players.find(p => p.id === gameState.currentPlayer);
-                                                            if (currentPlayer) {
-                                                                updatePoints(currentPlayer.id, currentPlayer.points + 2);
-                                                            }
-                                                        }
+                                                {/* Only show buttons for the host */}
+                                                {(() => {
+                                                    const currentClientId = socketService.getCurrentPlayerId();
+                                                    const isHost = gameState?.players.find(p => p.id === currentClientId)?.isHost;
 
-                                                        // Show shred modal instead of closing immediately
-                                                        setShowShredModal(true);
-                                                    }}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
-                                                        SUCCESS (+2)
-                                                    </Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: '#dc3545',
-                                                        paddingHorizontal: 30,
-                                                        paddingVertical: 15,
-                                                        borderRadius: 10,
-                                                        flex: 1,
-                                                        marginLeft: 10,
-                                                    }}
-                                                    onPress={() => {
-                                                        // No points lost for failure
+                                                    if (!isHost) {
+                                                        return (
+                                                            <View style={{ flex: 1, alignItems: 'center' }}>
+                                                                <Text style={{
+                                                                    color: '#666',
+                                                                    fontSize: 16,
+                                                                    textAlign: 'center',
+                                                                    fontStyle: 'italic'
+                                                                }}>
+                                                                    Waiting for host to judge the prompt...
+                                                                </Text>
+                                                            </View>
+                                                        );
+                                                    }
 
-                                                        // Freeze the current segment to prevent content from changing during animation
-                                                        setFrozenSegment(selectedSegment);
-                                                        setIsClosingPopup(true);
+                                                    return (
+                                                        <>
+                                                            <TouchableOpacity
+                                                                style={{
+                                                                    backgroundColor: '#28a745',
+                                                                    paddingHorizontal: 30,
+                                                                    paddingVertical: 15,
+                                                                    borderRadius: 10,
+                                                                    flex: 1,
+                                                                    marginRight: 10,
+                                                                }}
+                                                                onPress={() => {
+                                                                    // Give 2 points for success
+                                                                    if (gameState?.activePlayer) {
+                                                                        const currentPlayer = gameState.players.find(p => p.id === gameState.activePlayer);
+                                                                        if (currentPlayer) {
+                                                                            updatePoints(currentPlayer.id, currentPlayer.points + 2);
+                                                                        }
+                                                                    }
 
-                                                        // Animate the popup closing
-                                                        Animated.parallel([
-                                                            Animated.timing(popupScale, {
-                                                                toValue: 0,
-                                                                duration: 400,
-                                                                useNativeDriver: true,
-                                                            }),
-                                                            Animated.timing(popupOpacity, {
-                                                                toValue: 0,
-                                                                duration: 300,
-                                                                useNativeDriver: true,
-                                                            })
-                                                        ]).start(() => {
-                                                            // Remove the current layer to reveal the next one
-                                                            removeWheelLayer(selectedSegment.id);
-                                                            setShowExpandedPlaque(false);
-                                                            setIsClosingPopup(false);
-                                                            setFrozenSegment(null);
-                                                            popupScale.setValue(0);
-                                                            popupOpacity.setValue(0);
-                                                            navigation.goBack();
-                                                        });
-                                                    }}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
-                                                        FAILURE (0)
-                                                    </Text>
-                                                </TouchableOpacity>
+                                                                    // Show shred modal instead of closing immediately
+                                                                    setShowShredModal(true);
+                                                                }}
+                                                            >
+                                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                                    SUCCESS (+2)
+                                                                </Text>
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity
+                                                                style={{
+                                                                    backgroundColor: '#dc3545',
+                                                                    paddingHorizontal: 30,
+                                                                    paddingVertical: 15,
+                                                                    borderRadius: 10,
+                                                                    flex: 1,
+                                                                    marginLeft: 10,
+                                                                }}
+                                                                onPress={() => {
+                                                                    // No points lost for failure
+
+                                                                    // Freeze the current segment to prevent content from changing during animation
+                                                                    setFrozenSegment(selectedSegment);
+                                                                    setIsClosingPopup(true);
+
+                                                                    // Animate the popup closing
+                                                                    Animated.parallel([
+                                                                        Animated.timing(popupScale, {
+                                                                            toValue: 0,
+                                                                            duration: 400,
+                                                                            useNativeDriver: true,
+                                                                        }),
+                                                                        Animated.timing(popupOpacity, {
+                                                                            toValue: 0,
+                                                                            duration: 300,
+                                                                            useNativeDriver: true,
+                                                                        })
+                                                                    ]).start(() => {
+                                                                        // Remove the current layer to reveal the next one
+                                                                        removeWheelLayer(selectedSegment.id);
+                                                                        setShowExpandedPlaque(false);
+                                                                        setIsClosingPopup(false);
+                                                                        setFrozenSegment(null);
+                                                                        setSynchronizedSpinResult(null);
+                                                                        popupScale.setValue(0);
+                                                                        popupOpacity.setValue(0);
+                                                                        navigation.goBack();
+
+                                                                        // Advance to next player after wheel spinning is complete
+                                                                        socketService.advanceToNextPlayer();
+                                                                    });
+                                                                }}
+                                                            >
+                                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                                    FAILURE (0)
+                                                                </Text>
+                                                            </TouchableOpacity>
+                                                        </>
+                                                    );
+                                                })()}
                                             </View>
                                         </View>
                                     );
                                 } else if (currentLayer && currentLayer.type === 'modifier' && typeof currentLayer.content === 'string') {
+                                    // Only show modifier buttons for the active player (spinning player)
+                                    const spinningPlayerId = gameState?.activePlayer;
+                                    const currentClientId = socketService.getCurrentPlayerId();
+                                    const isActivePlayer = spinningPlayerId === currentClientId;
+
+                                    if (!isActivePlayer) {
+                                        return (
+                                            <View style={{ marginTop: 30, alignItems: 'center' }}>
+                                                <Text style={{
+                                                    color: '#666',
+                                                    fontSize: 16,
+                                                    textAlign: 'center',
+                                                    fontStyle: 'italic'
+                                                }}>
+                                                    Waiting for {gameState?.players.find(p => p.id === spinningPlayerId)?.name} to use modifier...
+                                                </Text>
+                                            </View>
+                                        );
+                                    }
+
                                     if (currentLayer.content === 'Clone') {
                                         return (
                                             <TouchableOpacity
@@ -830,7 +915,7 @@ export default function WheelScreen() {
                                         );
                                     } else if (currentLayer.content === 'Up') {
                                         // Check if current player has rules to pass
-                                        const currentPlayer = gameState?.players.find(p => p.id === gameState?.currentPlayer);
+                                        const currentPlayer = gameState?.players.find(p => p.id === gameState?.activePlayer);
                                         const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === currentPlayer?.id && rule.isActive);
 
                                         if (currentPlayerRules && currentPlayerRules.length > 0) {
@@ -891,9 +976,13 @@ export default function WheelScreen() {
                                                             setShowExpandedPlaque(false);
                                                             setIsClosingPopup(false);
                                                             setFrozenSegment(null);
+                                                            setSynchronizedSpinResult(null);
                                                             popupScale.setValue(0);
                                                             popupOpacity.setValue(0);
                                                             navigation.goBack();
+
+                                                            // Advance to next player after wheel spinning is complete
+                                                            socketService.advanceToNextPlayer();
                                                         });
                                                     }}
                                                 >
@@ -905,7 +994,7 @@ export default function WheelScreen() {
                                         }
                                     } else if (currentLayer.content === 'Down') {
                                         // Check if current player has rules to pass
-                                        const currentPlayer = gameState?.players.find(p => p.id === gameState?.currentPlayer);
+                                        const currentPlayer = gameState?.players.find(p => p.id === gameState?.activePlayer);
                                         const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === currentPlayer?.id && rule.isActive);
 
                                         if (currentPlayerRules && currentPlayerRules.length > 0) {
@@ -966,9 +1055,13 @@ export default function WheelScreen() {
                                                             setShowExpandedPlaque(false);
                                                             setIsClosingPopup(false);
                                                             setFrozenSegment(null);
+                                                            setSynchronizedSpinResult(null);
                                                             popupScale.setValue(0);
                                                             popupOpacity.setValue(0);
                                                             navigation.goBack();
+
+                                                            // Advance to next player after wheel spinning is complete
+                                                            socketService.advanceToNextPlayer();
                                                         });
                                                     }}
                                                 >
@@ -1004,6 +1097,26 @@ export default function WheelScreen() {
                                         );
                                     }
                                 } else {
+                                    // Only show CLOSE button for the active player (spinning player)
+                                    const spinningPlayerId = gameState?.activePlayer;
+                                    const currentClientId = socketService.getCurrentPlayerId();
+                                    const isActivePlayer = spinningPlayerId === currentClientId;
+
+                                    if (!isActivePlayer) {
+                                        return (
+                                            <View style={{ marginTop: 30, alignItems: 'center' }}>
+                                                <Text style={{
+                                                    color: '#666',
+                                                    fontSize: 16,
+                                                    textAlign: 'center',
+                                                    fontStyle: 'italic'
+                                                }}>
+                                                    Waiting for {gameState?.players.find(p => p.id === spinningPlayerId)?.name} to close...
+                                                </Text>
+                                            </View>
+                                        );
+                                    }
+
                                     return (
                                         <TouchableOpacity
                                             style={{
@@ -1030,9 +1143,12 @@ export default function WheelScreen() {
                                                             endGame();
                                                         }
                                                     } else if (currentLayer && currentLayer.type === 'rule') {
-                                                        // Assign the rule to the current player
+                                                        // Assign the rule to the spinning player (not the current player)
                                                         if (typeof currentLayer.content !== 'string' && currentLayer.content.id) {
-                                                            assignRuleToCurrentPlayer(currentLayer.content.id);
+                                                            const spinningPlayerId = gameState?.activePlayer;
+                                                            if (spinningPlayerId) {
+                                                                assignRule(currentLayer.content.id, spinningPlayerId);
+                                                            }
                                                             // Remove the wheel layer since the rule has been assigned
                                                             if (selectedSegment) {
                                                                 removeWheelLayer(selectedSegment.id);
@@ -1068,10 +1184,16 @@ export default function WheelScreen() {
                                                     setShowExpandedPlaque(false);
                                                     setIsClosingPopup(false);
                                                     setFrozenSegment(null);
+                                                    setSynchronizedSpinResult(null);
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
+                                                    // Broadcast navigation to game room for all players and host
+                                                    socketService.broadcastNavigateToScreen("GAME_ROOM");
                                                     // Navigate back to the game room
                                                     navigation.goBack();
+
+                                                    // Advance to next player after wheel spinning is complete
+                                                    socketService.advanceToNextPlayer();
                                                 });
                                             }}
                                         >
@@ -1129,7 +1251,7 @@ export default function WheelScreen() {
                                 fontStyle: 'italic',
                             }}>
                                 {(() => {
-                                    const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.currentPlayer && rule.isActive);
+                                    const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive);
                                     if (currentPlayerRules && currentPlayerRules.length > 0) {
                                         return "Choose one of your rules to give to another player";
                                     } else {
@@ -1140,7 +1262,7 @@ export default function WheelScreen() {
 
                             <ScrollView style={{ maxHeight: 300 }}>
                                 {(() => {
-                                    const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.currentPlayer && rule.isActive);
+                                    const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive);
                                     if (currentPlayerRules && currentPlayerRules.length > 0) {
                                         // Show current player's rules
                                         return currentPlayerRules.map((rule) => (
@@ -1153,7 +1275,7 @@ export default function WheelScreen() {
                                                     marginBottom: 8,
                                                 }}
                                                 onPress={() => {
-                                                    setSelectedRuleForClone({ rule, player: gameState?.players.find(player => player.id === gameState?.currentPlayer) });
+                                                    setSelectedRuleForClone({ rule, player: gameState?.players.find(player => player.id === gameState?.activePlayer) });
                                                     setShowCloneModal(false);
                                                     // Show player selection modal for the clone
                                                     setShowClonePlayerModal(true);
@@ -1319,9 +1441,13 @@ export default function WheelScreen() {
                                                     setShowExpandedPlaque(false);
                                                     setIsClosingPopup(false);
                                                     setFrozenSegment(null);
+                                                    setSynchronizedSpinResult(null);
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
                                                     navigation.goBack();
+
+                                                    // Advance to next player after wheel spinning is complete
+                                                    socketService.advanceToNextPlayer();
                                                 });
                                             }}
                                         >
@@ -1497,7 +1623,7 @@ export default function WheelScreen() {
 
                             <ScrollView style={{ maxHeight: 300 }}>
                                 {gameState?.rules
-                                    .filter(rule => rule.assignedTo === gameState?.currentPlayer)
+                                    .filter(rule => rule.assignedTo === gameState?.activePlayer)
                                     .map((rule) => (
                                         <TouchableOpacity
                                             key={rule.id}
@@ -1535,9 +1661,13 @@ export default function WheelScreen() {
                                                     setShowExpandedPlaque(false);
                                                     setIsClosingPopup(false);
                                                     setFrozenSegment(null);
+                                                    setSynchronizedSpinResult(null);
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
                                                     navigation.goBack();
+
+                                                    // Advance to next player after wheel spinning is complete
+                                                    socketService.advanceToNextPlayer();
                                                 });
                                             }}
                                         >
@@ -1635,7 +1765,7 @@ export default function WheelScreen() {
                                             Your Rules:
                                         </Text>
                                         {gameState?.rules
-                                            .filter(rule => rule.assignedTo === gameState?.currentPlayer && rule.isActive)
+                                            .filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive)
                                             .map((rule) => (
                                                 <TouchableOpacity
                                                     key={rule.id}
@@ -1671,7 +1801,7 @@ export default function WheelScreen() {
                                             Other Players:
                                         </Text>
                                         {gameState?.players
-                                            .filter(player => player.id !== gameState?.currentPlayer && !player.isHost)
+                                            .filter(player => player.id !== gameState?.activePlayer && !player.isHost)
                                             .map((player) => {
                                                 const playerRules = gameState?.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
                                                 if (playerRules && playerRules.length > 0) {
@@ -1729,12 +1859,12 @@ export default function WheelScreen() {
                                                             }}
                                                             onPress={() => {
                                                                 // Perform the swap
-                                                                if (selectedOwnRule && gameState?.currentPlayer) {
+                                                                if (selectedOwnRule && gameState?.activePlayer) {
                                                                     // Swap the rules
                                                                     assignRule(selectedOwnRule.id, selectedOtherPlayer.id);
-                                                                    assignRule(rule.id, gameState.currentPlayer);
+                                                                    assignRule(rule.id, gameState.activePlayer);
 
-                                                                    alert(`${gameState.players.find(p => p.id === gameState.currentPlayer)?.name} swapped "${selectedOwnRule.text}" with ${selectedOtherPlayer.name}'s "${rule.text}"!`);
+                                                                    alert(`${gameState.players.find(p => p.id === gameState.activePlayer)?.name} swapped "${selectedOwnRule.text}" with ${selectedOtherPlayer.name}'s "${rule.text}"!`);
 
                                                                     setShowSwapModal(false);
 
@@ -1762,9 +1892,13 @@ export default function WheelScreen() {
                                                                         setShowExpandedPlaque(false);
                                                                         setIsClosingPopup(false);
                                                                         setFrozenSegment(null);
+                                                                        setSynchronizedSpinResult(null);
                                                                         popupScale.setValue(0);
                                                                         popupOpacity.setValue(0);
                                                                         navigation.goBack();
+
+                                                                        // Advance to next player after wheel spinning is complete
+                                                                        socketService.advanceToNextPlayer();
                                                                     });
                                                                 }
                                                             }}

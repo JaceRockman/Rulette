@@ -30,12 +30,13 @@ import {
 } from '../components/Modals';
 import RuleSelectionModal from '../components/Modals/RuleSelectionModal';
 import PlayerSelectionModal from '../components/Modals/PlayerSelectionModal';
+import socketService from '../services/socketService';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
-    const { gameState, currentPlayer, updatePoints, assignRule, endGame, dispatch } = useGame();
+    const { gameState, currentUser, activePlayer, updatePoints, assignRule, endGame, dispatch } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [showRulePopup, setShowRulePopup] = useState(false);
     const [selectedRuleForAccusation, setSelectedRuleForAccusation] = useState<{ rule: Rule; accusedPlayer: Player } | null>(null);
@@ -72,21 +73,21 @@ export default function GameScreen() {
     const [showNewHostSelectionModal, setShowNewHostSelectionModal] = useState(false);
 
 
-    // Restore original current player when returning from wheel
+    // Restore original current user when returning from wheel
     React.useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
-            if (originalCurrentPlayer && currentPlayer && currentPlayer.id !== originalCurrentPlayer) {
-                dispatch({ type: 'SET_CURRENT_PLAYER', payload: originalCurrentPlayer });
+            if (originalCurrentPlayer && currentUser && currentUser.id !== originalCurrentPlayer) {
+                dispatch({ type: 'SET_CURRENT_USER', payload: originalCurrentPlayer });
                 setOriginalCurrentPlayer(null);
             }
         });
 
         return unsubscribe;
-    }, [navigation, originalCurrentPlayer, currentPlayer, dispatch]);
+    }, [navigation, originalCurrentPlayer, currentUser, dispatch]);
 
     // Set up custom header for host
     React.useEffect(() => {
-        if (currentPlayer?.isHost) {
+        if (currentUser?.isHost) {
             navigation.setOptions({
                 headerLeft: () => (
                     <TouchableOpacity
@@ -102,7 +103,28 @@ export default function GameScreen() {
                 headerLeft: undefined,
             });
         }
-    }, [navigation, currentPlayer?.isHost]);
+    }, [navigation, currentUser?.isHost]);
+
+    // Listen for navigation events
+    React.useEffect(() => {
+        const handleNavigateToScreen = (data: { screen: string; params?: any }) => {
+            console.log('GameScreen: Received navigation event:', data);
+
+            if (data.screen === 'WHEEL') {
+                // Navigate to wheel screen with the provided parameters
+                navigation.navigate('Wheel' as any, data.params || {});
+            } else if (data.screen === 'GAME_ROOM') {
+                // Navigate back to game room
+                navigation.goBack();
+            }
+        };
+
+        socketService.setOnNavigateToScreen(handleNavigateToScreen);
+
+        return () => {
+            socketService.setOnNavigateToScreen(null);
+        };
+    }, [navigation]);
 
     const handleSpinWheel = () => {
         // Check if all non-host players have completed both phases
@@ -122,7 +144,11 @@ export default function GameScreen() {
             return;
         }
 
-        navigation.navigate('Wheel');
+        // Broadcast navigation to all players using the new abstract system
+        socketService.broadcastNavigateToScreen('WHEEL', { playerId: gameState.activePlayer });
+
+        // Navigate to wheel screen with active player ID to indicate who is spinning
+        navigation.navigate('Wheel' as any, { playerId: gameState.activePlayer });
     };
 
     // Check if all non-host players have completed both phases
@@ -157,9 +183,9 @@ export default function GameScreen() {
     };
 
     const handleAccuse = () => {
-        if (selectedRuleForAccusation && currentPlayer) {
+        if (selectedRuleForAccusation && currentUser) {
             setAccusationDetails({
-                accuser: currentPlayer,
+                accuser: currentUser,
                 accused: selectedRuleForAccusation.accusedPlayer,
                 rule: selectedRuleForAccusation.rule
             });
@@ -215,7 +241,7 @@ export default function GameScreen() {
 
     // Host player action handlers
     const handlePlayerTap = (player: Player) => {
-        if (currentPlayer?.isHost && player.id !== currentPlayer.id) {
+        if (currentUser?.isHost && player.id !== currentUser.id) {
             // Check if all non-host players have completed both phases
             if (!allNonHostPlayersCompleted) {
                 Alert.alert(
@@ -682,7 +708,7 @@ export default function GameScreen() {
 
     const handleNewHostSelected = (newHost: Player) => {
         // Check if current player is being removed (they are the current host)
-        const isCurrentPlayerRemoved = currentPlayer?.isHost;
+        const isCurrentPlayerRemoved = currentUser?.isHost;
 
         // Update the game state to make the selected player the new host
         dispatch({ type: 'SET_HOST', payload: newHost.id });
@@ -756,7 +782,7 @@ export default function GameScreen() {
         );
     }
 
-    if (!gameState || !currentPlayer) {
+    if (!gameState || !currentUser) {
         return (
             <StripedBackground>
                 <SafeAreaView style={styles.container}>
@@ -783,7 +809,7 @@ export default function GameScreen() {
                                     key={player.id}
                                     style={styles.playerCard}
                                     onPress={() => handlePlayerTap(player)}
-                                    activeOpacity={currentPlayer?.isHost && player.id !== currentPlayer.id ? 0.7 : 1}
+                                    activeOpacity={currentUser?.isHost && player.id !== currentUser.id ? 0.7 : 1}
                                 >
                                     <Text style={styles.playerName}>
                                         {player.name}
@@ -857,7 +883,7 @@ export default function GameScreen() {
                                     key={player.id}
                                     style={styles.playerCard}
                                     onPress={() => handlePlayerTap(player)}
-                                    activeOpacity={currentPlayer?.isHost && player.id !== currentPlayer.id ? 0.7 : 1}
+                                    activeOpacity={currentUser?.isHost && player.id !== currentUser.id ? 0.7 : 1}
                                 >
                                     <Text style={styles.playerName}>
                                         {player.name}
@@ -865,7 +891,7 @@ export default function GameScreen() {
 
                                     {/* Points display - score controls only for host */}
                                     <View style={styles.pointsRow}>
-                                        {currentPlayer?.isHost ? (
+                                        {currentUser?.isHost ? (
                                             <>
                                                 <TouchableOpacity
                                                     style={{
@@ -965,21 +991,23 @@ export default function GameScreen() {
 
 
 
-                    {/* Spin Wheel Button */}
-                    <View style={styles.section}>
-                        <TouchableOpacity
-                            style={[
-                                styles.spinButton,
-                                !allNonHostPlayersCompleted && { opacity: 0.5 }
-                            ]}
-                            onPress={handleSpinWheel}
-                            disabled={!allNonHostPlayersCompleted}
-                        >
-                            <Text style={styles.spinButtonText}>
-                                {allNonHostPlayersCompleted ? 'Spin the Wheel!' : 'Waiting for players to complete rules & prompts...'}
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
+                    {/* Spin Wheel Button - Only for Host */}
+                    {currentUser?.isHost && (
+                        <View style={styles.section}>
+                            <TouchableOpacity
+                                style={[
+                                    styles.spinButton,
+                                    !allNonHostPlayersCompleted && { opacity: 0.5 }
+                                ]}
+                                onPress={handleSpinWheel}
+                                disabled={!allNonHostPlayersCompleted}
+                            >
+                                <Text style={styles.spinButtonText}>
+                                    {allNonHostPlayersCompleted ? 'Spin That Wheel!' : 'Waiting for players to complete rules & prompts...'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
 
 
                 </ScrollView>
@@ -990,7 +1018,7 @@ export default function GameScreen() {
                 <RuleAccusationPopup
                     visible={showRulePopup}
                     selectedRuleForAccusation={selectedRuleForAccusation}
-                    currentPlayer={currentPlayer}
+                    currentUser={currentUser}
                     isAccusationInProgress={isAccusationInProgress}
                     onAccuse={handleAccuse}
                     onClose={() => setShowRulePopup(false)}

@@ -22,7 +22,13 @@ const players = new Map();
 
 // Generate random lobby code
 function generateLobbyCode() {
-    return Math.random().toString(36).substr(2, 6).toUpperCase();
+    // Generate 4 random letters (A-Z)
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let code = '';
+    for (let i = 0; i < 4; i++) {
+        code += letters.charAt(Math.floor(Math.random() * letters.length));
+    }
+    return code;
 }
 
 // Create a new game
@@ -44,7 +50,8 @@ function createGame(hostId, hostName) {
         }],
         prompts: [],
         rules: [],
-        currentPlayer: hostId,
+        currentUser: hostId, // The user ID of the person currently using the app
+        activePlayer: null, // The player ID of the player currently taking their turn (excludes host)
         isGameStarted: false,
         isWheelSpinning: false,
         currentStack: [],
@@ -232,6 +239,14 @@ io.on('connection', (socket) => {
         game.isGameStarted = true;
         game.roundNumber = 1;
 
+        // Set the first non-host player as the initial active player
+        const nonHostPlayers = game.players.filter(player => !player.isHost);
+        if (nonHostPlayers.length > 0) {
+            game.activePlayer = nonHostPlayers[0].id;
+            console.log('Server: Setting initial activePlayer to:', game.activePlayer, 'for game:', gameId);
+        }
+
+        console.log('Server: Broadcasting game_updated after start with activePlayer:', game.activePlayer, 'for game:', gameId);
         io.to(gameId).emit('game_updated', game);
         io.to(gameId).emit('game_started');
     });
@@ -265,6 +280,13 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
+        // Check if the spinning player is the host
+        const spinningPlayer = game.players.find(p => p.id === playerId);
+        if (spinningPlayer && spinningPlayer.isHost) {
+            socket.emit('error', { message: 'Host players cannot spin the wheel' });
+            return;
+        }
+
         // Check if all non-host players have completed both phases
         const nonHostPlayers = game.players.filter(player => !player.isHost);
         const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
@@ -277,7 +299,17 @@ io.on('connection', (socket) => {
         }
 
         game.isWheelSpinning = true;
-        game.currentPlayer = playerId; // Set the current player who is spinning
+
+        // Ensure the active player is not a host
+        const playerToSpin = game.players.find(p => p.id === playerId);
+        if (playerToSpin && playerToSpin.isHost) {
+            console.error('Server: Attempted to set host as active player!');
+            socket.emit('error', { message: 'Host players cannot be active players' });
+            return;
+        }
+
+        game.activePlayer = playerId; // Set the active player who is spinning
+        console.log('Server: Setting activePlayer to:', playerId, 'for game:', gameId);
 
         // Generate random stack
         const stack = [];
@@ -302,6 +334,7 @@ io.on('connection', (socket) => {
 
         game.currentStack = stack;
 
+        console.log('Server: Broadcasting game_updated after spin with activePlayer:', game.activePlayer, 'for game:', gameId);
         io.to(gameId).emit('game_updated', game);
         io.to(gameId).emit('wheel_spun', stack);
     });
@@ -349,14 +382,14 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Assign rule to current player (when wheel lands on a rule)
+    // Assign rule to active player (when wheel lands on a rule)
     socket.on('assign_rule_to_current_player', ({ gameId, ruleId }) => {
         const game = games.get(gameId);
-        if (!game || !game.currentPlayer) return;
+        if (!game || !game.activePlayer) return;
 
         const rule = game.rules.find(r => r.id === ruleId);
         if (rule) {
-            rule.assignedTo = game.currentPlayer;
+            rule.assignedTo = game.activePlayer;
             io.to(gameId).emit('game_updated', game);
         }
     });
@@ -382,6 +415,54 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', game);
     });
 
+    // Broadcast synchronized wheel spin
+    socket.on('broadcast_synchronized_wheel_spin', ({ gameId, spinningPlayerId, finalIndex, scrollAmount, duration }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Broadcast to all players in the game (including sender for consistency)
+        io.to(gameId).emit('synchronized_wheel_spin', {
+            spinningPlayerId,
+            finalIndex,
+            scrollAmount,
+            duration
+        });
+    });
+
+    // Broadcast navigation to screen
+    socket.on('broadcast_navigate_to_screen', ({ gameId, screen, params }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Broadcast to all players in the game (including sender for consistency)
+        io.to(gameId).emit('navigate_to_screen', {
+            screen,
+            params
+        });
+    });
+
+    // Advance to next player after wheel spinning
+    socket.on('advance_to_next_player', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Find non-host players
+        const nonHostPlayers = game.players.filter(player => !player.isHost);
+        if (nonHostPlayers.length === 0) return;
+
+        // Find active player index
+        const activePlayerIndex = nonHostPlayers.findIndex(player => player.id === game.activePlayer);
+
+        // Move to next player (or back to first if at end)
+        const nextPlayerIndex = (activePlayerIndex + 1) % nonHostPlayers.length;
+        game.activePlayer = nonHostPlayers[nextPlayerIndex].id;
+        console.log('Server: Advancing activePlayer to:', game.activePlayer, 'for game:', gameId);
+
+        // Broadcast the updated game state to all players
+        console.log('Server: Broadcasting game_updated after advancing player with activePlayer:', game.activePlayer, 'for game:', gameId);
+        io.to(gameId).emit('game_updated', game);
+    });
+
     // Disconnect handling
     socket.on('disconnect', () => {
 
@@ -401,6 +482,14 @@ io.on('connection', (socket) => {
                         if (!game.players.some(p => p.isHost)) {
                             game.players[0].isHost = true;
                         }
+
+                        // If the disconnected player was the active player, set active player to null or first non-host player
+                        if (game.activePlayer === playerId) {
+                            const nonHostPlayers = game.players.filter(p => !p.isHost);
+                            game.activePlayer = nonHostPlayers.length > 0 ? nonHostPlayers[0].id : null;
+                            console.log('Server: Updated activePlayer after disconnect to:', game.activePlayer, 'for game:', gameId);
+                        }
+
                         io.to(game.id).emit('game_updated', game);
                     }
                 }

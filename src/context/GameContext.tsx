@@ -4,7 +4,8 @@ import socketService from '../services/socketService';
 
 interface GameContextType {
     gameState: GameState | null;
-    currentPlayer: Player | null;
+    currentUser: Player | null;
+    activePlayer: Player | null;
     dispatch: React.Dispatch<GameAction>;
     getVisibleRules: () => Rule[];
     getVisiblePrompts: () => Prompt[];
@@ -22,6 +23,7 @@ interface GameContextType {
     updateRule: (id: string, text: string) => void;
     startGame: () => void;
     spinWheel: () => void;
+    synchronizedSpinWheel: (finalIndex: number, duration: number) => void;
     updatePoints: (playerId: string, points: number) => void;
     swapRules: (player1Id: string, player2Id: string) => void;
     swapRulesWithPlayer: (targetPlayerId: string) => void;
@@ -29,7 +31,7 @@ interface GameContextType {
     shredRule: (ruleId: string) => void;
     flipRule: (ruleId: string) => void;
     assignRule: (ruleId: string, playerId: string) => void;
-    assignRuleToCurrentPlayer: (ruleId: string) => void;
+    assignRuleToCurrentUser: (ruleId: string) => void;
     removeWheelLayer: (segmentId: string) => void;
     endGame: () => void;
     markRulesCompleted: () => void;
@@ -47,8 +49,10 @@ type GameAction =
     | { type: 'UPDATE_PROMPT'; payload: Prompt }
     | { type: 'START_GAME' }
     | { type: 'SPIN_WHEEL'; payload: StackItem[] }
+    | { type: 'SYNCHRONIZED_WHEEL_SPIN'; payload: { spinningPlayerId: string; finalIndex: number; duration: number } }
     | { type: 'UPDATE_POINTS'; payload: { playerId: string; points: number } }
-    | { type: 'SET_CURRENT_PLAYER'; payload: string }
+    | { type: 'SET_CURRENT_USER'; payload: string }
+    | { type: 'SET_ACTIVE_PLAYER'; payload: string }
     | { type: 'RESET_GAME' }
     | { type: 'SET_NUM_RULES'; payload: number }
     | { type: 'SET_NUM_PROMPTS'; payload: number }
@@ -130,6 +134,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 currentStack: action.payload,
             };
 
+        case 'SYNCHRONIZED_WHEEL_SPIN':
+            return {
+                ...state,
+                isWheelSpinning: true,
+                activePlayer: action.payload.spinningPlayerId,
+            };
+
         case 'UPDATE_POINTS':
             return {
                 ...state,
@@ -140,10 +151,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 ),
             };
 
-        case 'SET_CURRENT_PLAYER':
+        case 'SET_CURRENT_USER':
             return {
                 ...state,
-                currentPlayer: action.payload,
+                currentUser: action.payload,
+            };
+
+        case 'SET_ACTIVE_PLAYER':
+            return {
+                ...state,
+                activePlayer: action.payload,
             };
 
         case 'RESET_GAME':
@@ -357,57 +374,72 @@ function getVariedModifierColor(existingModifierColors: string[]): string {
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
     const [gameState, dispatch] = useReducer(gameReducer, initialState);
-    const [currentPlayerId, setCurrentPlayerId] = React.useState<string | null>(null);
-    const currentPlayer = gameState?.players.find(p => p.id === currentPlayerId) || null;
-
-    // Helper functions to filter rules and prompts based on player role
-    const getVisibleRules = () => {
-        if (!gameState?.rules || !currentPlayer) return [];
-
-        // Host sees all rules, players see only their own
-        if (currentPlayer.isHost) {
-            return gameState.rules.filter(rule => !rule.isFiller);
-        } else {
-            // Use currentPlayerId as fallback if currentPlayer.id doesn't match
-            const playerId = currentPlayer.id || socketService.getCurrentPlayerId();
-            return gameState.rules.filter(rule => rule.authorId === playerId && !rule.isFiller);
-        }
-    };
-
-    const getVisiblePrompts = () => {
-        if (!gameState?.prompts || !currentPlayer) return [];
-
-        // Host sees all prompts, players see only their own
-        if (currentPlayer.isHost) {
-            return gameState.prompts.filter(prompt => !prompt.isFiller);
-        } else {
-            return gameState.prompts.filter(prompt => prompt.authorId === currentPlayer.id && !prompt.isFiller);
-        }
-    };
+    const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
+    const currentUser = gameState?.players.find(p => p.id === currentUserId) || null;
+    const activePlayer = gameState?.players.find(p => p.id === gameState?.activePlayer) || null;
 
     // Connect to socket on mount
     React.useEffect(() => {
         socketService.connect();
         // Listen for socket events
         socketService.setOnLobbyCreated(({ playerId, game }) => {
-            setCurrentPlayerId(playerId);
+            setCurrentUserId(playerId);
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnJoinedLobby(({ playerId, game }) => {
-            setCurrentPlayerId(playerId);
+            setCurrentUserId(playerId);
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnGameUpdated((game) => {
+            console.log('Client: Received game_updated event');
+            console.log('Client: activePlayer in received game state:', game.activePlayer);
+            console.log('Client: current game state activePlayer:', gameState?.activePlayer);
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnGameStarted(() => {
             // When game starts, all players should navigate to rule writing screen
             // This will be handled by the navigation logic in the screens
         });
+        socketService.setOnWheelSpun((stack) => {
+            dispatch({ type: 'SPIN_WHEEL', payload: stack });
+        });
+        socketService.setOnSynchronizedWheelSpin((data) => {
+            dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: data });
+        });
+        socketService.setOnNavigateToScreen((data) => {
+            // Handle navigation to different screens
+            console.log('Client: Received navigation event:', data);
+            // This will be handled by individual screens that need to respond to navigation
+        });
         return () => {
             socketService.disconnect();
         };
     }, []);
+
+    // Helper functions to filter rules and prompts based on player role
+    const getVisibleRules = () => {
+        if (!gameState?.rules || !currentUser) return [];
+
+        // Host sees all rules, players see only their own
+        if (currentUser.isHost) {
+            return gameState.rules.filter(rule => !rule.isFiller);
+        } else {
+            // Use currentUserId as fallback if currentUser.id doesn't match
+            const playerId = currentUser.id || socketService.getCurrentPlayerId();
+            return gameState.rules.filter(rule => rule.authorId === playerId && !rule.isFiller);
+        }
+    };
+
+    const getVisiblePrompts = () => {
+        if (!gameState?.prompts || !currentUser) return [];
+
+        // Host sees all prompts, players see only their own
+        if (currentUser.isHost) {
+            return gameState.prompts.filter(prompt => !prompt.isFiller);
+        } else {
+            return gameState.prompts.filter(prompt => prompt.authorId === currentUser.id && !prompt.isFiller);
+        }
+    };
 
     // Create wheel segments when all non-host players have completed
     React.useEffect(() => {
@@ -580,7 +612,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             id: Math.random().toString(36).substr(2, 9),
             code: "TEST123",
             players,
-            currentPlayer: hostId,
+            currentUser: hostId,
+            activePlayer: player1Id, // Set first non-host player as active
             rules,
             prompts,
             numRules: 10,
@@ -712,6 +745,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SPIN_WHEEL', payload: stack });
     };
 
+    const synchronizedSpinWheel = (finalIndex: number, duration: number) => {
+        dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: { spinningPlayerId: currentUserId || '', finalIndex, duration } });
+    };
+
     const updatePoints = (playerId: string, points: number) => {
         dispatch({ type: 'UPDATE_POINTS', payload: { playerId, points } });
         // Also sync to backend via socket service
@@ -731,16 +768,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const swapRulesWithPlayer = (targetPlayerId: string) => {
-        if (!gameState || !gameState.currentPlayer) return;
+        if (!gameState || !gameState.activePlayer) return;
 
-        const currentPlayer = gameState.players.find((p: Player) => p.id === gameState.currentPlayer);
-        if (currentPlayer && currentPlayer.id !== targetPlayerId) {
-            swapRules(currentPlayer.id, targetPlayerId);
+        const activePlayer = gameState.players.find((p: Player) => p.id === gameState.activePlayer);
+        if (activePlayer && activePlayer.id !== targetPlayerId) {
+            swapRules(activePlayer.id, targetPlayerId);
         }
     };
 
     const cloneRuleToPlayer = (ruleId: string, targetPlayerId: string) => {
-        if (!gameState || !gameState.currentPlayer) return;
+        if (!gameState || !gameState.activePlayer) return;
 
         const rule = gameState.rules.find((r: Rule) => r.id === ruleId);
         if (rule) {
@@ -790,8 +827,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const assignRuleToCurrentPlayer = (ruleId: string) => {
-        if (!gameState || !gameState.currentPlayer) return;
+    const assignRuleToCurrentUser = (ruleId: string) => {
+        if (!gameState || !gameState.activePlayer) return;
 
         const rule = gameState.rules.find(r => r.id === ruleId);
         if (rule) {
@@ -807,9 +844,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const endGame = () => {
-        if (!gameState || !gameState.currentPlayer) return;
+        if (!gameState || !gameState.activePlayer) return;
 
-        const winner = gameState.players.find(p => p.id === gameState.currentPlayer);
+        const winner = gameState.players.find(p => p.id === gameState.activePlayer);
         if (winner) {
             dispatch({ type: 'END_GAME', payload: winner });
         }
@@ -828,7 +865,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     return (
         <GameContext.Provider value={{
             gameState,
-            currentPlayer,
+            currentUser,
+            activePlayer,
             dispatch,
             getVisibleRules,
             getVisiblePrompts,
@@ -846,6 +884,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             updateRule,
             startGame,
             spinWheel,
+            synchronizedSpinWheel,
             updatePoints,
             swapRules,
             swapRulesWithPlayer,
@@ -853,7 +892,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             shredRule,
             flipRule,
             assignRule,
-            assignRuleToCurrentPlayer,
+            assignRuleToCurrentUser,
             removeWheelLayer,
             endGame,
             markRulesCompleted,

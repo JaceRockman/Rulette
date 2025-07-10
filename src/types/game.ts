@@ -51,7 +51,8 @@ export interface GameState {
     prompts: Prompt[];
     rules: Rule[];
     wheelSegments: WheelSegment[];
-    currentPlayer?: string;
+    currentUser?: string; // The user ID of the person currently using the app
+    activePlayer?: string; // The player ID of the player currently taking their turn (excludes host)
     isGameStarted: boolean;
     isWheelSpinning: boolean;
     currentStack: StackItem[];

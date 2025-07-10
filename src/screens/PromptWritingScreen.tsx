@@ -12,7 +12,7 @@ import Plaque from '../components/Plaque';
 
 export default function PromptWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addPrompt, updatePrompt, dispatch, currentPlayer, markPromptsCompleted, getVisiblePrompts } = useGame();
+    const { gameState, addPrompt, updatePrompt, dispatch, currentUser, markPromptsCompleted, getVisiblePrompts } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -132,8 +132,8 @@ export default function PromptWritingScreen() {
 
     // Determine if player can add more prompts
     const visiblePromptCount = getVisiblePrompts().length;
-    const canAddPrompt = currentPlayer?.isHost || visiblePromptCount < numPrompts;
-    const canContinue = currentPlayer?.isHost || visiblePromptCount === numPrompts;
+    const canAddPrompt = currentUser?.isHost || visiblePromptCount < numPrompts;
+    const canContinue = currentUser?.isHost || visiblePromptCount === numPrompts;
 
     return (
         <StripedBackground>
