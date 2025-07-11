@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
-import { Player } from '../../types/game';
+import { Player } from '../types/game';
 
 interface PlayerSelectionModalProps {
     visible: boolean;

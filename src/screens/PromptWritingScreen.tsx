@@ -5,14 +5,14 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import shared from '../styles/shared';
-import StripedBackground from '../components/StripedBackground';
+import StripedBackground from '../components/Backdrop';
 import OutlinedText from '../components/OutlinedText';
-import InputPlaque from '../components/InputPlaque';
+import InputPlaque from '../modals/InputPlaque';
 import Plaque from '../components/Plaque';
 
 export default function PromptWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addPrompt, updatePrompt, dispatch, currentUser, markPromptsCompleted, getVisiblePrompts } = useGame();
+    const { gameState, addPrompt, updatePrompt, dispatch, currentUser, markPromptsCompleted, getWrittenPrompts } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -55,7 +55,7 @@ export default function PromptWritingScreen() {
         }
 
         // Check if current player has reached their prompt limit
-        const visiblePromptCount = getVisiblePrompts().length;
+        const visiblePromptCount = getWrittenPrompts().length;
         if (visiblePromptCount >= numPrompts) {
             // This shouldn't happen due to button disabled state, but just in case
             return;
@@ -112,7 +112,7 @@ export default function PromptWritingScreen() {
 
     // Create 2-column grid layout
     const renderPromptsGrid = () => {
-        const visiblePrompts = getVisiblePrompts();
+        const visiblePrompts = getWrittenPrompts();
 
         const rows = [];
         for (let i = 0; i < visiblePrompts.length; i += 2) {
@@ -150,7 +150,7 @@ export default function PromptWritingScreen() {
     };
 
     // Determine if player can add more prompts
-    const visiblePromptCount = getVisiblePrompts().length;
+    const visiblePromptCount = getWrittenPrompts().length;
     const canAddPrompt = currentUser?.isHost || visiblePromptCount < numPrompts;
     const canContinue = currentUser?.isHost || visiblePromptCount === numPrompts;
 

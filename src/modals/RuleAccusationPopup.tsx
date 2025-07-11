@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet, SafeAreaView, Modal } from 'react-native';
-import { Rule, Player } from '../../types/game';
+import { Rule, Player } from '../types/game';
 
 interface RuleAccusationPopupProps {
     visible: boolean;

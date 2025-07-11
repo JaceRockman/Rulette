@@ -144,7 +144,7 @@ class SocketService {
         this.socket.emit('prompts_completed', { gameId: this.gameState.id, playerId: this.currentPlayerId });
     }
 
-    addPlaque(plaque: { id: string; type: 'rule' | 'prompt'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
+    addPlaque(plaque: { id: string; type: 'rule' | 'prompt' | 'modifier' | 'end'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('add_plaque', {
             gameId: this.gameState.id,
@@ -168,7 +168,7 @@ class SocketService {
         });
     }
 
-    updatePlaque(plaque: { id: string; type: 'rule' | 'prompt'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
+    updatePlaque(plaque: { id: string; type: 'rule' | 'prompt' | 'modifier' | 'end'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_plaque', {
             gameId: this.gameState.id,
@@ -176,30 +176,9 @@ class SocketService {
         });
     }
 
-    updateRule(plaqueObject: { id: string; text: string; isActive: boolean; authorId: string; plaqueColor: string }) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('update_rule', {
-            gameId: this.gameState.id,
-            plaqueObject
-        });
-    }
-
-    updatePrompt(plaqueObject: { id: string; text: string; category?: string; authorId: string; plaqueColor: string }) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('update_prompt', {
-            gameId: this.gameState.id,
-            plaqueObject
-        });
-    }
-
     startGame() {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('start_game', { gameId: this.gameState.id });
-    }
-
-    spinWheel() {
-        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
-        this.socket.emit('spin_wheel', { gameId: this.gameState.id, playerId: this.currentPlayerId });
     }
 
     broadcastSynchronizedWheelSpin(finalIndex: number, scrollAmount: number, duration: number) {
@@ -269,12 +248,14 @@ class SocketService {
         });
     }
 
-    swapRules(player1Id: string, player2Id: string) {
+    swapRules(player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('swap_rules', {
             gameId: this.gameState.id,
             player1Id,
-            player2Id
+            player1RuleId,
+            player2Id,
+            player2RuleId
         });
     }
 
@@ -284,14 +265,6 @@ class SocketService {
             gameId: this.gameState.id,
             ruleId,
             playerId
-        });
-    }
-
-    assignRuleToCurrentPlayer(ruleId: string) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('assign_rule_to_current_player', {
-            gameId: this.gameState.id,
-            ruleId
         });
     }
 

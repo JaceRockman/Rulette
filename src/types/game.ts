@@ -10,13 +10,12 @@ export interface Player {
 
 export interface Plaque {
     id: string;
-    type: 'rule' | 'prompt';
+    type: 'rule' | 'prompt' | 'modifier' | 'end';
     text: string;
     category?: string;
     assignedTo?: string; // player id (optional - assigned when wheel lands on it)
     isActive?: boolean;
     plaqueColor: string;
-    isFiller?: boolean;
     authorId: string; // player id who created this plaque
 }
 
@@ -29,16 +28,23 @@ export interface Rule extends Plaque {
     isActive: boolean;
 }
 
-export interface WheelLayer {
+export interface Modifier extends Plaque {
+    type: 'modifier';
+}
+
+export interface End extends Plaque {
+    type: 'end';
+}
+
+export interface WheelSegmentLayer {
     type: 'rule' | 'prompt' | 'modifier' | 'end';
-    content: Rule | Prompt | string;
+    content: Rule | Prompt | Modifier | End;
     isActive: boolean;
-    plaqueColor: string;
 }
 
 export interface WheelSegment {
     id: string;
-    layers: WheelLayer[];
+    layers: WheelSegmentLayer[];
     currentLayerIndex: number;
     color: string;
     plaqueColor: string;
@@ -48,8 +54,9 @@ export interface GameState {
     id: string;
     code: string;
     players: Player[];
-    prompts: Prompt[];
     rules: Rule[];
+    prompts: Prompt[];
+    modifiers: Modifier[];
     wheelSegments: WheelSegment[];
     currentUser?: string; // The user ID of the person currently using the app
     activePlayer?: string; // The player ID of the player currently taking their turn (excludes host)

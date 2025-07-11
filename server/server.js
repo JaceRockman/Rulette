@@ -121,7 +121,7 @@ io.on('connection', (socket) => {
         socket.emit('lobby_created', { playerId, game });
     });
 
-    // Add plaque (unified handler for rules and prompts)
+    // Add plaque (unified handler for rules, prompts, and modifiers)
     socket.on('add_plaque', ({ gameId, plaque }) => {
         const game = games.get(gameId);
         if (!game) return;
@@ -138,22 +138,13 @@ io.on('connection', (socket) => {
                 ...plaque
             };
             game.prompts.push(prompt);
+        } else if (plaque.type === 'modifier') {
+            const modifier = {
+                ...plaque
+            };
+            game.modifiers.push(modifier);
         }
 
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    // Add prompt
-    socket.on('add_prompt', ({ gameId, plaqueObject }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        // Use the plaque object as the prompt (it already has id, text, category, authorId, plaqueColor)
-        const prompt = {
-            ...plaqueObject
-        };
-
-        game.prompts.push(prompt);
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -170,6 +161,20 @@ io.on('connection', (socket) => {
         };
 
         game.rules.push(rule);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Add prompt
+    socket.on('add_prompt', ({ gameId, plaqueObject }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Use the plaque object as the prompt (it already has id, text, category, authorId, plaqueColor)
+        const prompt = {
+            ...plaqueObject
+        };
+
+        game.prompts.push(prompt);
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -374,20 +379,15 @@ io.on('connection', (socket) => {
     });
 
     // Swap rules
-    socket.on('swap_rules', ({ gameId, player1Id, player2Id }) => {
+    socket.on('swap_rules', ({ gameId, player1Id, player1RuleId, player2Id, player2RuleId }) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        const player1Rules = game.rules.filter(r => r.assignedTo === player1Id);
-        const player2Rules = game.rules.filter(r => r.assignedTo === player2Id);
+        const player1Rule = game.rules.find(r => r.id === player1RuleId);
+        const player2Rule = game.rules.find(r => r.id === player2RuleId);
 
-        player1Rules.forEach(rule => {
-            rule.assignedTo = player2Id;
-        });
-
-        player2Rules.forEach(rule => {
-            rule.assignedTo = player1Id;
-        });
+        player1Rule.assignedTo = player2Id;
+        player2Rule.assignedTo = player1Id;
 
         io.to(gameId).emit('game_updated', game);
     });

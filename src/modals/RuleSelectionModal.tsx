@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
-import { Rule, Player } from '../../types/game';
-import Plaque from '../Plaque';
-import { colors } from '../../styles/shared';
+import { Rule } from '../types/game';
+import Plaque from '../components/Plaque';
+
+import { colors } from '../styles/shared';
 
 interface RuleSelectionModalProps {
     visible: boolean;

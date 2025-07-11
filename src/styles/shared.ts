@@ -39,6 +39,11 @@ export const colors = {
     },
 } as const;
 
+// Color distribution utility
+export const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
+
+export const SEGMENT_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fbbf24'];
+
 const shared = StyleSheet.create({
     container: {
         flex: 1,

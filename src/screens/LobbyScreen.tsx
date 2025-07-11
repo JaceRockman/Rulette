@@ -14,7 +14,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import * as Clipboard from 'expo-clipboard';
-import StripedBackground from '../components/StripedBackground';
+import StripedBackground from '../components/Backdrop';
 import shared from '../styles/shared';
 import OutlinedText from '../components/OutlinedText';
 import socketService from '../services/socketService';

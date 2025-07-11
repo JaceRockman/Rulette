@@ -5,14 +5,14 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import shared from '../styles/shared';
-import StripedBackground from '../components/StripedBackground';
+import StripedBackground from '../components/Backdrop';
 import OutlinedText from '../components/OutlinedText';
-import InputPlaque from '../components/InputPlaque';
+import InputPlaque from '../modals/InputPlaque';
 import Plaque from '../components/Plaque';
 
 export default function RuleWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addRule, updateRule, currentUser, markRulesCompleted, getVisibleRules } = useGame();
+    const { gameState, addRule, updatePlaque, currentUser, markRulesCompleted, getWrittenRules } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -68,7 +68,7 @@ export default function RuleWritingScreen() {
 
     const handleConfirmEdit = () => {
         if (inputValue.trim() && editingRuleId) {
-            updateRule(editingRuleId, inputValue.trim());
+            updatePlaque(editingRuleId, inputValue.trim(), 'rule');
             setInputValue('');
             setShowEditPlaque(false);
             setEditingRuleId(null);
@@ -89,7 +89,7 @@ export default function RuleWritingScreen() {
 
     // Create 2-column grid layout
     const renderRulesGrid = () => {
-        const visibleRules = getVisibleRules();
+        const visibleRules = getWrittenRules();
 
         const rows = [];
         for (let i = 0; i < visibleRules.length; i += 2) {
@@ -127,7 +127,7 @@ export default function RuleWritingScreen() {
     };
 
     // Determine if player can add more rules
-    const visibleRuleCount = getVisibleRules().length;
+    const visibleRuleCount = getWrittenRules().length;
     const canAddRule = currentUser?.isHost || visibleRuleCount < numRules;
     const canContinue = currentUser?.isHost || visibleRuleCount === numRules;
 

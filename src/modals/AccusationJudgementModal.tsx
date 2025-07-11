@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
-import { Rule, Player } from '../../types/game';
+import { Rule, Player } from '../types/game';
 
 interface AccusationJudgementModalProps {
     visible: boolean;

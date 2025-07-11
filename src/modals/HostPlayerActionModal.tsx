@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
-import { Player } from '../../types/game';
-import { colors } from '../../styles/shared';
+import { Player } from '../types/game';
+import { colors } from '../styles/shared';
 
 interface HostPlayerActionModalProps {
     visible: boolean;

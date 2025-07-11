@@ -11,7 +11,7 @@ import RuleWritingScreen from './src/screens/RuleWritingScreen';
 import PromptWritingScreen from './src/screens/PromptWritingScreen';
 import { GameProvider } from './src/context/GameContext';
 import OutlinedText from './src/components/OutlinedText';
-import StripedBackground from './src/components/StripedBackground';
+import StripedBackground from './src/components/Backdrop';
 import { View } from 'react-native';
 
 export type RootStackParamList = {

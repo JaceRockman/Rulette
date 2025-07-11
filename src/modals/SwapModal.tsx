@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
-import { Rule, Player } from '../../types/game';
+import { Rule, Player } from '../types/game';
 
 interface SwapModalProps {
     visible: boolean;

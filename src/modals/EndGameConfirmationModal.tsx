@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
-import { colors } from '../../styles/shared';
+import { colors } from '../styles/shared';
 
 interface EndGameConfirmationModalProps {
     visible: boolean;

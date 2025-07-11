@@ -1,38 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
-import { Rule } from '../../types/game';
-import Plaque from '../Plaque';
-import { colors } from '../../styles/shared';
+import { Rule } from '../types/game';
+import Plaque from '../components/Plaque';
+import { colors } from '../styles/shared';
+import FlipTextInputModal from './FlipTextInputModal';
 
-interface ShredWorkflowModalProps {
+interface FlipWorkflowModalProps {
     visible: boolean;
     onClose: () => void;
-    onShredComplete: (rule: Rule) => void;
+    onFlipComplete: (originalRule: Rule, flippedText: string) => void;
     gameState: any;
     sourcePlayerId?: string; // If provided, only show rules for this player
     title?: string;
     description?: string;
 }
 
-export default function ShredWorkflowModal({
+export default function FlipWorkflowModal({
     visible,
     onClose,
-    onShredComplete,
+    onFlipComplete,
     gameState,
     sourcePlayerId,
-    title = 'Shred Rule',
-    description = 'Choose a rule to remove from your collection'
-}: ShredWorkflowModalProps) {
+    title = 'Flip Rule',
+    description = 'Choose a rule to flip its meaning'
+}: FlipWorkflowModalProps) {
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
+    const [showTextInput, setShowTextInput] = useState(false);
 
     // Reset state when modal opens/closes
     useEffect(() => {
         if (visible) {
             setSelectedRule(null);
+            setShowTextInput(false);
         }
     }, [visible]);
 
-    // Get available rules for shredding
+    // Get available rules for flipping
     const getAvailableRules = (): Rule[] => {
         if (!gameState?.rules) return [];
 
@@ -51,7 +54,18 @@ export default function ShredWorkflowModal({
 
     const handleRuleSelect = (rule: Rule) => {
         setSelectedRule(rule);
-        onShredComplete(rule);
+        setShowTextInput(true);
+    };
+
+    const handleFlipTextSubmit = (flippedText: string) => {
+        if (selectedRule) {
+            onFlipComplete(selectedRule, flippedText);
+        }
+    };
+
+    const handleTextInputClose = () => {
+        setShowTextInput(false);
+        setSelectedRule(null);
     };
 
     const availableRules = getAvailableRules();
@@ -63,7 +77,7 @@ export default function ShredWorkflowModal({
             setTimeout(() => {
                 Alert.alert(
                     'No Rules Available',
-                    'There are no rules available for shredding.',
+                    'There are no rules available for flipping.',
                     [{ text: 'OK', onPress: onClose }]
                 );
             }, 0);
@@ -71,47 +85,56 @@ export default function ShredWorkflowModal({
     }, [visible, availableRules, onClose]);
 
     return (
-        <Modal
-            visible={visible}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={onClose}
-            statusBarTranslucent={true}
-        >
-            <SafeAreaView style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>{title}</Text>
-                    <Text style={styles.modalDescription}>{description}</Text>
+        <>
+            <Modal
+                visible={visible && !showTextInput}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={onClose}
+                statusBarTranslucent={true}
+            >
+                <SafeAreaView style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>{title}</Text>
+                        <Text style={styles.modalDescription}>{description}</Text>
 
-                    <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                        <View>
-                            {availableRules.map((rule) => (
-                                <TouchableOpacity
-                                    key={rule.id}
-                                    style={styles.ruleItem}
-                                    onPress={() => handleRuleSelect(rule)}
-                                >
-                                    <Plaque
-                                        text={rule.text}
-                                        plaqueColor={rule.plaqueColor || '#fff'}
-                                        style={styles.rulePlaque}
-                                    />
-                                </TouchableOpacity>
-                            ))}
+                        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+                            <View>
+                                {availableRules.map((rule) => (
+                                    <TouchableOpacity
+                                        key={rule.id}
+                                        style={styles.ruleItem}
+                                        onPress={() => handleRuleSelect(rule)}
+                                    >
+                                        <Plaque
+                                            text={rule.text}
+                                            plaqueColor={rule.plaqueColor || '#fff'}
+                                            style={styles.rulePlaque}
+                                        />
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </ScrollView>
+
+                        <View style={styles.buttonRow}>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={onClose}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
                         </View>
-                    </ScrollView>
-
-                    <View style={styles.buttonRow}>
-                        <TouchableOpacity
-                            style={styles.cancelButton}
-                            onPress={onClose}
-                        >
-                            <Text style={styles.cancelButtonText}>Cancel</Text>
-                        </TouchableOpacity>
                     </View>
-                </View>
-            </SafeAreaView>
-        </Modal>
+                </SafeAreaView>
+            </Modal>
+
+            <FlipTextInputModal
+                visible={showTextInput}
+                selectedRule={selectedRule}
+                onFlipRule={handleFlipTextSubmit}
+                onClose={handleTextInputClose}
+            />
+        </>
     );
 }
 

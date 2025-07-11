@@ -8,7 +8,7 @@ import {
     TextInput,
     SafeAreaView,
 } from 'react-native';
-import { Rule } from '../../types/game';
+import { Rule } from '../types/game';
 
 interface FlipTextInputModalProps {
     visible: boolean;

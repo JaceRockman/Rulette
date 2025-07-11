@@ -15,11 +15,11 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import { Player, Rule } from '../types/game';
-import StripedBackground from '../components/StripedBackground';
+import StripedBackground from '../components/Backdrop';
 import { colors } from '../styles/shared';
 import shared from '../styles/shared';
 import OutlinedText from '../components/OutlinedText';
-import DigitalClock from '../components/DigitalClock';
+import DigitalClock from '../components/ScoreDisplay';
 import Plaque from '../components/Plaque';
 import {
     RuleAccusationPopup,
@@ -27,9 +27,9 @@ import {
     HostPlayerActionModal,
     HostActionModal,
     FlipTextInputModal
-} from '../components/Modals';
-import RuleSelectionModal from '../components/Modals/RuleSelectionModal';
-import PlayerSelectionModal from '../components/Modals/PlayerSelectionModal';
+} from '../modals';
+import RuleSelectionModal from '../modals/RuleSelectionModal';
+import PlayerSelectionModal from '../modals/PlayerSelectionModal';
 import socketService from '../services/socketService';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
@@ -126,41 +126,6 @@ export default function GameScreen() {
             socketService.setOnNavigateToScreen(null);
         };
     }, [navigation]);
-
-    const handleSpinWheel = () => {
-        // Check if all non-host players have completed both phases
-        if (!gameState) return;
-
-        // Check if current user is the active player
-        if (currentUser?.id !== gameState.activePlayer) {
-            Alert.alert(
-                'Not Your Turn',
-                'Only the active player can spin the wheel.',
-                [{ text: 'OK' }]
-            );
-            return;
-        }
-
-        const nonHostPlayers = gameState.players.filter(player => !player.isHost);
-        const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
-            player.rulesCompleted && player.promptsCompleted
-        );
-
-        if (!allNonHostPlayersCompleted) {
-            Alert.alert(
-                'Cannot Spin Wheel',
-                'All players must complete rules and prompts before spinning the wheel.',
-                [{ text: 'OK' }]
-            );
-            return;
-        }
-
-        // Broadcast navigation to all players using the new abstract system
-        socketService.broadcastNavigateToScreen('WHEEL', { playerId: gameState.activePlayer });
-
-        // Navigate to wheel screen with active player ID to indicate who is spinning
-        navigation.navigate('Wheel', { playerId: gameState.activePlayer });
-    };
 
     // Check if all non-host players have completed both phases
     const nonHostPlayers = gameState?.players.filter(player => !player.isHost) || [];
@@ -515,14 +480,6 @@ export default function GameScreen() {
 
             // Broadcast navigation to game room for all players and host
             socketService.broadcastNavigateToScreen('GAME_ROOM');
-        }
-    };
-
-    const handleSpinWheelForPlayer = () => {
-        if (selectedPlayerForAction) {
-            // Navigate to wheel screen for this player
-            navigation.navigate('Wheel', { playerId: selectedPlayerForAction.id });
-            setShowPlayerActionModal(false);
         }
     };
 
@@ -1027,26 +984,6 @@ export default function GameScreen() {
                                     })()}
                                 </TouchableOpacity>
                             ))}
-                        </View>
-                    )}
-
-
-
-                    {/* Spin Wheel Button - Only for Active Player */}
-                    {currentUser?.id === gameState?.activePlayer && !currentUser?.isHost && (
-                        <View style={styles.section}>
-                            <TouchableOpacity
-                                style={[
-                                    styles.spinButton,
-                                    !allNonHostPlayersCompleted && { opacity: 0.5 }
-                                ]}
-                                onPress={handleSpinWheel}
-                                disabled={!allNonHostPlayersCompleted}
-                            >
-                                <Text style={styles.spinButtonText}>
-                                    {allNonHostPlayersCompleted ? 'Spin That Wheel!' : 'Waiting for players to complete rules & prompts...'}
-                                </Text>
-                            </TouchableOpacity>
                         </View>
                     )}
 

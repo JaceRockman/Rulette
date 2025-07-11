@@ -6,7 +6,7 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import shared from '../styles/shared';
-import StripedBackground from '../components/StripedBackground';
+import StripedBackground from '../components/Backdrop';
 import OutlinedText from '../components/OutlinedText';
 import WheelSegment from '../components/WheelSegment';
 import {
@@ -20,7 +20,7 @@ import {
     UpDownWorkflowModal,
     SwapWorkflowModal,
     ShredWorkflowModal
-} from '../components/Modals';
+} from '../modals';
 import socketService from '../services/socketService';
 
 const ITEM_HEIGHT = 120;
@@ -33,7 +33,7 @@ type WheelScreenRouteProp = RouteProp<RootStackParamList, 'Wheel'>;
 export default function WheelScreen() {
     const navigation = useNavigation<WheelScreenNavigationProp>();
     const route = useRoute<WheelScreenRouteProp>();
-    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentUser, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule, spinWheel } = useGame();
+    const { gameState, removeWheelLayer, endGame, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule } = useGame();
 
     // Get the player ID from navigation params if provided
     const playerId = route.params?.playerId;
@@ -940,14 +940,8 @@ export default function WheelScreen() {
 
                                 return (
                                     <WheelSegment
-                                        text={currentLayer ? (typeof currentLayer.content === 'string' ? currentLayer.content : currentLayer.content.text) : ''}
-                                        isSelected={actualIndex === selectedIndex}
-                                        color={segment?.color || '#8b5cf6'}
-                                        plaqueColor={segment?.plaqueColor || '#fff'}
-                                        index={actualIndex}
-                                        currentLayer={currentLayer}
-                                        layerCount={segment?.layers.length || 1}
-                                        currentLayerIndex={segment?.currentLayerIndex || 0}
+                                        currentPlaque={currentLayer}
+                                        color={segment?.color || '#fff'}
                                     />
                                 );
                             }}
@@ -1008,7 +1002,7 @@ export default function WheelScreen() {
                                 backgroundColor: (() => {
                                     const segment = segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                     const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
-                                    return currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
+                                    return currentLayer?.content?.plaqueColor || segment?.plaqueColor || '#fff';
                                 })(),
                                 borderRadius: 20,
                                 padding: 40,

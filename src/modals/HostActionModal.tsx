@@ -7,7 +7,6 @@ import {
     Modal,
     Alert,
 } from 'react-native';
-import { Player } from '../../types/game';
 
 interface HostActionModalProps {
     visible: boolean;
