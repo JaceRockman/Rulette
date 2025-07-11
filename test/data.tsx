@@ -1,5 +1,4 @@
 import { GameState, Player, Rule, Prompt, Modifier, End } from "../src/types/game";
-import { initialState } from "../src/context/GameContext";
 
 export const testingState = () => {
     const hostId = Math.random().toString(36).substring(2, 9);
@@ -38,11 +37,11 @@ export const testingState = () => {
         },
     ];
 
-    const testingGameState: GameState = {
-        ...initialState,
+    const testingGameState: any = {
         id: Math.random().toString(36).substring(2, 9),
         code: "TEST123",
         players,
+        modifiers: [],
         currentUser: hostId,
         activePlayer: player1Id, // Set first non-host player as active
         rules: exampleRules,

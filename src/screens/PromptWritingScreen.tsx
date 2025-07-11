@@ -12,7 +12,7 @@ import Plaque from '../components/Plaque';
 
 export default function PromptWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addPrompt, updatePrompt, dispatch, currentUser, markPromptsCompleted, getWrittenPrompts } = useGame();
+    const { gameState, addPrompt, updatePlaque, dispatch, currentUser, markPromptsCompleted, getWrittenPrompts } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -61,7 +61,7 @@ export default function PromptWritingScreen() {
             return;
         }
 
-        addPrompt(trimmedValue, undefined, currentPlaqueColor);
+        addPrompt(trimmedValue, currentPlaqueColor);
         setInputValue('');
         setShowInputPlaque(false);
     };
@@ -87,7 +87,7 @@ export default function PromptWritingScreen() {
         }
 
         if (editingPromptId) {
-            updatePrompt(editingPromptId, trimmedValue);
+            updatePlaque(editingPromptId, trimmedValue, 'prompt');
             setInputValue('');
             setShowEditPlaque(false);
             setEditingPromptId(null);

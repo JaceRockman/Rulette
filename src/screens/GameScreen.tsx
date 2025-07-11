@@ -138,18 +138,12 @@ export default function GameScreen() {
         updatePoints(playerId, newPoints);
     };
 
-
-
     const handleAssignRule = (rule: Rule, playerId: string) => {
         assignRule(rule.id, playerId);
         setSelectedRule(null);
 
         // Broadcast navigation to game room for all players and host
         socketService.broadcastNavigateToScreen('GAME_ROOM');
-    };
-
-    const openRuleModal = (rule: Rule) => {
-        setSelectedRule(rule);
     };
 
     const handleRuleTap = (rule: Rule, accusedPlayer: Player) => {

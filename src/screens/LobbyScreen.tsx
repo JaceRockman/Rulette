@@ -39,6 +39,7 @@ export default function LobbyScreen() {
 
     // Navigate to rule writing when game starts
     React.useEffect(() => {
+        console.log('gameState', gameState);
         if (gameState?.isGameStarted) {
             navigation.navigate('RuleWriting');
         }

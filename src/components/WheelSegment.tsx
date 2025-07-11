@@ -1,16 +1,16 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { WheelLayer } from '../types/game';
+import { WheelSegmentLayer } from '../types/game';
 import Plaque from './Plaque';
 
 interface WheelSegmentProps {
-    currentPlaque: WheelLayer;
+    currentPlaque: WheelSegmentLayer;
     color: string;
 }
 
 export default function WheelSegment({ currentPlaque, color }: WheelSegmentProps) {
 
-    const currentPlaqueColor = currentPlaque?.plaqueColor || '#fff';
+    const currentPlaqueColor = currentPlaque?.content?.plaqueColor || '#fff';
 
     // Get layer type text
     const getLayerTypeText = () => {

@@ -19,8 +19,8 @@ interface GameContextType {
     createTestingState: () => void;
     setNumRules: (num: number) => void;
     setNumPrompts: (num: number) => void;
-    addRule: (text: string, plaqueColor?: string) => void;
-    addPrompt: (text: string, category?: string, plaqueColor?: string) => void;
+    addRule: (text: string, plaqueColor: string) => void;
+    addPrompt: (text: string, plaqueColor: string) => void;
     updatePlaque: (id: string, text: string, type: 'rule' | 'prompt') => void;
     startGame: () => void;
     synchronizedSpinWheel: (finalIndex: number, duration: number) => void;
@@ -311,6 +311,10 @@ function getBalancedColor(plaques: Plaque[]): string {
 }
 
 function addRuleLayer(layers: WheelSegmentLayer[], rules: Rule[], index: number) {
+    if (rules.length === 0) {
+        return;
+    }
+
     const rulePlaqueColor = rules[index].plaqueColor || LAYER_PLAQUE_COLORS[index % LAYER_PLAQUE_COLORS.length];
 
     if (index < rules.length) {
@@ -321,6 +325,10 @@ function addRuleLayer(layers: WheelSegmentLayer[], rules: Rule[], index: number)
             isActive: true,
         });
     } else {
+        if (exampleRules.length === 0) {
+            throw new Error('No rules found');
+        }
+
         const fillerRule = exampleRules[index % exampleRules.length];
         const fillerRuleContent = { ...fillerRule, plaqueColor: fillerRule.plaqueColor };
         layers.push({
@@ -332,7 +340,12 @@ function addRuleLayer(layers: WheelSegmentLayer[], rules: Rule[], index: number)
 }
 
 function addPromptLayer(layers: WheelSegmentLayer[], prompts: Prompt[], index: number) {
+    if (prompts.length === 0) {
+        return;
+    }
+
     const promptPlaqueColor = prompts[index].plaqueColor || LAYER_PLAQUE_COLORS[index % LAYER_PLAQUE_COLORS.length];
+
     if (index < prompts.length) {
         const promptContent = { ...prompts[index], plaqueColor: promptPlaqueColor };
         layers.push({
@@ -341,6 +354,10 @@ function addPromptLayer(layers: WheelSegmentLayer[], prompts: Prompt[], index: n
             isActive: true,
         });
     } else {
+        if (examplePrompts.length === 0) {
+            throw new Error('No prompts found');
+        }
+
         const fillerPrompt = examplePrompts[index % examplePrompts.length];
         const fillerPromptContent = { ...fillerPrompt, plaqueColor: fillerPrompt.plaqueColor };
         layers.push({
@@ -352,6 +369,10 @@ function addPromptLayer(layers: WheelSegmentLayer[], prompts: Prompt[], index: n
 }
 
 function addModifierLayer(layers: WheelSegmentLayer[], index: number) {
+    if (allModifiers.length === 0) {
+        throw new Error('No modifiers found');
+    }
+
     const nextModifier = allModifiers[index % allModifiers.length];
     layers.push({
         type: 'modifier',
@@ -373,9 +394,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
     const currentUser = gameState?.players.find(p => p.id === currentUserId) || null;
     const activePlayer = gameState?.players.find(p => p.id === gameState?.activePlayer) || null;
-
     // Connect to socket on mount
     React.useEffect(() => {
+
         socketService.connect();
         // Listen for socket events
         socketService.setOnLobbyCreated(({ playerId, game }) => {
@@ -435,6 +456,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     // Create wheel segments when all non-host players have completed
     React.useEffect(() => {
+        if (!gameState) return;
+        if (!gameState.players) return;
+        if (!gameState.wheelSegments) return;
+
         const nonHostPlayers = gameState.players?.filter(player => !player.isHost) || [];
         const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
             player.rulesCompleted && player.promptsCompleted
@@ -515,7 +540,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_NUM_PROMPTS', payload: num });
     };
 
-    const createPlaque = (type: 'rule' | 'prompt' | 'modifier', text: string, plaqueColor?: string) => {
+    const createPlaque = (type: 'rule' | 'prompt' | 'modifier', text: string, plaqueColor: string) => {
         const currentPlayerId = socketService.getCurrentPlayerId();
         if (!currentPlayerId) return;
 
@@ -546,11 +571,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.addPlaque(plaque);
     };
 
-    const addRule = (text: string, plaqueColor?: string) => {
+    const addRule = (text: string, plaqueColor: string) => {
         createPlaque('rule', text, plaqueColor);
     };
 
-    const addPrompt = (text: string, category?: string, plaqueColor?: string) => {
+    const addPrompt = (text: string, plaqueColor: string) => {
         createPlaque('prompt', text, plaqueColor);
     };
 
