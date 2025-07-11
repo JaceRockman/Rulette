@@ -16,7 +16,7 @@ import { View } from 'react-native';
 
 export type RootStackParamList = {
     Home: undefined;
-    Lobby: { code: string };
+    Lobby: { lobbyCode?: string };
     Game: undefined;
     Wheel: { playerId?: string };
     RuleWriting: undefined;

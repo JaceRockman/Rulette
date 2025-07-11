@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { GameState, Player, Prompt, Rule, StackItem, GameEvent, WheelSegment, WheelSegmentLayer, Modifier, Plaque } from '../types/game';
 import socketService from '../services/socketService';
-import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../styles/shared';
+import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../shared/styles';
 import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState } from '../../test/data';
 
 interface GameContextType {
@@ -11,11 +11,10 @@ interface GameContextType {
     dispatch: React.Dispatch<GameAction>;
     getWrittenRules: () => Rule[];
     getWrittenPrompts: () => Prompt[];
-    joinLobby: (code: string, playerName: string) => void;
+    getNonHostPlayers: () => Player[] | null | undefined;
+    getHostPlayer: () => Player | null | undefined;
+    joinLobby: (lobbyCode: string, playerName: string) => void;
     createLobby: (playerName: string, numRules?: number, numPrompts?: number, startingPoints?: number) => void;
-    addTestPlayers: (numPlayers: number) => void;
-    addFillerRules: (numRules: number) => void;
-    addFillerPrompts: (numPrompts: number) => void;
     createTestingState: () => void;
     setNumRules: (num: number) => void;
     setNumPrompts: (num: number) => void;
@@ -65,7 +64,7 @@ type GameAction =
 
 export const initialState: GameState = {
     id: '',
-    code: '',
+    lobbyCode: '',
     players: [],
     prompts: [],
     rules: [],
@@ -454,6 +453,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    function getNonHostPlayers(): Player[] | null | undefined {
+        if (!gameState?.players) return [];
+        return gameState.players.filter(player => !player.isHost);
+    };
+
+    function getHostPlayer(): Player | null | undefined {
+        if (!gameState?.players) return null;
+        return gameState.players.find(player => player.isHost);
+    };
+
     // Create wheel segments when all non-host players have completed
     React.useEffect(() => {
         if (!gameState) return;
@@ -476,8 +485,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.syncWheelSegments(gameState.wheelSegments);
     }, [gameState?.players, gameState?.isGameStarted, gameState?.wheelSegments?.length, dispatch]);
 
-    const joinLobby = (code: string, playerName: string) => {
-        socketService.joinLobby(code, playerName);
+    const joinLobby = (lobbyCode: string, playerName: string) => {
+        socketService.joinLobby(lobbyCode, playerName);
     };
 
     const createLobby = (playerName: string, numRules = 3, numPrompts = 3, startingPoints = 20) => {
@@ -485,51 +494,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.createLobby(playerName);
     };
 
-    const addTestPlayers = (numPlayers: number) => {
-        if (!gameState || numPlayers <= 0) return;
-
-        const testPlayerNames = ["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Henry"];
-        const newPlayers: Player[] = [];
-
-        for (let i = 0; i < numPlayers; i++) {
-            const testPlayer: Player = {
-                id: Math.random().toString(36).substr(2, 9),
-                name: testPlayerNames[i] || `Player ${i + 1}`,
-                points: 20, // All players start at 20 points
-                rules: [],
-                isHost: false,
-            };
-            newPlayers.push(testPlayer);
-        }
-
-        const updatedGameState = {
-            ...gameState,
-            players: [...gameState.players, ...newPlayers],
-        };
-
-        dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
-    };
-
     const createTestingState = () => {
         const testingGameState = testingState();
         dispatch({ type: 'SET_GAME_STATE', payload: testingGameState });
         dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
-    };
-
-    const addFillerRules = (numRules: number) => {
-        if (!gameState) return;
-
-        const selectedFillerRules = exampleRules.slice(0, Math.min(numRules, exampleRules.length));
-
-        dispatch({ type: 'ADD_RULES', payload: selectedFillerRules });
-    };
-
-    const addFillerPrompts = (numPrompts: number) => {
-        if (!gameState) return;
-
-        const selectedFillerPrompts = examplePrompts.slice(0, Math.min(numPrompts, examplePrompts.length));
-
-        dispatch({ type: 'ADD_PROMPTS', payload: selectedFillerPrompts });
     };
 
     const setNumRules = (num: number) => {
@@ -696,11 +664,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             dispatch,
             getWrittenRules,
             getWrittenPrompts,
+            getNonHostPlayers,
+            getHostPlayer,
             joinLobby,
             createLobby,
-            addTestPlayers,
-            addFillerRules,
-            addFillerPrompts,
             createTestingState,
             setNumRules,
             setNumPrompts,

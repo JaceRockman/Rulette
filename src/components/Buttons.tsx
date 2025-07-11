@@ -1,6 +1,6 @@
 
 import { TouchableOpacity, Text, StyleSheet, ViewStyle } from 'react-native';
-import { colors } from '../styles/shared';
+import { colors } from '../shared/styles';
 
 interface PrimaryButtonProps {
     title: string;

@@ -15,7 +15,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import StripedBackground from '../components/Backdrop';
-import shared from '../styles/shared';
+import shared from '../shared/styles';
 import PrimaryButton from '../components/Buttons';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
@@ -37,7 +37,7 @@ export default function HomeScreen() {
         setIsCreating(true);
         createLobby(playerName.trim());
         setIsCreating(false);
-        navigation.navigate('Lobby', { code: 'NEW' });
+        navigation.navigate('Lobby', {});
     };
 
     const handleJoinLobby = () => {
@@ -49,7 +49,7 @@ export default function HomeScreen() {
         setIsJoining(true);
         joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim());
         setIsJoining(false);
-        navigation.navigate('Lobby', { code: lobbyCode.trim().toUpperCase() });
+        navigation.navigate('Lobby', { lobbyCode: lobbyCode.trim().toUpperCase() });
     };
 
     return (

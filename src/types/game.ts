@@ -52,7 +52,7 @@ export interface WheelSegment {
 
 export interface GameState {
     id: string;
-    code: string;
+    lobbyCode: string;
     players: Player[];
     rules: Rule[];
     prompts: Prompt[];

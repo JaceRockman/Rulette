@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { Rule } from '../types/game';
 import Plaque from '../components/Plaque';
-import { colors } from '../styles/shared';
+import { colors } from '../shared/styles';
 
 interface ShredWorkflowModalProps {
     visible: boolean;

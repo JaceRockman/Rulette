@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaVi
 import { Rule } from '../types/game';
 import Plaque from '../components/Plaque';
 
-import { colors } from '../styles/shared';
+import { colors } from '../shared/styles';
 
 interface RuleSelectionModalProps {
     visible: boolean;

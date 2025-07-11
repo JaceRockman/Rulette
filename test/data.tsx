@@ -92,3 +92,44 @@ export const endPlaque: End = {
     plaqueColor: "#313131",
     authorId: "system"
 }
+
+// const addTestPlayers = (numPlayers: number) => {
+//     if (!gameState || numPlayers <= 0) return;
+
+//     const testPlayerNames = ["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Henry"];
+//     const newPlayers: Player[] = [];
+
+//     for (let i = 0; i < numPlayers; i++) {
+//         const testPlayer: Player = {
+//             id: Math.random().toString(36).substr(2, 9),
+//             name: testPlayerNames[i] || `Player ${i + 1}`,
+//             points: 20, // All players start at 20 points
+//             rules: [],
+//             isHost: false,
+//         };
+//         newPlayers.push(testPlayer);
+//     }
+
+//     const updatedGameState = {
+//         ...gameState,
+//         players: [...gameState.players, ...newPlayers],
+//     };
+
+//     dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
+// };
+
+// const addFillerRules = (numRules: number) => {
+//     if (!gameState) return;
+
+//     const selectedFillerRules = exampleRules.slice(0, Math.min(numRules, exampleRules.length));
+
+//     dispatch({ type: 'ADD_RULES', payload: selectedFillerRules });
+// };
+
+// const addFillerPrompts = (numPrompts: number) => {
+//     if (!gameState) return;
+
+//     const selectedFillerPrompts = examplePrompts.slice(0, Math.min(numPrompts, examplePrompts.length));
+
+//     dispatch({ type: 'ADD_PROMPTS', payload: selectedFillerPrompts });
+// };

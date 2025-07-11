@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import shared from '../styles/shared';
+import shared from '../shared/styles';
 import StripedBackground from '../components/Backdrop';
 import OutlinedText from '../components/OutlinedText';
 import InputPlaque from '../modals/InputPlaque';

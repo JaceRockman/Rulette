@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
     TextInput,
     ScrollView,
     Alert,
@@ -15,9 +14,10 @@ import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import * as Clipboard from 'expo-clipboard';
 import StripedBackground from '../components/Backdrop';
-import shared from '../styles/shared';
 import OutlinedText from '../components/OutlinedText';
 import socketService from '../services/socketService';
+import PrimaryButton from '../components/Buttons';
+import { Player } from '../types/game';
 
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -25,17 +25,14 @@ type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 export default function LobbyScreen() {
     const navigation = useNavigation<LobbyScreenNavigationProp>();
     const route = useRoute<LobbyScreenRouteProp>();
-    const { gameState, currentUser, startGame, addTestPlayers, addFillerRules, addFillerPrompts, dispatch } = useGame();
+    const { gameState, currentUser, getHostPlayer, getNonHostPlayers, startGame, dispatch } = useGame();
 
     const [startingPoints, setStartingPoints] = useState('');
     const [numRules, setNumRules] = useState('');
     const [numPrompts, setNumPrompts] = useState('');
-    const [numTestPlayers, setNumTestPlayers] = useState('');
-    const [numFillerRules, setNumFillerRules] = useState('');
-    const [numFillerPrompts, setNumFillerPrompts] = useState('');
 
     const isHost = currentUser?.isHost;
-    const lobbyCode = gameState?.code || route.params.code;
+    const lobbyCode = gameState?.lobbyCode || route.params?.lobbyCode || '';
 
     // Navigate to rule writing when game starts
     React.useEffect(() => {
@@ -47,35 +44,10 @@ export default function LobbyScreen() {
 
     const copyLobbyCode = async () => {
         await Clipboard.setStringAsync(lobbyCode);
-        Alert.alert('Copied!', 'Lobby code copied to clipboard');
-    };
-
-    const handleAddTestPlayers = () => {
-        const numPlayers = parseInt(numTestPlayers) || 0;
-        if (numPlayers > 0) {
-            addTestPlayers(numPlayers);
-            Alert.alert('Test Players Added', `${numPlayers} test players have been added to the game.`);
-        }
-    };
-
-    const handleAddFillerRules = () => {
-        const numRules = parseInt(numFillerRules) || 0;
-        if (numRules > 0) {
-            addFillerRules(numRules);
-            Alert.alert('Filler Rules Added', `${numRules} filler rules have been added to the game.`);
-        }
-    };
-
-    const handleAddFillerPrompts = () => {
-        const numPrompts = parseInt(numFillerPrompts) || 0;
-        if (numPrompts > 0) {
-            addFillerPrompts(numPrompts);
-            Alert.alert('Filler Prompts Added', `${numPrompts} filler prompts have been added to the game.`);
-        }
     };
 
     const handleStartGame = () => {
-        if (!gameState?.players.length) {
+        if (!gameState?.players?.length) {
             Alert.alert('Error', 'Need at least one player to start');
             return;
         }
@@ -105,6 +77,9 @@ export default function LobbyScreen() {
         startGame();
     };
 
+    const host = getHostPlayer();
+    const nonHostPlayers = getNonHostPlayers();
+
     return (
         <StripedBackground>
             <SafeAreaView style={styles.container}>
@@ -112,38 +87,44 @@ export default function LobbyScreen() {
                     {/* Lobby Code Section */}
                     <View style={styles.section}>
                         <OutlinedText style={{ textAlign: 'center' }}>Lobby Code</OutlinedText>
-                        <TouchableOpacity style={styles.lobbyCodeButton} onPress={copyLobbyCode}>
-                            <Text style={styles.lobbyCodeText}>{lobbyCode}</Text>
-                        </TouchableOpacity>
+                        <PrimaryButton
+                            title={lobbyCode}
+                            onPress={copyLobbyCode}
+                            textStyle={styles.lobbyCodeText}
+                        />
                     </View>
 
                     {/* Host Section */}
-                    {gameState?.players?.find(player => player.isHost) && (
-                        <View style={styles.section}>
-                            <OutlinedText>Host</OutlinedText>
+                    <View style={styles.section}>
+                        <OutlinedText>Host</OutlinedText>
+                        {host && (
                             <View style={styles.hostContainer}>
-                                {gameState?.players?.filter(player => player.isHost).map((player) => (
-                                    <View key={player.id} style={styles.hostItem}>
-                                        <Text style={styles.playerName}>{player.name}</Text>
-                                    </View>
-                                ))}
+                                <View key={host.id} style={styles.hostItem}>
+                                    <Text style={styles.playerName}>{host.name}</Text>
+                                </View>
                             </View>
-                        </View>
-                    )}
+                        )}
+                        {!host && (
+                            <Text>No Host Found</Text>
+                        )}
+                    </View>
 
                     {/* Players Section */}
-                    {(gameState?.players?.filter(player => !player.isHost)?.length ?? 0) > 0 && (
-                        <View style={styles.section}>
-                            <OutlinedText>Players</OutlinedText>
+                    <View style={styles.section}>
+                        <OutlinedText>Players</OutlinedText>
+                        {nonHostPlayers && nonHostPlayers.length > 0 && (
                             <View style={styles.playerGrid}>
-                                {(gameState?.players?.filter(player => !player.isHost) ?? []).map((player) => (
+                                {nonHostPlayers?.map((player: Player) => (
                                     <View key={player.id} style={styles.playerItem}>
                                         <Text style={styles.playerName}>{player.name}</Text>
                                     </View>
                                 ))}
                             </View>
-                        </View>
-                    )}
+                        )}
+                        {nonHostPlayers && nonHostPlayers.length === 0 && (
+                            <Text>No Players Found</Text>
+                        )}
+                    </View>
 
                     {/* Host Settings Section */}
                     {isHost && (
@@ -185,87 +166,17 @@ export default function LobbyScreen() {
                                     placeholderTextColor="#9ca3af"
                                 />
                             </View>
-
-                            {/* Development-only settings */}
-                            {__DEV__ && (
-                                <>
-                                    <View style={styles.settingContainer}>
-                                        <OutlinedText style={styles.settingLabel}>Test Players</OutlinedText>
-                                        <TextInput
-                                            style={styles.settingInput}
-                                            value={numTestPlayers}
-                                            onChangeText={setNumTestPlayers}
-                                            keyboardType="numeric"
-                                            placeholder="0"
-                                            placeholderTextColor="#9ca3af"
-                                        />
-                                    </View>
-
-                                    {parseInt(numTestPlayers) > 0 && (
-                                        <TouchableOpacity
-                                            style={[shared.button, { marginTop: 10 }]}
-                                            onPress={handleAddTestPlayers}
-                                        >
-                                            <Text style={shared.buttonText}>Add Test Players</Text>
-                                        </TouchableOpacity>
-                                    )}
-
-                                    <View style={styles.settingContainer}>
-                                        <OutlinedText style={styles.settingLabel}>Filler Rules</OutlinedText>
-                                        <TextInput
-                                            style={styles.settingInput}
-                                            value={numFillerRules}
-                                            onChangeText={setNumFillerRules}
-                                            keyboardType="numeric"
-                                            placeholder="0"
-                                            placeholderTextColor="#9ca3af"
-                                        />
-                                    </View>
-
-                                    {parseInt(numFillerRules) > 0 && (
-                                        <TouchableOpacity
-                                            style={[shared.button, { marginTop: 10 }]}
-                                            onPress={handleAddFillerRules}
-                                        >
-                                            <Text style={shared.buttonText}>Add Filler Rules</Text>
-                                        </TouchableOpacity>
-                                    )}
-
-                                    <View style={styles.settingContainer}>
-                                        <OutlinedText style={styles.settingLabel}>Filler Prompts</OutlinedText>
-                                        <TextInput
-                                            style={styles.settingInput}
-                                            value={numFillerPrompts}
-                                            onChangeText={setNumFillerPrompts}
-                                            keyboardType="numeric"
-                                            placeholder="0"
-                                            placeholderTextColor="#9ca3af"
-                                        />
-                                    </View>
-
-                                    {parseInt(numFillerPrompts) > 0 && (
-                                        <TouchableOpacity
-                                            style={[shared.button, { marginTop: 10 }]}
-                                            onPress={handleAddFillerPrompts}
-                                        >
-                                            <Text style={shared.buttonText}>Add Filler Prompts</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </>
-                            )}
                         </View>
                     )}
 
                     {/* Start Game Button */}
                     {isHost && (
                         <View style={styles.section}>
-                            <TouchableOpacity
-                                style={shared.button}
+                            <PrimaryButton
                                 onPress={handleStartGame}
-                                disabled={!gameState?.players.length}
-                            >
-                                <Text style={shared.buttonText}>Start Game</Text>
-                            </TouchableOpacity>
+                                disabled={!gameState?.players?.length}
+                                title="Start Game"
+                            />
                         </View>
                     )}
                 </ScrollView>
@@ -368,31 +279,7 @@ const styles = StyleSheet.create({
         width: 200,
         textAlign: 'center',
     },
-    startButton: {
-        backgroundColor: '#cba84b',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-    },
-    startButtonText: {
-        color: '#ffffff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    lobbyCodeButton: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        alignSelf: 'center',
-        width: '60%',
-        borderWidth: 3,
-        borderColor: '#000000',
-    },
     lobbyCodeText: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1f2937',
         letterSpacing: 2,
     },
 }); 
