@@ -463,6 +463,24 @@ io.on('connection', (socket) => {
         });
     });
 
+    // Broadcast end game continue
+    socket.on('broadcast_end_game_continue', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Broadcast to all players in the game (including sender for consistency)
+        io.to(gameId).emit('end_game_continue');
+    });
+
+    // Broadcast end game end
+    socket.on('broadcast_end_game_end', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Broadcast to all players in the game (including sender for consistency)
+        io.to(gameId).emit('end_game_end');
+    });
+
     // Advance to next player after wheel spinning
     socket.on('advance_to_next_player', ({ gameId }) => {
         console.log('Server: Received advance_to_next_player event for game:', gameId, 'at:', new Date().toISOString());

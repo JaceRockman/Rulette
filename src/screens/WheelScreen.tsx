@@ -47,6 +47,8 @@ export default function WheelScreen() {
     const [selectedOwnRule, setSelectedOwnRule] = useState<any>(null);
     const [selectedOtherPlayer, setSelectedOtherPlayer] = useState<any>(null);
     const [showEndGameConfirmationModal, setShowEndGameConfirmationModal] = useState(false);
+    const [isEndGameActionInProgress, setIsEndGameActionInProgress] = useState(false);
+    const [hasProcessedEndSegment, setHasProcessedEndSegment] = useState(false);
 
     // Use wheel segments from game state
     const segments = gameState?.wheelSegments || [];
@@ -102,6 +104,98 @@ export default function WheelScreen() {
         };
     }, [isSpinning]);
 
+    // Listen for end game continue events
+    React.useEffect(() => {
+        const handleEndGameContinue = () => {
+            console.log('WheelScreen: Received end game continue broadcast');
+            // Close the popup for all players when host chooses to continue
+            const selectedSegment = segments[selectedIndex];
+            setFrozenSegment(selectedSegment);
+            setIsClosingPopup(true);
+
+            Animated.parallel([
+                Animated.timing(popupScale, {
+                    toValue: 0,
+                    duration: 400,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(popupOpacity, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                })
+            ]).start(() => {
+                // Don't remove the wheel layer - keep it for the next spin
+                setShowExpandedPlaque(false);
+                setIsClosingPopup(false);
+                setFrozenSegment(null);
+                setSynchronizedSpinResult(null);
+                setSelectedIndex(0); // Reset wheel index
+                flatListRef.current?.scrollToOffset({ offset: 0, animated: false }); // Reset visual position
+                scrollY.setValue(0); // Reset the Animated.Value to sync with visual position
+                currentScrollOffset.current = 0; // Reset the current offset tracking
+                console.log('WheelScreen: End game continue popup closed and wheel reset');
+            });
+        };
+
+        socketService.setOnEndGameContinue(handleEndGameContinue);
+
+        return () => {
+            socketService.setOnEndGameContinue(null);
+        };
+    }, [selectedIndex, segments]);
+
+    // Listen for end game end events
+    React.useEffect(() => {
+        const handleEndGameEnd = () => {
+            console.log('WheelScreen: Received end game end broadcast');
+            // Close the popup and end the game for all players when host chooses to end
+            const selectedSegment = segments[selectedIndex];
+            setFrozenSegment(selectedSegment);
+            setIsClosingPopup(true);
+
+            Animated.parallel([
+                Animated.timing(popupScale, {
+                    toValue: 0,
+                    duration: 400,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(popupOpacity, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                })
+            ]).start(() => {
+                if (selectedSegment) {
+                    removeWheelLayer(selectedSegment.id);
+                }
+                setShowExpandedPlaque(false);
+                setIsClosingPopup(false);
+                setFrozenSegment(null);
+                setSynchronizedSpinResult(null);
+                popupScale.setValue(0);
+                popupOpacity.setValue(0);
+
+                // Find player with most points and end the game
+                const winner = gameState?.players.reduce((prev, current) =>
+                    (prev.points > current.points) ? prev : current
+                );
+                if (winner) {
+                    endGame();
+                    // Navigate to game room to show game over screen
+                    socketService.broadcastNavigateToScreen('GAME_ROOM');
+                }
+                console.log('WheelScreen: End game end popup closed');
+            });
+        };
+
+        socketService.setOnEndGameEnd(handleEndGameEnd);
+
+        return () => {
+            socketService.setOnEndGameEnd(null);
+        };
+    }, [selectedIndex, segments, gameState?.players]);
+
     // Check if game has ended
     React.useEffect(() => {
         if (gameState?.gameEnded && gameState?.winner) {
@@ -109,6 +203,37 @@ export default function WheelScreen() {
             socketService.broadcastNavigateToScreen('GAME_ROOM');
         }
     }, [gameState?.gameEnded, gameState?.winner, navigation]);
+
+    // Handle end segment modal logic - moved to popup content logic to avoid immediate triggering
+
+    // Memoize current player info to avoid repeated function calls during render
+    const currentPlayerInfo = React.useMemo(() => {
+        const currentClientId = socketService.getCurrentPlayerId();
+        const currentPlayer = gameState?.players.find(p => p.id === currentClientId);
+        return {
+            id: currentClientId,
+            player: currentPlayer,
+            isHost: currentPlayer?.isHost || false
+        };
+    }, [gameState?.players]);
+
+    // Handle end segment modal triggering
+    React.useEffect(() => {
+        const selectedSegment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
+        const currentLayer = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
+
+        if (currentLayer && currentLayer.type === 'end' && showExpandedPlaque) {
+            const isHost = currentPlayerInfo.isHost;
+
+            if (isHost && !showEndGameConfirmationModal && !isEndGameActionInProgress && !hasProcessedEndSegment) {
+                // Use requestAnimationFrame to avoid React errors
+                requestAnimationFrame(() => {
+                    setHasProcessedEndSegment(true);
+                    setShowEndGameConfirmationModal(true);
+                });
+            }
+        }
+    }, [showExpandedPlaque, selectedIndex, synchronizedSpinResult, isClosingPopup, frozenSegment, segments, currentPlayerInfo, showEndGameConfirmationModal, isEndGameActionInProgress, hasProcessedEndSegment]);
 
     const handleSpin = () => {
         // Check if the current player is the active player
@@ -122,6 +247,7 @@ export default function WheelScreen() {
 
         setIsSpinning(true);
         setHasAdvancedPlayer(false); // Reset the flag for new spin
+        setHasProcessedEndSegment(false); // Reset the end segment processing flag for new spin
 
         // Generate random final index
         const randomSpins = 40 + Math.floor(Math.random() * 11);
@@ -139,6 +265,7 @@ export default function WheelScreen() {
     const performSynchronizedSpin = (finalIndex: number, scrollAmount: number, duration: number) => {
         setIsSpinning(true);
         setSelectedIndex(finalIndex);
+        setHasProcessedEndSegment(false); // Reset the end segment processing flag for all players
 
         // Animate the scroll with a "spin" effect - always go top to bottom
         Animated.timing(scrollY, {
@@ -558,7 +685,21 @@ export default function WheelScreen() {
 
     // Handle end game confirmation - continue game
     const handleContinueGame = () => {
+        console.log('WheelScreen: Host chose to continue game');
+        console.log('WheelScreen: isEndGameActionInProgress:', isEndGameActionInProgress);
+
+        // Prevent multiple button presses
+        if (isEndGameActionInProgress) {
+            console.log('WheelScreen: Action already in progress, ignoring button press');
+            return;
+        }
+
+        setIsEndGameActionInProgress(true);
         setShowEndGameConfirmationModal(false);
+
+        // Broadcast continue action to all players
+        console.log('WheelScreen: Broadcasting end game continue');
+        socketService.broadcastEndGameContinue();
 
         // Close the wheel popup without removing the layer or advancing the player
         const selectedSegment = segments[selectedIndex];
@@ -584,15 +725,32 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
-
-            // Don't advance player or navigate - stay on wheel screen
-            // The player can spin again
+            setIsEndGameActionInProgress(false);
+            setSelectedIndex(0); // Reset wheel index
+            flatListRef.current?.scrollToOffset({ offset: 0, animated: false }); // Reset visual position
+            scrollY.setValue(0); // Reset the Animated.Value to sync with visual position
+            currentScrollOffset.current = 0; // Reset the current offset tracking
+            console.log('WheelScreen: Continue game popup closed and wheel reset');
         });
     };
 
     // Handle end game confirmation - end game
     const handleEndGame = () => {
+        console.log('WheelScreen: Host chose to end game');
+        console.log('WheelScreen: isEndGameActionInProgress:', isEndGameActionInProgress);
+
+        // Prevent multiple button presses
+        if (isEndGameActionInProgress) {
+            console.log('WheelScreen: Action already in progress, ignoring button press');
+            return;
+        }
+
+        setIsEndGameActionInProgress(true);
         setShowEndGameConfirmationModal(false);
+
+        // Broadcast end action to all players
+        console.log('WheelScreen: Broadcasting end game end');
+        socketService.broadcastEndGameEnd();
 
         // Close the wheel popup
         const selectedSegment = segments[selectedIndex];
@@ -620,6 +778,7 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
+            setIsEndGameActionInProgress(false);
 
             // Find player with most points and end the game
             const winner = gameState?.players.reduce((prev, current) =>
@@ -817,14 +976,14 @@ export default function WheelScreen() {
 
                                 if (currentLayer && currentLayer.type === 'end') {
                                     // For end segments, show confirmation modal for host or waiting message for others
-                                    const currentClientId = socketService.getCurrentPlayerId();
-                                    const isHost = gameState?.players.find(p => p.id === currentClientId)?.isHost;
+                                    // Use memoized player info to avoid React errors
+                                    const isHost = currentPlayerInfo.isHost;
+
+                                    console.log('WheelScreen: isHost:', isHost);
 
                                     if (isHost) {
-                                        // Show confirmation modal for host
-                                        setTimeout(() => {
-                                            setShowEndGameConfirmationModal(true);
-                                        }, 100);
+                                        // Show confirmation modal for host - modal is triggered by useEffect
+                                        // Return a minimal view to prevent React errors
                                         return (
                                             <View style={{ marginTop: 30, alignItems: 'center' }}>
                                                 <Text style={{
@@ -833,12 +992,13 @@ export default function WheelScreen() {
                                                     textAlign: 'center',
                                                     fontStyle: 'italic'
                                                 }}>
-                                                    Preparing end game confirmation...
+                                                    Processing end game decision...
                                                 </Text>
                                             </View>
                                         );
                                     } else {
                                         // Non-host players see waiting message
+                                        console.log('WheelScreen: Non-host player');
                                         return (
                                             <View style={{ marginTop: 30, alignItems: 'center' }}>
                                                 <Text style={{

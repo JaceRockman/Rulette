@@ -17,6 +17,8 @@ class SocketService {
     private onWheelSpun: ((stack: any[]) => void) | null = null;
     private onSynchronizedWheelSpin: ((data: { spinningPlayerId: string; finalIndex: number; scrollAmount: number; duration: number }) => void) | null = null;
     private onNavigateToScreen: ((data: { screen: string; params?: any }) => void) | null = null;
+    private onEndGameContinue: (() => void) | null = null;
+    private onEndGameEnd: (() => void) | null = null;
 
     connect() {
         if (this.socket) {
@@ -70,6 +72,14 @@ class SocketService {
         this.socket.on('navigate_to_screen', (data: { screen: string; params?: any }) => {
             this.onNavigateToScreen?.(data);
         });
+
+        this.socket.on('end_game_continue', () => {
+            this.onEndGameContinue?.();
+        });
+
+        this.socket.on('end_game_end', () => {
+            this.onEndGameEnd?.();
+        });
     }
 
     // Event setters
@@ -103,6 +113,14 @@ class SocketService {
 
     setOnNavigateToScreen(callback: ((data: { screen: string; params?: any }) => void) | null) {
         this.onNavigateToScreen = callback;
+    }
+
+    setOnEndGameContinue(callback: (() => void) | null) {
+        this.onEndGameContinue = callback;
+    }
+
+    setOnEndGameEnd(callback: (() => void) | null) {
+        this.onEndGameEnd = callback;
     }
 
     // Game actions
@@ -201,6 +219,20 @@ class SocketService {
             gameId: this.gameState.id,
             screen,
             params
+        });
+    }
+
+    broadcastEndGameContinue() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('broadcast_end_game_continue', {
+            gameId: this.gameState.id
+        });
+    }
+
+    broadcastEndGameEnd() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('broadcast_end_game_end', {
+            gameId: this.gameState.id
         });
     }
 
