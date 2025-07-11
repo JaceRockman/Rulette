@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const { gameReducer, createInitialGameState, generateLobbyCode } = require('./gameReducer');
 
 const app = express();
 const server = http.createServer(app);
@@ -18,52 +19,16 @@ app.use(express.json());
 
 // Game state storage
 const games = new Map();
-const players = new Map();
+const players = new Map(); // playerId -> { gameId, socketId }
+const socketToPlayer = new Map(); // socketId -> playerId
 
-// Generate random lobby code
-function generateLobbyCode() {
-    // Generate 4 random letters (A-Z)
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let code = '';
-    for (let i = 0; i < 4; i++) {
-        code += letters.charAt(Math.floor(Math.random() * letters.length));
-    }
-    return code;
-}
-
-// Create a new game
+// Create a new game using the reducer
 function createGame(hostId, hostName) {
-    const gameId = uuidv4();
-    const lobbyCode = generateLobbyCode();
+    const game = createInitialGameState(hostId, hostName);
 
-    const game = {
-        id: gameId,
-        code: lobbyCode,
-        players: [{
-            id: hostId,
-            name: hostName,
-            points: 20,
-            rules: [],
-            isHost: true,
-            rulesCompleted: false,
-            promptsCompleted: false
-        }],
-        prompts: [],
-        rules: [],
-        currentUser: hostId, // The user ID of the person currently using the app
-        activePlayer: null, // The player ID of the player currently taking their turn (excludes host)
-        isGameStarted: false,
-        isWheelSpinning: false,
-        currentStack: [],
-        roundNumber: 0,
-        numRules: 3, // Default number of rules per player
-        numPrompts: 3, // Default number of prompts per player
-        createdAt: Date.now()
-    };
-
-    games.set(gameId, game);
-    games.set(lobbyCode, game);
-    players.set(hostId, { gameId, socketId: null });
+    games.set(game.id, game);
+    games.set(game.code, game);
+    players.set(hostId, { gameId: game.id, socketId: null });
 
     return game;
 }
@@ -71,6 +36,24 @@ function createGame(hostId, hostName) {
 // Find game by code
 function findGameByCode(code) {
     return games.get(code.toUpperCase());
+}
+
+// Helper function to dispatch action and broadcast to all clients
+function dispatchGameAction(gameId, action) {
+    const game = games.get(gameId);
+    if (!game) return null;
+
+    // Apply the action to the game state
+    const newState = gameReducer(game, action);
+
+    // Update the stored game state
+    games.set(gameId, newState);
+    games.set(newState.code, newState);
+
+    // Broadcast the updated state to all clients in the game
+    io.to(gameId).emit('game_updated', newState);
+
+    return newState;
 }
 
 // Socket connection handling
@@ -101,13 +84,14 @@ io.on('connection', (socket) => {
             promptsCompleted: false
         };
 
-        game.players.push(player);
+        // Use reducer to add player
+        dispatchGameAction(game.id, { type: 'ADD_PLAYER', payload: player });
+
         players.set(playerId, { gameId: game.id, socketId: socket.id });
+        socketToPlayer.set(socket.id, playerId);
         socket.join(game.id);
 
-        // Update all players in the game
-        io.to(game.id).emit('game_updated', game);
-        socket.emit('joined_lobby', { playerId, game });
+        socket.emit('joined_lobby', { playerId, game: games.get(game.id) });
     });
 
     // Create lobby
@@ -116,6 +100,7 @@ io.on('connection', (socket) => {
         const game = createGame(playerId, playerName);
 
         players.set(playerId, { gameId: game.id, socketId: socket.id });
+        socketToPlayer.set(socket.id, playerId);
         socket.join(game.id);
 
         socket.emit('lobby_created', { playerId, game });
@@ -123,114 +108,58 @@ io.on('connection', (socket) => {
 
     // Add plaque (unified handler for rules and prompts)
     socket.on('add_plaque', ({ gameId, plaque }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
         if (plaque.type === 'rule') {
             const rule = {
                 ...plaque,
                 isActive: plaque.isActive || true,
                 assignedTo: undefined
             };
-            game.rules.push(rule);
+            dispatchGameAction(gameId, { type: 'ADD_RULE', payload: rule });
         } else if (plaque.type === 'prompt') {
             const prompt = {
                 ...plaque
             };
-            game.prompts.push(prompt);
+            dispatchGameAction(gameId, { type: 'ADD_PROMPT', payload: prompt });
         }
-
-        io.to(gameId).emit('game_updated', game);
     });
 
     // Add prompt
     socket.on('add_prompt', ({ gameId, plaqueObject }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        // Use the plaque object as the prompt (it already has id, text, category, authorId, plaqueColor)
         const prompt = {
             ...plaqueObject
         };
-
-        game.prompts.push(prompt);
-        io.to(gameId).emit('game_updated', game);
+        dispatchGameAction(gameId, { type: 'ADD_PROMPT', payload: prompt });
     });
 
     // Add rule
     socket.on('add_rule', (data) => {
         const { gameId, plaqueObject } = data;
-        const game = games.get(gameId);
-        if (!game) return;
-
-        // Use the plaque object as the rule (it already has id, text, authorId, plaqueColor)
         const rule = {
             ...plaqueObject,
             isActive: true
         };
-
-        game.rules.push(rule);
-        io.to(gameId).emit('game_updated', game);
+        dispatchGameAction(gameId, { type: 'ADD_RULE', payload: rule });
     });
 
     // Update plaque (unified handler for rules and prompts)
     socket.on('update_plaque', ({ gameId, plaque }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
         if (plaque.type === 'rule') {
-            const ruleIndex = game.rules.findIndex(r => r.id === plaque.id);
-            if (ruleIndex !== -1) {
-                // Replace the rule with the updated plaque
-                game.rules[ruleIndex] = {
-                    ...game.rules[ruleIndex],
-                    ...plaque
-                };
-                io.to(gameId).emit('game_updated', game);
-            }
+            dispatchGameAction(gameId, { type: 'UPDATE_RULE', payload: plaque });
         } else if (plaque.type === 'prompt') {
-            const promptIndex = game.prompts.findIndex(p => p.id === plaque.id);
-            if (promptIndex !== -1) {
-                // Replace the prompt with the updated plaque
-                game.prompts[promptIndex] = {
-                    ...game.prompts[promptIndex],
-                    ...plaque
-                };
-                io.to(gameId).emit('game_updated', game);
-            }
+            dispatchGameAction(gameId, { type: 'UPDATE_PROMPT', payload: plaque });
         }
     });
 
     // Update rule
-    socket.on('update_rule', ({ gameId, plaqueObject }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        const ruleIndex = game.rules.findIndex(r => r.id === plaqueObject.id);
-        if (ruleIndex !== -1) {
-            // Replace the rule with the updated plaque object
-            game.rules[ruleIndex] = {
-                ...game.rules[ruleIndex],
-                ...plaqueObject
-            };
-            io.to(gameId).emit('game_updated', game);
-        }
+    socket.on('update_rule', (data) => {
+        const { gameId, plaqueObject } = data;
+        dispatchGameAction(gameId, { type: 'UPDATE_RULE', payload: plaqueObject });
     });
 
     // Update prompt
-    socket.on('update_prompt', ({ gameId, plaqueObject }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        const promptIndex = game.prompts.findIndex(p => p.id === plaqueObject.id);
-        if (promptIndex !== -1) {
-            // Replace the prompt with the updated plaque object
-            game.prompts[promptIndex] = {
-                ...game.prompts[promptIndex],
-                ...plaqueObject
-            };
-            io.to(gameId).emit('game_updated', game);
-        }
+    socket.on('update_prompt', (data) => {
+        const { gameId, plaqueObject } = data;
+        dispatchGameAction(gameId, { type: 'UPDATE_PROMPT', payload: plaqueObject });
     });
 
     // Start game
@@ -238,19 +167,89 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        game.isGameStarted = true;
-        game.roundNumber = 1;
+        // Check if the requesting player is the host
+        const playerId = socketToPlayer.get(socket.id);
+        const player = game.players.find(p => p.id === playerId);
 
-        // Set the first non-host player as the initial active player
-        const nonHostPlayers = game.players.filter(player => !player.isHost);
-        if (nonHostPlayers.length > 0) {
-            game.activePlayer = nonHostPlayers[0].id;
-            console.log('Server: Setting initial activePlayer to:', game.activePlayer, 'for game:', gameId);
+        if (!player || !player.isHost) {
+            socket.emit('error', { message: 'Only the host can start the game' });
+            return;
         }
 
-        console.log('Server: Broadcasting game_updated after start with activePlayer:', game.activePlayer, 'for game:', gameId);
-        io.to(gameId).emit('game_updated', game);
+        dispatchGameAction(gameId, { type: 'START_GAME' });
         io.to(gameId).emit('game_started');
+    });
+
+    // Wheel spin
+    socket.on('spin_wheel', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Check if the requesting player is the active player
+        const playerId = socketToPlayer.get(socket.id);
+        const player = game.players.find(p => p.id === playerId);
+        if (!player || player.id !== game.activePlayer) {
+            socket.emit('error', { message: 'Only the active player can spin the wheel' });
+            return;
+        }
+
+        dispatchGameAction(gameId, { type: 'SYNCHRONIZED_WHEEL_SPIN' });
+    });
+
+    // Synchronized wheel spin
+    socket.on('synchronized_wheel_spin', ({ gameId, finalIndex, scrollAmount, duration }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Broadcast to all clients in the game
+        io.to(gameId).emit('synchronized_wheel_spin', {
+            spinningPlayerId: game.activePlayer,
+            finalIndex,
+            scrollAmount,
+            duration
+        });
+    });
+
+    // Navigate to screen
+    socket.on('navigate_to_screen', ({ gameId, screen, params }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Broadcast to all clients in the game
+        io.to(gameId).emit('navigate_to_screen', { screen, params });
+    });
+
+    // End game continue
+    socket.on('end_game_continue', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Broadcast to all clients in the game
+        io.to(gameId).emit('end_game_continue');
+    });
+
+    // End game end
+    socket.on('end_game_end', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Find player with most points
+        const winner = game.players.reduce((prev, current) =>
+            (prev.points > current.points) ? prev : current
+        );
+
+        dispatchGameAction(gameId, { type: 'END_GAME', payload: winner });
+
+        // Broadcast to all clients in the game
+        io.to(gameId).emit('end_game_end');
+    });
+
+    // Advance to next player
+    socket.on('advance_to_next_player', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        dispatchGameAction(gameId, { type: 'ADVANCE_TO_NEXT_PLAYER' });
     });
 
     // Update game settings
@@ -258,107 +257,20 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        // Update the game settings
+        // Check if the requesting player is the host
+        const playerId = socketToPlayer.get(socket.id);
+        const player = game.players.find(p => p.id === playerId);
+        if (!player || !player.isHost) {
+            socket.emit('error', { message: 'Only the host can update game settings' });
+            return;
+        }
+
         if (settings.numRules !== undefined) {
-            game.numRules = settings.numRules;
+            dispatchGameAction(gameId, { type: 'SET_NUM_RULES', payload: settings.numRules });
         }
         if (settings.numPrompts !== undefined) {
-            game.numPrompts = settings.numPrompts;
+            dispatchGameAction(gameId, { type: 'SET_NUM_PROMPTS', payload: settings.numPrompts });
         }
-        if (settings.startingPoints !== undefined) {
-            // Update all players' starting points
-            game.players.forEach(player => {
-                player.points = settings.startingPoints;
-            });
-        }
-
-        console.log('Server: Updated game settings:', settings, 'for game:', gameId);
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    // Mark rules as completed
-    socket.on('rules_completed', ({ gameId, playerId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        const player = game.players.find(p => p.id === playerId);
-        if (player) {
-            player.rulesCompleted = true;
-            io.to(gameId).emit('game_updated', game);
-        }
-    });
-
-    // Mark prompts as completed
-    socket.on('prompts_completed', ({ gameId, playerId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        const player = game.players.find(p => p.id === playerId);
-        if (player) {
-            player.promptsCompleted = true;
-            io.to(gameId).emit('game_updated', game);
-        }
-    });
-
-    // Spin wheel
-    socket.on('spin_wheel', ({ gameId, playerId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        // Check if the spinning player is the host
-        const spinningPlayer = game.players.find(p => p.id === playerId);
-        if (spinningPlayer && spinningPlayer.isHost) {
-            socket.emit('error', { message: 'Host players cannot spin the wheel' });
-            return;
-        }
-
-        // Check if the spinning player is the current active player
-        if (game.activePlayer !== playerId) {
-            socket.emit('error', { message: 'Only the active player can spin the wheel' });
-            return;
-        }
-
-        // Check if all non-host players have completed both phases
-        const nonHostPlayers = game.players.filter(player => !player.isHost);
-        const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
-            player.rulesCompleted && player.promptsCompleted
-        );
-
-        if (!allNonHostPlayersCompleted) {
-            socket.emit('error', { message: 'All players must complete rules and prompts before spinning the wheel' });
-            return;
-        }
-
-        game.isWheelSpinning = true;
-
-        console.log('Server: Active player', playerId, 'is spinning the wheel for game:', gameId);
-
-        // Generate random stack
-        const stack = [];
-        const availableRules = game.rules.filter(r => r.isActive && !r.assignedTo); // Only unassigned rules
-        const availablePrompts = game.prompts;
-
-        if (availableRules.length > 0) {
-            const randomRule = availableRules[Math.floor(Math.random() * availableRules.length)];
-            stack.push({ type: 'rule', content: randomRule });
-        }
-
-        if (availablePrompts.length > 0) {
-            const randomPrompt = availablePrompts[Math.floor(Math.random() * availablePrompts.length)];
-            stack.push({ type: 'prompt', content: randomPrompt });
-        }
-
-        if (Math.random() > 0.5) {
-            const modifiers = ['Double Points', 'Skip Turn', 'Reverse Order', 'Free Pass'];
-            const randomModifier = modifiers[Math.floor(Math.random() * modifiers.length)];
-            stack.push({ type: 'modifier', content: randomModifier });
-        }
-
-        game.currentStack = stack;
-
-        console.log('Server: Broadcasting game_updated after spin with activePlayer:', game.activePlayer, 'for game:', gameId);
-        io.to(gameId).emit('game_updated', game);
-        io.to(gameId).emit('wheel_spun', stack);
     });
 
     // Update points
@@ -366,11 +278,7 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        const player = game.players.find(p => p.id === playerId);
-        if (player) {
-            player.points = Math.max(0, points);
-            io.to(gameId).emit('game_updated', game);
-        }
+        dispatchGameAction(gameId, { type: 'UPDATE_POINTS', payload: { playerId, points } });
     });
 
     // Swap rules
@@ -378,18 +286,9 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        const player1Rules = game.rules.filter(r => r.assignedTo === player1Id);
-        const player2Rules = game.rules.filter(r => r.assignedTo === player2Id);
-
-        player1Rules.forEach(rule => {
-            rule.assignedTo = player2Id;
-        });
-
-        player2Rules.forEach(rule => {
-            rule.assignedTo = player1Id;
-        });
-
-        io.to(gameId).emit('game_updated', game);
+        // This would need to be implemented in the reducer
+        // For now, just broadcast the action
+        io.to(gameId).emit('swap_rules', { player1Id, player2Id });
     });
 
     // Assign rule
@@ -397,35 +296,26 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        const rule = game.rules.find(r => r.id === ruleId);
-        if (rule) {
-            rule.assignedTo = playerId;
-            io.to(gameId).emit('game_updated', game);
-        }
+        dispatchGameAction(gameId, { type: 'ASSIGN_RULE', payload: { ruleId, playerId } });
     });
 
-    // Assign rule to active player (when wheel lands on a rule)
+    // Assign rule to current player
     socket.on('assign_rule_to_current_player', ({ gameId, ruleId }) => {
         const game = games.get(gameId);
-        if (!game || !game.activePlayer) return;
+        if (!game) return;
 
-        const rule = game.rules.find(r => r.id === ruleId);
-        if (rule) {
-            rule.assignedTo = game.activePlayer;
-            io.to(gameId).emit('game_updated', game);
-        }
+        const playerId = socketToPlayer.get(socket.id);
+        if (!playerId) return;
+
+        dispatchGameAction(gameId, { type: 'ASSIGN_RULE', payload: { ruleId, playerId } });
     });
 
     // Remove wheel layer
     socket.on('remove_wheel_layer', ({ gameId, segmentId }) => {
         const game = games.get(gameId);
-        if (!game || !game.wheelSegments) return;
+        if (!game) return;
 
-        const segment = game.wheelSegments.find(s => s.id === segmentId);
-        if (segment) {
-            segment.currentLayerIndex = Math.min(segment.currentLayerIndex + 1, segment.layers.length - 1);
-            io.to(gameId).emit('game_updated', game);
-        }
+        dispatchGameAction(gameId, { type: 'REMOVE_WHEEL_LAYER', payload: segmentId });
     });
 
     // Sync wheel segments
@@ -433,158 +323,78 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        game.wheelSegments = wheelSegments;
-        io.to(gameId).emit('game_updated', game);
+        // This would need to be implemented in the reducer
+        // For now, just broadcast the action
+        io.to(gameId).emit('sync_wheel_segments', { wheelSegments });
     });
 
-    // Broadcast synchronized wheel spin
-    socket.on('broadcast_synchronized_wheel_spin', ({ gameId, spinningPlayerId, finalIndex, scrollAmount, duration }) => {
+    // Add player (for testing)
+    socket.on('add_player', ({ gameId, player }) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        // Broadcast to all players in the game (including sender for consistency)
-        io.to(gameId).emit('synchronized_wheel_spin', {
-            spinningPlayerId,
-            finalIndex,
-            scrollAmount,
-            duration
-        });
+        dispatchGameAction(gameId, { type: 'ADD_PLAYER', payload: player });
     });
 
-    // Broadcast navigation to screen
-    socket.on('broadcast_navigate_to_screen', ({ gameId, screen, params }) => {
+    // Mark rules completed
+    socket.on('rules_completed', ({ gameId, playerId }) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        // Broadcast to all players in the game (including sender for consistency)
-        io.to(gameId).emit('navigate_to_screen', {
-            screen,
-            params
-        });
+        dispatchGameAction(gameId, { type: 'MARK_RULES_COMPLETED', payload: playerId });
     });
 
-    // Broadcast end game continue
-    socket.on('broadcast_end_game_continue', ({ gameId }) => {
+    // Mark prompts completed
+    socket.on('prompts_completed', ({ gameId, playerId }) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        // Broadcast to all players in the game (including sender for consistency)
-        io.to(gameId).emit('end_game_continue');
+        dispatchGameAction(gameId, { type: 'MARK_PROMPTS_COMPLETED', payload: playerId });
     });
 
-    // Broadcast end game end
-    socket.on('broadcast_end_game_end', ({ gameId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        // Broadcast to all players in the game (including sender for consistency)
-        io.to(gameId).emit('end_game_end');
-    });
-
-    // Advance to next player after wheel spinning
-    socket.on('advance_to_next_player', ({ gameId }) => {
-        console.log('Server: Received advance_to_next_player event for game:', gameId, 'at:', new Date().toISOString());
-        const game = games.get(gameId);
-        if (!game) {
-            console.log('Server: Game not found for advance_to_next_player');
-            return;
-        }
-
-        console.log('Server: Current game state before advancement:');
-        console.log('Server: - activePlayer:', game.activePlayer);
-        console.log('Server: - players:', game.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
-
-        // Find non-host players
-        const nonHostPlayers = game.players.filter(player => !player.isHost);
-        console.log('Server: Non-host players:', nonHostPlayers.map(p => ({ id: p.id, name: p.name })));
-
-        if (nonHostPlayers.length === 0) {
-            console.log('Server: No non-host players found for advance_to_next_player');
-            return;
-        }
-
-        // Find active player index
-        const activePlayerIndex = nonHostPlayers.findIndex(player => player.id === game.activePlayer);
-        console.log('Server: Current activePlayer:', game.activePlayer, 'at index:', activePlayerIndex);
-
-        // Check if active player is not found in non-host players
-        if (activePlayerIndex === -1) {
-            console.log('Server: Current activePlayer not found in non-host players, setting to first non-host player');
-            game.activePlayer = nonHostPlayers[0].id;
-            console.log('Server: Set activePlayer to:', game.activePlayer, '(', nonHostPlayers[0].name, ') for game:', gameId);
-            io.to(gameId).emit('game_updated', game);
-            return;
-        }
-
-        // Move to next player (or back to first if at end)
-        const nextPlayerIndex = (activePlayerIndex + 1) % nonHostPlayers.length;
-        const oldActivePlayer = game.activePlayer;
-        const newActivePlayer = nonHostPlayers[nextPlayerIndex];
-        game.activePlayer = newActivePlayer.id;
-        console.log('Server: Advancing activePlayer from:', oldActivePlayer, 'to:', newActivePlayer.id, '(', newActivePlayer.name, ') for game:', gameId);
-
-        console.log('Server: Game state after advancement:');
-        console.log('Server: - activePlayer:', game.activePlayer);
-        console.log('Server: - players:', game.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
-
-        // Broadcast the updated game state to all players
-        console.log('Server: Broadcasting game_updated after advancing player with activePlayer:', game.activePlayer, 'for game:', gameId, 'at:', new Date().toISOString());
-        console.log('Server: Full game state being sent:', JSON.stringify(game, null, 2));
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    // Disconnect handling
+    // Handle disconnection
     socket.on('disconnect', () => {
+        // Find the player associated with this socket
+        let playerToRemove = null;
+        let gameId = null;
 
-        // Find and remove player
         for (const [playerId, playerData] of players.entries()) {
             if (playerData.socketId === socket.id) {
-                const game = games.get(playerData.gameId);
-                if (game) {
-                    game.players = game.players.filter(p => p.id !== playerId);
-
-                    // If no players left, remove game
-                    if (game.players.length === 0) {
-                        games.delete(game.id);
-                        games.delete(game.code);
-                    } else {
-                        // Assign host to first remaining player if host left
-                        if (!game.players.some(p => p.isHost)) {
-                            game.players[0].isHost = true;
-                        }
-
-                        // If the disconnected player was the active player, set active player to null or first non-host player
-                        if (game.activePlayer === playerId) {
-                            const nonHostPlayers = game.players.filter(p => !p.isHost);
-                            game.activePlayer = nonHostPlayers.length > 0 ? nonHostPlayers[0].id : null;
-                            console.log('Server: Updated activePlayer after disconnect to:', game.activePlayer, 'for game:', gameId);
-                        }
-
-                        io.to(game.id).emit('game_updated', game);
-                    }
-                }
-                players.delete(playerId);
+                playerToRemove = playerId;
+                gameId = playerData.gameId;
                 break;
             }
         }
+
+        if (playerToRemove && gameId) {
+            const game = games.get(gameId);
+            if (game) {
+                const player = game.players.find(p => p.id === playerToRemove);
+
+                if (player) {
+                    // Remove the player from the game
+                    dispatchGameAction(gameId, { type: 'REMOVE_PLAYER', payload: player });
+
+                    // If the host disconnected, assign a new host
+                    if (player.isHost && game.players.length > 0) {
+                        const newHost = game.players[0];
+                        dispatchGameAction(gameId, { type: 'SET_HOST', payload: newHost.id });
+                    }
+
+                    // If the active player disconnected, advance to the next player
+                    if (game.activePlayer === playerToRemove) {
+                        dispatchGameAction(gameId, { type: 'ADVANCE_TO_NEXT_PLAYER' });
+                    }
+                }
+            }
+
+            // Remove the player from the players map
+            players.delete(playerToRemove);
+        }
     });
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', games: games.size, players: players.size });
-});
-
-// Get active games (for debugging)
-app.get('/games', (req, res) => {
-    const gameList = Array.from(games.values()).filter(game => game.id && game.code);
-    res.json(gameList);
-});
-
 const PORT = process.env.PORT || 3001;
-
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`Health check: http://localhost:${PORT}/health`);
-    console.log(`Network access: http://192.168.1.201:${PORT}/health`);
 }); 

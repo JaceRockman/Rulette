@@ -123,7 +123,7 @@ class SocketService {
         this.onEndGameEnd = callback;
     }
 
-    // Game actions
+    // Game actions - Server authoritative
     createLobby(playerName: string) {
         if (!this.socket) return;
         this.socket.emit('create_lobby', { playerName });
@@ -198,15 +198,58 @@ class SocketService {
     }
 
     spinWheel() {
-        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
-        this.socket.emit('spin_wheel', { gameId: this.gameState.id, playerId: this.currentPlayerId });
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('spin_wheel', { gameId: this.gameState.id });
     }
 
-    broadcastSynchronizedWheelSpin(finalIndex: number, scrollAmount: number, duration: number) {
-        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
-        this.socket.emit('broadcast_synchronized_wheel_spin', {
+    // Hybrid actions - Optimistic updates with server sync
+    updatePoints(playerId: string, points: number) {
+        if (!this.socket || !this.gameState) return;
+
+        // Send to server for authoritative update
+        this.socket.emit('update_points', {
             gameId: this.gameState.id,
-            spinningPlayerId: this.gameState.activePlayer || this.currentPlayerId,
+            playerId,
+            points
+        });
+    }
+
+    assignRule(ruleId: string, playerId: string) {
+        if (!this.socket || !this.gameState) return;
+
+        // Send to server for authoritative update
+        this.socket.emit('assign_rule', {
+            gameId: this.gameState.id,
+            ruleId,
+            playerId
+        });
+    }
+
+    assignRuleToCurrentPlayer(ruleId: string) {
+        if (!this.socket || !this.gameState) return;
+
+        // Send to server for authoritative update
+        this.socket.emit('assign_rule_to_current_player', {
+            gameId: this.gameState.id,
+            ruleId
+        });
+    }
+
+    removeWheelLayer(segmentId: string) {
+        if (!this.socket || !this.gameState) return;
+
+        // Send to server for authoritative update
+        this.socket.emit('remove_wheel_layer', {
+            gameId: this.gameState.id,
+            segmentId
+        });
+    }
+
+    // Broadcast actions - Synchronization only
+    broadcastSynchronizedWheelSpin(finalIndex: number, scrollAmount: number, duration: number) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('synchronized_wheel_spin', {
+            gameId: this.gameState.id,
             finalIndex,
             scrollAmount,
             duration
@@ -214,8 +257,8 @@ class SocketService {
     }
 
     broadcastNavigateToScreen(screen: string, params?: any) {
-        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
-        this.socket.emit('broadcast_navigate_to_screen', {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('navigate_to_screen', {
             gameId: this.gameState.id,
             screen,
             params
@@ -224,48 +267,24 @@ class SocketService {
 
     broadcastEndGameContinue() {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('broadcast_end_game_continue', {
-            gameId: this.gameState.id
-        });
+        this.socket.emit('end_game_continue', { gameId: this.gameState.id });
     }
 
     broadcastEndGameEnd() {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('broadcast_end_game_end', {
-            gameId: this.gameState.id
-        });
+        this.socket.emit('end_game_end', { gameId: this.gameState.id });
     }
 
     advanceToNextPlayer() {
-        if (!this.socket || !this.gameState) {
-            console.log('SocketService: Cannot advance to next player - socket or gameState not available');
-            return;
-        }
-        console.log('SocketService: Calling advanceToNextPlayer for game:', this.gameState.id);
-        console.log('SocketService: Current activePlayer:', this.gameState.activePlayer);
-        this.socket.emit('advance_to_next_player', {
-            gameId: this.gameState.id
-        });
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('advance_to_next_player', { gameId: this.gameState.id });
     }
 
     updateGameSettings(settings: { numRules?: number; numPrompts?: number; startingPoints?: number }) {
-        if (!this.socket || !this.gameState) {
-            console.log('SocketService: Cannot update game settings - socket or gameState not available');
-            return;
-        }
-        console.log('SocketService: Updating game settings:', settings, 'for game:', this.gameState.id);
+        if (!this.socket || !this.gameState) return;
         this.socket.emit('update_game_settings', {
             gameId: this.gameState.id,
             settings
-        });
-    }
-
-    updatePoints(playerId: string, points: number) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('update_points', {
-            gameId: this.gameState.id,
-            playerId,
-            points
         });
     }
 
@@ -278,31 +297,6 @@ class SocketService {
         });
     }
 
-    assignRule(ruleId: string, playerId: string) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('assign_rule', {
-            gameId: this.gameState.id,
-            ruleId,
-            playerId
-        });
-    }
-
-    assignRuleToCurrentPlayer(ruleId: string) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('assign_rule_to_current_player', {
-            gameId: this.gameState.id,
-            ruleId
-        });
-    }
-
-    removeWheelLayer(segmentId: string) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('remove_wheel_layer', {
-            gameId: this.gameState.id,
-            segmentId
-        });
-    }
-
     syncWheelSegments(wheelSegments: any[]) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('sync_wheel_segments', {
@@ -311,7 +305,14 @@ class SocketService {
         });
     }
 
-    // Getters
+    addPlayer(player: { id: string; name: string; points: number; isHost: boolean }) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('add_player', {
+            gameId: this.gameState.id,
+            player
+        });
+    }
+
     getCurrentPlayerId(): string | null {
         return this.currentPlayerId;
     }
@@ -327,13 +328,9 @@ class SocketService {
     disconnect() {
         if (this.socket) {
             this.socket.disconnect();
-            this.socket = null;
         }
-        this.gameState = null;
-        this.currentPlayerId = null;
     }
 }
 
-// Export singleton instance
-export const socketService = new SocketService();
+const socketService = new SocketService();
 export default socketService; 

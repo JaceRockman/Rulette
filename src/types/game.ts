@@ -55,7 +55,7 @@ export interface GameState {
     activePlayer?: string; // The player ID of the player currently taking their turn (excludes host)
     isGameStarted: boolean;
     isWheelSpinning: boolean;
-    currentStack: StackItem[];
+    currentWheelPlaques: StackItem[];
     roundNumber: number;
     numRules: number;
     numPrompts: number;

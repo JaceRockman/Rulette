@@ -196,8 +196,7 @@ export default function WheelScreen() {
                 );
                 if (winner) {
                     endGame();
-                    // Navigate to game room to show game over screen
-                    socketService.broadcastNavigateToScreen('GAME_ROOM');
+                    // Don't navigate - let the game room handle showing the game over screen
                 }
                 console.log('WheelScreen: End game end popup closed');
             });
@@ -213,8 +212,8 @@ export default function WheelScreen() {
     // Check if game has ended
     React.useEffect(() => {
         if (gameState?.gameEnded && gameState?.winner) {
-            // Navigate to game screen to show the game over screen
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            // Don't navigate - let the game room handle showing the game over screen
+            // The game room should automatically show the game over screen when gameEnded is true
         }
     }, [gameState?.gameEnded, gameState?.winner, navigation]);
 
@@ -875,9 +874,6 @@ export default function WheelScreen() {
                     useNativeDriver: true,
                 })
             ]).start(() => {
-                if (selectedSegment) {
-                    removeWheelLayer(selectedSegment.id);
-                }
                 setShowExpandedPlaque(false);
                 setIsClosingPopup(false);
                 setFrozenSegment(null);
@@ -892,8 +888,7 @@ export default function WheelScreen() {
                 );
                 if (winner) {
                     endGame();
-                    // Navigate to game room to show game over screen
-                    socketService.broadcastNavigateToScreen('GAME_ROOM');
+                    // Don't navigate - let the game room handle showing the game over screen
                 }
             });
         }, 0);

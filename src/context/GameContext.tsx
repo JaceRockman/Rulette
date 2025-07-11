@@ -42,17 +42,16 @@ type GameAction =
     | { type: 'SET_GAME_STATE'; payload: GameState }
     | { type: 'UPDATE_PLAYER'; payload: Player }
     | { type: 'ADD_PLAYER'; payload: Player }
-    | { type: 'REMOVE_PLAYER'; payload: string }
+    | { type: 'REMOVE_PLAYER'; payload: Player }
     | { type: 'ADD_PROMPT'; payload: Prompt }
     | { type: 'ADD_RULE'; payload: Rule }
     | { type: 'UPDATE_RULE'; payload: Rule }
     | { type: 'UPDATE_PROMPT'; payload: Prompt }
     | { type: 'START_GAME' }
-    | { type: 'SPIN_WHEEL'; payload: StackItem[] }
     | { type: 'SYNCHRONIZED_WHEEL_SPIN'; payload: { spinningPlayerId: string; finalIndex: number; duration: number } }
     | { type: 'UPDATE_POINTS'; payload: { playerId: string; points: number } }
     | { type: 'SET_CURRENT_USER'; payload: string }
-    | { type: 'SET_ACTIVE_PLAYER'; payload: string }
+    | { type: 'SET_ACTIVE_PLAYER'; payload: Player }
     | { type: 'RESET_GAME' }
     | { type: 'SET_NUM_RULES'; payload: number }
     | { type: 'SET_NUM_PROMPTS'; payload: number }
@@ -61,7 +60,13 @@ type GameAction =
     | { type: 'CREATE_WHEEL_SEGMENTS' }
     | { type: 'SET_HOST'; payload: string }
     | { type: 'MARK_RULES_COMPLETED'; payload: string }
-    | { type: 'MARK_PROMPTS_COMPLETED'; payload: string };
+    | { type: 'MARK_PROMPTS_COMPLETED'; payload: string }
+    | { type: 'ASSIGN_RULE'; payload: { ruleId: string; playerId: string } }
+    // Optimistic action types
+    | { type: 'ADD_PLAYER_OPTIMISTIC'; payload: Player }
+    | { type: 'ADD_RULE_OPTIMISTIC'; payload: Rule }
+    | { type: 'UPDATE_POINTS_OPTIMISTIC'; payload: { playerId: string; points: number } }
+    | { type: 'ASSIGN_RULE_OPTIMISTIC'; payload: { ruleId: string; playerId: string } };
 
 const initialState: GameState = {
     id: '',
@@ -72,7 +77,7 @@ const initialState: GameState = {
     wheelSegments: [],
     isGameStarted: false,
     isWheelSpinning: false,
-    currentStack: [],
+    currentWheelPlaques: [],
     roundNumber: 0,
     numRules: 3,
     numPrompts: 3,
@@ -82,10 +87,6 @@ const initialState: GameState = {
 function gameReducer(state: GameState, action: GameAction): GameState {
     switch (action.type) {
         case 'SET_GAME_STATE':
-            console.log('GameContext: SET_GAME_STATE reducer called at:', new Date().toISOString());
-            console.log('GameContext: Previous activePlayer:', state?.activePlayer);
-            console.log('GameContext: New activePlayer:', action.payload.activePlayer);
-            console.log('GameContext: New game state:', action.payload);
             return action.payload;
 
         case 'ADD_PLAYER':
@@ -94,10 +95,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 players: [...(state.players || []), action.payload],
             };
 
+        case 'ADD_PLAYER_OPTIMISTIC':
+            // Optimistic update - same as regular ADD_PLAYER
+            return {
+                ...state,
+                players: [...(state.players || []), action.payload],
+            };
+
         case 'REMOVE_PLAYER':
             return {
                 ...state,
-                players: (state.players || []).filter(p => p.id !== action.payload),
+                players: (state.players || []).filter(p => p.id !== action.payload.id),
             };
 
         case 'ADD_PROMPT':
@@ -107,6 +115,13 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             };
 
         case 'ADD_RULE':
+            return {
+                ...state,
+                rules: [...(state.rules || []), action.payload],
+            };
+
+        case 'ADD_RULE_OPTIMISTIC':
+            // Optimistic update - same as regular ADD_RULE
             return {
                 ...state,
                 rules: [...(state.rules || []), action.payload],
@@ -131,13 +146,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 roundNumber: 1,
             };
 
-        case 'SPIN_WHEEL':
-            return {
-                ...state,
-                isWheelSpinning: true,
-                currentStack: action.payload,
-            };
-
         case 'SYNCHRONIZED_WHEEL_SPIN':
             return {
                 ...state,
@@ -145,6 +153,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             };
 
         case 'UPDATE_POINTS':
+            return {
+                ...state,
+                players: (state.players || []).map((p: Player) =>
+                    p.id === action.payload.playerId
+                        ? { ...p, points: action.payload.points }
+                        : p
+                ),
+            };
+
+        case 'UPDATE_POINTS_OPTIMISTIC':
+            // Optimistic update - same as regular UPDATE_POINTS
             return {
                 ...state,
                 players: (state.players || []).map((p: Player) =>
@@ -163,7 +182,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         case 'SET_ACTIVE_PLAYER':
             return {
                 ...state,
-                activePlayer: action.payload,
+                activePlayer: action.payload.id,
             };
 
         case 'RESET_GAME':
@@ -213,121 +232,149 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                                 ...p,
                                 isHost: true
                             }))
-                    ),
+                    )
             };
 
-        case 'CREATE_WHEEL_SEGMENTS':
-            const SEGMENT_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fbbf24'];
-
-            // Create wheel segments with layers
-            const newSegments: WheelSegment[] = [];
-
-            // Ensure rules and prompts arrays exist
-            const rules = state.rules || [];
-            const prompts = state.prompts || [];
-            const totalSegments = Math.max(rules.length, prompts.length, 1); // At least 1 segment
-
-            // Track modifier colors for balanced distribution
-            const modifierColors: string[] = [];
-
-            for (let i = 0; i < totalSegments; i++) {
-                const layers: WheelLayer[] = [];
-
-                // Add rule layer if available, otherwise add modifier
-                if (i < rules.length) {
-                    const rulePlaqueColor = rules[i].plaqueColor || LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length];
-                    layers.push({
-                        type: 'rule',
-                        content: rules[i],
-                        isActive: true,
-                        plaqueColor: rulePlaqueColor
-                    });
-                } else {
-                    // Add modifier layer if no rule available
-                    const modifiers = ['Clone', 'Flip', 'Up', 'Down', 'Swap'];
-                    const modifierColor = getVariedModifierColor(modifierColors);
-                    modifierColors.push(modifierColor);
-                    layers.push({
-                        type: 'modifier',
-                        content: modifiers[Math.floor(Math.random() * modifiers.length)],
-                        isActive: true,
-                        plaqueColor: modifierColor
-                    });
-                }
-
-                // Add prompt layer if available, otherwise add modifier
-                if (i < prompts.length) {
-                    const promptPlaqueColor = prompts[i].plaqueColor || LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length];
-                    layers.push({
-                        type: 'prompt',
-                        content: prompts[i],
-                        isActive: true,
-                        plaqueColor: promptPlaqueColor
-                    });
-                } else {
-                    // Add modifier layer if no prompt available
-                    const modifiers = ['Clone', 'Flip', 'Up', 'Down', 'Swap'];
-                    // Use a more varied approach for modifier colors
-                    const modifierColor = getVariedModifierColor(modifierColors);
-                    modifierColors.push(modifierColor);
-                    layers.push({
-                        type: 'modifier',
-                        content: modifiers[Math.floor(Math.random() * modifiers.length)],
-                        isActive: true,
-                        plaqueColor: modifierColor
-                    });
-                }
-
-                // Add another modifier layer
-                const modifiers = ['Clone', 'Flip', 'Up', 'Down', 'Swap'];
-                const secondModifierColor = getVariedModifierColor(modifierColors);
-                modifierColors.push(secondModifierColor);
-                layers.push({
-                    type: 'modifier',
-                    content: modifiers[Math.floor(Math.random() * modifiers.length)],
-                    isActive: true,
-                    plaqueColor: secondModifierColor
-                });
-
-                // Add end layer
-                layers.push({
-                    type: 'end',
-                    content: 'Game Over',
-                    isActive: true,
-                    plaqueColor: '#313131' // Always slate gray for end layer
-                });
-
-                newSegments.push({
-                    id: Math.random().toString(36).substr(2, 9),
-                    layers,
-                    currentLayerIndex: 0,
-                    color: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
-                    plaqueColor: LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length]
-                });
-            }
-
-            // Sync wheel segments to backend
-            socketService.syncWheelSegments(newSegments);
-
+        case 'ASSIGN_RULE':
             return {
                 ...state,
-                wheelSegments: newSegments,
+                rules: (state.rules || []).map((r: Rule) =>
+                    r.id === action.payload.ruleId
+                        ? { ...r, assignedTo: action.payload.playerId }
+                        : r
+                ),
+            };
+
+        case 'ASSIGN_RULE_OPTIMISTIC':
+            // Optimistic update - same as regular ASSIGN_RULE
+            return {
+                ...state,
+                rules: (state.rules || []).map((r: Rule) =>
+                    r.id === action.payload.ruleId
+                        ? { ...r, assignedTo: action.payload.playerId }
+                        : r
+                ),
             };
 
         case 'MARK_RULES_COMPLETED':
             return {
                 ...state,
-                rules: state.rules.map(rule =>
-                    rule.id === action.payload ? { ...rule, isActive: false } : rule
+                players: (state.players || []).map((p: Player) =>
+                    p.id === action.payload
+                        ? { ...p, rulesCompleted: true }
+                        : p
                 ),
             };
 
         case 'MARK_PROMPTS_COMPLETED':
             return {
                 ...state,
-                prompts: state.prompts.map(prompt =>
-                    prompt.id === action.payload ? { ...prompt, isActive: false } : prompt
+                players: (state.players || []).map((p: Player) =>
+                    p.id === action.payload
+                        ? { ...p, promptsCompleted: true }
+                        : p
                 ),
+            };
+
+        case 'CREATE_WHEEL_SEGMENTS':
+            // Create wheel segments from rules and prompts
+            const segments: WheelSegment[] = [];
+            const colorUsage: { [color: string]: { prompts: number; rules: number; modifiers: number } } = {};
+
+            // Helper function to get balanced color
+            function getBalancedColor(type: 'prompt' | 'rule' | 'modifier', prompts: Prompt[], rules: Rule[]): string {
+                const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd', '#00d2d3', '#ff9f43'];
+                const usage = colorUsage[colors[0]] || { prompts: 0, rules: 0, modifiers: 0 };
+
+                for (const color of colors) {
+                    if (!colorUsage[color]) {
+                        colorUsage[color] = { prompts: 0, rules: 0, modifiers: 0 };
+                    }
+
+                    const currentUsage = colorUsage[color][type + 's' as keyof typeof colorUsage[typeof color]];
+                    const minUsage = Math.min(...Object.values(colorUsage).map(u => u[type + 's' as keyof typeof u]));
+
+                    if (currentUsage <= minUsage) {
+                        colorUsage[color][type + 's' as keyof typeof colorUsage[typeof color]]++;
+                        return color;
+                    }
+                }
+
+                // Fallback
+                colorUsage[colors[0]][type + 's' as keyof typeof colorUsage[typeof colors[0]]]++;
+                return colors[0];
+            }
+
+            // Create segments from rules
+            state.rules.forEach((rule) => {
+                const color = getBalancedColor('rule', state.prompts, state.rules);
+                segments.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    color: color,
+                    plaqueColor: rule.plaqueColor || '#fff',
+                    layers: [{
+                        type: 'rule',
+                        content: rule,
+                        plaqueColor: rule.plaqueColor || '#fff',
+                        isActive: true
+                    }],
+                    currentLayerIndex: 0
+                });
+            });
+
+            // Create segments from prompts
+            state.prompts.forEach((prompt) => {
+                const color = getBalancedColor('prompt', state.prompts, state.rules);
+                segments.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    color: color,
+                    plaqueColor: prompt.plaqueColor || '#fff',
+                    layers: [{
+                        type: 'prompt',
+                        content: prompt,
+                        plaqueColor: prompt.plaqueColor || '#fff',
+                        isActive: true
+                    }],
+                    currentLayerIndex: 0
+                });
+            });
+
+            // Add modifier segments
+            const modifiers = ['Clone', 'Flip', 'Up', 'Down', 'Swap', 'Shred'];
+            const modifierColors = ['#28a745', '#ffc107', '#17a2b8', '#6f42c1', '#fd7e14', '#dc3545'];
+
+            modifiers.forEach((modifier, index) => {
+                segments.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    color: modifierColors[index],
+                    plaqueColor: '#fff',
+                    layers: [{
+                        type: 'modifier',
+                        content: modifier,
+                        plaqueColor: '#fff',
+                        isActive: true
+                    }],
+                    currentLayerIndex: 0
+                });
+            });
+
+            // Add end segment
+            segments.push({
+                id: Math.random().toString(36).substr(2, 9),
+                color: '#dc3545',
+                plaqueColor: '#fff',
+                layers: [{
+                    type: 'end',
+                    content: 'END GAME',
+                    plaqueColor: '#fff',
+                    isActive: true
+                }],
+                currentLayerIndex: 0
+            });
+
+            return {
+                ...state,
+                wheelSegments: segments,
             };
 
         default:
@@ -381,18 +428,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const currentUser = gameState?.players.find(p => p.id === currentUserId) || null;
     const activePlayer = gameState?.players.find(p => p.id === gameState?.activePlayer) || null;
 
-    // Debug active player computation
-    console.log('GameContext: Computing activePlayer at:', new Date().toISOString());
-    console.log('GameContext: gameState?.activePlayer:', gameState?.activePlayer);
-    console.log('GameContext: gameState?.players:', gameState?.players?.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
-    console.log('GameContext: Computed activePlayer:', activePlayer);
-
     // Use a ref to track the previous game state for debugging
     const previousGameStateRef = React.useRef<GameState | null>(null);
 
     // Connect to socket on mount
     React.useEffect(() => {
         socketService.connect();
+
         // Listen for socket events
         socketService.setOnLobbyCreated(({ playerId, game }) => {
             setCurrentUserId(playerId);
@@ -409,18 +451,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             // When game starts, all players should navigate to rule writing screen
             // This will be handled by the navigation logic in the screens
         });
-        socketService.setOnWheelSpun((stack) => {
-            dispatch({ type: 'SPIN_WHEEL', payload: stack });
-        });
-        socketService.setOnSynchronizedWheelSpin((data) => {
-            console.log('GameContext: Dispatching SYNCHRONIZED_WHEEL_SPIN action at:', new Date().toISOString());
-            console.log('GameContext: SYNCHRONIZED_WHEEL_SPIN data:', data);
-            dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: data });
-        });
-        socketService.setOnNavigateToScreen((data) => {
-            // Handle navigation to different screens
-            // This will be handled by individual screens that need to respond to navigation
-        });
+
         return () => {
             socketService.disconnect();
         };
@@ -480,55 +511,40 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.createLobby(playerName);
     };
 
+    // Example of hybrid approach with optimistic updates
     const addTestPlayers = (numPlayers: number) => {
-        if (!gameState || numPlayers <= 0) return;
+        const testPlayers = [
+            { id: 'player1', name: 'Alice', points: 20, isHost: false, rules: [], rulesCompleted: false, promptsCompleted: false },
+            { id: 'player2', name: 'Bob', points: 20, isHost: false, rules: [], rulesCompleted: false, promptsCompleted: false }
+        ];
 
-        const testPlayerNames = ["Alice", "Bob", "Charlie", "Diana", "Eve", "Frank", "Grace", "Henry"];
-        const newPlayers: Player[] = [];
+        // Optimistic update - immediately update UI
+        testPlayers.forEach(player => {
+            dispatch({ type: 'ADD_PLAYER_OPTIMISTIC', payload: player });
+        });
 
-        for (let i = 0; i < numPlayers; i++) {
-            const testPlayer: Player = {
-                id: Math.random().toString(36).substr(2, 9),
-                name: testPlayerNames[i] || `Player ${i + 1}`,
-                points: 20, // All players start at 20 points
-                rules: [],
-                isHost: false,
-            };
-            newPlayers.push(testPlayer);
-        }
-
-        const updatedGameState = {
-            ...gameState,
-            players: [...gameState.players, ...newPlayers],
-        };
-
-        dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
+        // Send to server for authoritative update
+        testPlayers.forEach(player => {
+            socketService.addPlayer(player);
+        });
     };
 
     const addFillerRules = (numRules: number) => {
-        if (!gameState || numRules <= 0) return;
-
-        const fillerRules: Rule[] = [
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true, authorId: "system" },
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true, authorId: "system" },
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", isFiller: true, authorId: "system" },
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff", isFiller: true, authorId: "system" },
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true, authorId: "system" },
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true, authorId: "system" },
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", isFiller: true, authorId: "system" },
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff", isFiller: true, authorId: "system" },
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", isFiller: true, authorId: "system" },
-            { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", isFiller: true, authorId: "system" },
+        const fillerRules = [
+            { id: 'rule1', text: 'Always speak in rhymes', authorId: 'host', plaqueColor: '#ff6b6b', isActive: true, type: 'rule' as const },
+            { id: 'rule2', text: 'Use only questions', authorId: 'host', plaqueColor: '#4ecdc4', isActive: true, type: 'rule' as const },
+            { id: 'rule3', text: 'End every sentence with "indeed"', authorId: 'host', plaqueColor: '#45b7d1', isActive: true, type: 'rule' as const }
         ];
 
-        const selectedFillerRules = fillerRules.slice(0, Math.min(numRules, fillerRules.length));
+        // Optimistic update - immediately update UI
+        fillerRules.slice(0, numRules).forEach(rule => {
+            dispatch({ type: 'ADD_RULE_OPTIMISTIC', payload: rule });
+        });
 
-        const updatedGameState = {
-            ...gameState,
-            rules: [...gameState.rules, ...selectedFillerRules],
-        };
-
-        dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
+        // Send to server for authoritative update
+        fillerRules.slice(0, numRules).forEach(rule => {
+            socketService.addRule(rule);
+        });
     };
 
     const addFillerPrompts = (numPrompts: number) => {
@@ -570,6 +586,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 points: 20,
                 rules: [],
                 isHost: true,
+                rulesCompleted: false,
+                promptsCompleted: false,
             },
             {
                 id: player1Id,
@@ -577,6 +595,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 points: 20,
                 rules: [],
                 isHost: false,
+                rulesCompleted: false,
+                promptsCompleted: false,
             },
             {
                 id: player2Id,
@@ -584,6 +604,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 points: 20,
                 rules: [],
                 isHost: false,
+                rulesCompleted: false,
+                promptsCompleted: false,
             },
             {
                 id: player3Id,
@@ -591,8 +613,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 points: 20,
                 rules: [],
                 isHost: false,
+                rulesCompleted: false,
+                promptsCompleted: false,
             },
         ];
+
+        // Add each player to the server
+        players.forEach(player => {
+            socketService.addPlayer(player);
+        });
 
         const rules: Rule[] = [
             { id: Math.random().toString(36).substr(2, 9), type: 'rule', text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", authorId: "system" },
@@ -617,6 +646,28 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             { id: Math.random().toString(36).substr(2, 9), type: 'prompt', text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3", authorId: "system" },
         ];
 
+        // Add rules and prompts to the server
+        rules.forEach(rule => {
+            socketService.addRule({
+                id: rule.id,
+                text: rule.text,
+                isActive: rule.isActive,
+                authorId: rule.authorId,
+                plaqueColor: rule.plaqueColor
+            });
+        });
+
+        prompts.forEach(prompt => {
+            socketService.addPrompt({
+                id: prompt.id,
+                text: prompt.text,
+                category: prompt.category,
+                authorId: prompt.authorId,
+                plaqueColor: prompt.plaqueColor
+            });
+        });
+
+        // Create a local testing state for immediate use
         const testingGameState: GameState = {
             ...initialState,
             id: Math.random().toString(36).substr(2, 9),
@@ -727,32 +778,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const spinWheel = () => {
         if (!gameState) return;
 
-        // Send to backend via socket service
-        socketService.spinWheel();
+        // Generate synchronized wheel spin parameters
+        const finalIndex = Math.floor(Math.random() * (gameState.wheelSegments?.length || 1));
+        const duration = 3000 + Math.random() * 2000;
 
-        const stack: StackItem[] = [];
-        const availableRules = gameState.rules.filter(r => r.isActive && !r.assignedTo);
-        const availablePrompts = gameState.prompts;
+        // Broadcast the synchronized spin to all players
+        socketService.broadcastSynchronizedWheelSpin(finalIndex, 0, duration);
 
-        // Generate random stack: rule -> prompt/modifier -> prompt/modifier -> end
-        if (availableRules.length > 0) {
-            const randomRule = availableRules[Math.floor(Math.random() * availableRules.length)];
-            stack.push({ type: 'rule', content: randomRule });
-        }
-
-        if (availablePrompts.length > 0) {
-            const randomPrompt = availablePrompts[Math.floor(Math.random() * availablePrompts.length)];
-            stack.push({ type: 'prompt', content: randomPrompt });
-        }
-
-        // Add modifier (50% chance)
-        if (Math.random() > 0.5) {
-            const modifiers = ['Clone', 'Flip'];
-            const randomModifier = modifiers[Math.floor(Math.random() * modifiers.length)];
-            stack.push({ type: 'modifier', content: randomModifier });
-        }
-
-        dispatch({ type: 'SPIN_WHEEL', payload: stack });
+        // Dispatch the action locally
+        dispatch({
+            type: 'SYNCHRONIZED_WHEEL_SPIN',
+            payload: {
+                spinningPlayerId: socketService.getCurrentPlayerId() || '',
+                finalIndex,
+                duration
+            }
+        });
     };
 
     const synchronizedSpinWheel = (finalIndex: number, duration: number) => {
@@ -760,8 +801,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const updatePoints = (playerId: string, points: number) => {
-        dispatch({ type: 'UPDATE_POINTS', payload: { playerId, points } });
-        // Also sync to backend via socket service
+        // Optimistic update - immediately update UI
+        dispatch({ type: 'UPDATE_POINTS_OPTIMISTIC', payload: { playerId, points } });
+
+        // Send to server for authoritative update
         socketService.updatePoints(playerId, points);
     };
 
@@ -828,13 +871,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const assignRule = (ruleId: string, playerId: string) => {
-        if (!gameState) return;
+        // Optimistic update - immediately update UI
+        dispatch({ type: 'ASSIGN_RULE_OPTIMISTIC', payload: { ruleId, playerId } });
 
-        const rule = gameState.rules.find((r: Rule) => r.id === ruleId);
-        if (rule) {
-            // Send to backend via socket service
-            socketService.assignRule(ruleId, playerId);
-        }
+        // Send to server for authoritative update
+        socketService.assignRule(ruleId, playerId);
     };
 
     const assignRuleToCurrentUser = (ruleId: string) => {
@@ -854,9 +895,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const endGame = () => {
-        if (!gameState || !gameState.activePlayer) return;
+        if (!gameState) return;
 
-        const winner = gameState.players.find(p => p.id === gameState.activePlayer);
+        // Find player with most points
+        const winner = gameState.players.reduce((prev, current) =>
+            (prev.points > current.points) ? prev : current
+        );
         if (winner) {
             dispatch({ type: 'END_GAME', payload: winner });
         }
