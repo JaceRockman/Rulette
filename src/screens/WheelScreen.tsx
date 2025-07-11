@@ -14,7 +14,12 @@ import {
     PlayerSelectionModal,
     RuleSelectionModal,
     SwapModal,
-    EndGameConfirmationModal
+    EndGameConfirmationModal,
+    CloneWorkflowModal,
+    FlipWorkflowModal,
+    UpDownWorkflowModal,
+    SwapWorkflowModal,
+    ShredWorkflowModal
 } from '../components/Modals';
 import socketService from '../services/socketService';
 
@@ -35,6 +40,15 @@ export default function WheelScreen() {
 
     // Note: We don't set the active player here - the server manages it
     // The playerId param is just for reference to know who is spinning
+    // Workflow modal states
+    const [showCloneWorkflowModal, setShowCloneWorkflowModal] = useState(false);
+    const [showFlipWorkflowModal, setShowFlipWorkflowModal] = useState(false);
+    const [showUpWorkflowModal, setShowUpWorkflowModal] = useState(false);
+    const [showDownWorkflowModal, setShowDownWorkflowModal] = useState(false);
+    const [showSwapWorkflowModal, setShowSwapWorkflowModal] = useState(false);
+    const [showShredWorkflowModal, setShowShredWorkflowModal] = useState(false);
+
+    // Legacy modal states (keeping for compatibility)
     const [showCloneModal, setShowCloneModal] = useState(false);
     const [showClonePlayerModal, setShowClonePlayerModal] = useState(false);
     const [showFlipModal, setShowFlipModal] = useState(false);
@@ -226,11 +240,11 @@ export default function WheelScreen() {
             const isHost = currentPlayerInfo.isHost;
 
             if (isHost && !showEndGameConfirmationModal && !isEndGameActionInProgress && !hasProcessedEndSegment) {
-                // Use requestAnimationFrame to avoid React errors
-                requestAnimationFrame(() => {
+                // Use setTimeout to avoid React state update during render
+                setTimeout(() => {
                     setHasProcessedEndSegment(true);
                     setShowEndGameConfirmationModal(true);
-                });
+                }, 0);
             }
         }
     }, [showExpandedPlaque, selectedIndex, synchronizedSpinResult, isClosingPopup, frozenSegment, segments, currentPlayerInfo, showEndGameConfirmationModal, isEndGameActionInProgress, hasProcessedEndSegment]);
@@ -534,7 +548,94 @@ export default function WheelScreen() {
         });
     };
 
-    // Update the handlers to work with new modal interfaces:
+    // Workflow modal handlers
+    const handleCloneComplete = (sourceRule: any, targetPlayer: any) => {
+        // Create a new rule with the same properties but a new ID
+        const clonedRule = {
+            ...sourceRule,
+            id: Math.random().toString(36).substr(2, 9),
+            assignedTo: targetPlayer.id
+        };
+
+        // Add the cloned rule to the game state
+        dispatch({ type: 'ADD_RULE', payload: clonedRule });
+
+        alert(`${sourceRule.assignedTo ? gameState?.players.find(p => p.id === sourceRule.assignedTo)?.name : 'Unknown'} cloned their rule "${sourceRule.text}" to ${targetPlayer.name}`);
+
+        setShowCloneWorkflowModal(false);
+
+        // Use setTimeout to avoid React state update during render
+        setTimeout(() => {
+            handleWheelCompletion();
+        }, 0);
+    };
+
+    const handleFlipComplete = (originalRule: any, flippedText: string) => {
+        // Update the rule text with the flipped version
+        dispatch({
+            type: 'UPDATE_RULE',
+            payload: { ...originalRule, text: flippedText }
+        });
+
+        alert(`Flipped rule: "${flippedText}"`);
+
+        setShowFlipWorkflowModal(false);
+
+        // Use setTimeout to avoid React state update during render
+        setTimeout(() => {
+            handleWheelCompletion();
+        }, 0);
+    };
+
+    const handleUpDownComplete = (sourceRule: any, targetPlayer: any, direction: 'up' | 'down') => {
+        // Assign the rule to the target player
+        assignRule(sourceRule.id, targetPlayer.id);
+
+        const actionName = direction === 'up' ? 'passed up' : 'passed down';
+        alert(`${gameState?.players.find(p => p.id === sourceRule.assignedTo)?.name} ${actionName} the rule "${sourceRule.text}" to ${targetPlayer.name}!`);
+
+        if (direction === 'up') {
+            setShowUpWorkflowModal(false);
+        } else {
+            setShowDownWorkflowModal(false);
+        }
+
+        // Use setTimeout to avoid React state update during render
+        setTimeout(() => {
+            handleWheelCompletion();
+        }, 0);
+    };
+
+    const handleSwapComplete = (ownRule: any, targetRule: any, targetPlayer: any) => {
+        // Swap the rules
+        assignRule(ownRule.id, targetPlayer.id);
+        assignRule(targetRule.id, gameState?.activePlayer || '');
+
+        alert(`${gameState?.players.find(p => p.id === gameState?.activePlayer)?.name} swapped "${ownRule.text}" with ${targetPlayer.name}'s "${targetRule.text}"!`);
+
+        setShowSwapWorkflowModal(false);
+
+        // Use setTimeout to avoid React state update during render
+        setTimeout(() => {
+            handleWheelCompletion();
+        }, 0);
+    };
+
+    const handleShredComplete = (rule: any) => {
+        // Shred the rule by setting it as inactive and unassigned
+        dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: undefined, isActive: false } });
+
+        alert(`Shredded rule "${rule.text}"`);
+
+        setShowShredWorkflowModal(false);
+
+        // Use setTimeout to avoid React state update during render
+        setTimeout(() => {
+            handleWheelCompletion();
+        }, 0);
+    };
+
+    // Legacy handlers (keeping for compatibility):
     const handleCloneRuleSelect = (rule: any, player: any) => {
         setSelectedRuleForClone({ rule, player });
         setShowCloneModal(false);
@@ -694,44 +795,47 @@ export default function WheelScreen() {
             return;
         }
 
-        setIsEndGameActionInProgress(true);
-        setShowEndGameConfirmationModal(false);
+        // Use setTimeout to avoid React state update during render
+        setTimeout(() => {
+            setIsEndGameActionInProgress(true);
+            setShowEndGameConfirmationModal(false);
 
-        // Broadcast continue action to all players
-        console.log('WheelScreen: Broadcasting end game continue');
-        socketService.broadcastEndGameContinue();
+            // Broadcast continue action to all players
+            console.log('WheelScreen: Broadcasting end game continue');
+            socketService.broadcastEndGameContinue();
 
-        // Close the wheel popup without removing the layer or advancing the player
-        const selectedSegment = segments[selectedIndex];
-        setFrozenSegment(selectedSegment);
-        setIsClosingPopup(true);
+            // Close the wheel popup without removing the layer or advancing the player
+            const selectedSegment = segments[selectedIndex];
+            setFrozenSegment(selectedSegment);
+            setIsClosingPopup(true);
 
-        Animated.parallel([
-            Animated.timing(popupScale, {
-                toValue: 0,
-                duration: 400,
-                useNativeDriver: true,
-            }),
-            Animated.timing(popupOpacity, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true,
-            })
-        ]).start(() => {
-            // Don't remove the wheel layer - keep it for the next spin
-            setShowExpandedPlaque(false);
-            setIsClosingPopup(false);
-            setFrozenSegment(null);
-            setSynchronizedSpinResult(null);
-            popupScale.setValue(0);
-            popupOpacity.setValue(0);
-            setIsEndGameActionInProgress(false);
-            setSelectedIndex(0); // Reset wheel index
-            flatListRef.current?.scrollToOffset({ offset: 0, animated: false }); // Reset visual position
-            scrollY.setValue(0); // Reset the Animated.Value to sync with visual position
-            currentScrollOffset.current = 0; // Reset the current offset tracking
-            console.log('WheelScreen: Continue game popup closed and wheel reset');
-        });
+            Animated.parallel([
+                Animated.timing(popupScale, {
+                    toValue: 0,
+                    duration: 400,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(popupOpacity, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                })
+            ]).start(() => {
+                // Don't remove the wheel layer - keep it for the next spin
+                setShowExpandedPlaque(false);
+                setIsClosingPopup(false);
+                setFrozenSegment(null);
+                setSynchronizedSpinResult(null);
+                popupScale.setValue(0);
+                popupOpacity.setValue(0);
+                setIsEndGameActionInProgress(false);
+                setSelectedIndex(0); // Reset wheel index
+                flatListRef.current?.scrollToOffset({ offset: 0, animated: false }); // Reset visual position
+                scrollY.setValue(0); // Reset the Animated.Value to sync with visual position
+                currentScrollOffset.current = 0; // Reset the current offset tracking
+                console.log('WheelScreen: Continue game popup closed and wheel reset');
+            });
+        }, 0);
     };
 
     // Handle end game confirmation - end game
@@ -745,51 +849,54 @@ export default function WheelScreen() {
             return;
         }
 
-        setIsEndGameActionInProgress(true);
-        setShowEndGameConfirmationModal(false);
+        // Use setTimeout to avoid React state update during render
+        setTimeout(() => {
+            setIsEndGameActionInProgress(true);
+            setShowEndGameConfirmationModal(false);
 
-        // Broadcast end action to all players
-        console.log('WheelScreen: Broadcasting end game end');
-        socketService.broadcastEndGameEnd();
+            // Broadcast end action to all players
+            console.log('WheelScreen: Broadcasting end game end');
+            socketService.broadcastEndGameEnd();
 
-        // Close the wheel popup
-        const selectedSegment = segments[selectedIndex];
-        setFrozenSegment(selectedSegment);
-        setIsClosingPopup(true);
+            // Close the wheel popup
+            const selectedSegment = segments[selectedIndex];
+            setFrozenSegment(selectedSegment);
+            setIsClosingPopup(true);
 
-        Animated.parallel([
-            Animated.timing(popupScale, {
-                toValue: 0,
-                duration: 400,
-                useNativeDriver: true,
-            }),
-            Animated.timing(popupOpacity, {
-                toValue: 0,
-                duration: 300,
-                useNativeDriver: true,
-            })
-        ]).start(() => {
-            if (selectedSegment) {
-                removeWheelLayer(selectedSegment.id);
-            }
-            setShowExpandedPlaque(false);
-            setIsClosingPopup(false);
-            setFrozenSegment(null);
-            setSynchronizedSpinResult(null);
-            popupScale.setValue(0);
-            popupOpacity.setValue(0);
-            setIsEndGameActionInProgress(false);
+            Animated.parallel([
+                Animated.timing(popupScale, {
+                    toValue: 0,
+                    duration: 400,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(popupOpacity, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                })
+            ]).start(() => {
+                if (selectedSegment) {
+                    removeWheelLayer(selectedSegment.id);
+                }
+                setShowExpandedPlaque(false);
+                setIsClosingPopup(false);
+                setFrozenSegment(null);
+                setSynchronizedSpinResult(null);
+                popupScale.setValue(0);
+                popupOpacity.setValue(0);
+                setIsEndGameActionInProgress(false);
 
-            // Find player with most points and end the game
-            const winner = gameState?.players.reduce((prev, current) =>
-                (prev.points > current.points) ? prev : current
-            );
-            if (winner) {
-                endGame();
-                // Navigate to game room to show game over screen
-                socketService.broadcastNavigateToScreen('GAME_ROOM');
-            }
-        });
+                // Find player with most points and end the game
+                const winner = gameState?.players.reduce((prev, current) =>
+                    (prev.points > current.points) ? prev : current
+                );
+                if (winner) {
+                    endGame();
+                    // Navigate to game room to show game over screen
+                    socketService.broadcastNavigateToScreen('GAME_ROOM');
+                }
+            });
+        }, 0);
     };
 
     return (
@@ -1102,8 +1209,8 @@ export default function WheelScreen() {
                                                                         }
                                                                     }
 
-                                                                    // Show shred modal instead of closing immediately
-                                                                    setShowShredModal(true);
+                                                                    // Show shred workflow modal instead of closing immediately
+                                                                    setShowShredWorkflowModal(true);
                                                                 }}
                                                             >
                                                                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
@@ -1200,7 +1307,7 @@ export default function WheelScreen() {
                                                     alignSelf: 'center',
                                                 }}
                                                 onPress={() => {
-                                                    setShowCloneModal(true);
+                                                    setShowCloneWorkflowModal(true);
                                                 }}
                                             >
                                                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
@@ -1220,8 +1327,7 @@ export default function WheelScreen() {
                                                     alignSelf: 'center',
                                                 }}
                                                 onPress={() => {
-                                                    // Use the same workflow as host actions - show RuleSelectionModal first
-                                                    setShowFlipModal(true);
+                                                    setShowFlipWorkflowModal(true);
                                                 }}
                                             >
                                                 <Text style={{ color: '#000', fontSize: 16, fontWeight: 'bold' }}>
@@ -1230,105 +1336,45 @@ export default function WheelScreen() {
                                             </TouchableOpacity>
                                         );
                                     } else if (currentLayer.content === 'Up') {
-                                        // Check if current player has rules to pass
-                                        const currentPlayer = gameState?.players.find(p => p.id === gameState?.activePlayer);
-                                        const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === currentPlayer?.id && rule.isActive);
-
-                                        if (currentPlayerRules && currentPlayerRules.length > 0) {
-                                            return (
-                                                <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: '#17a2b8',
-                                                        paddingHorizontal: 30,
-                                                        paddingVertical: 15,
-                                                        borderRadius: 10,
-                                                        marginTop: 30,
-                                                        alignSelf: 'center',
-                                                    }}
-                                                    onPress={() => {
-                                                        // Use the same workflow as host actions
-                                                        handleUpModifier();
-                                                    }}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
-                                                        PASS RULE UP
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        } else {
-                                            // Player has no rules, show a message and close
-                                            return (
-                                                <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: '#6b7280',
-                                                        paddingHorizontal: 30,
-                                                        paddingVertical: 15,
-                                                        borderRadius: 10,
-                                                        marginTop: 30,
-                                                        alignSelf: 'center',
-                                                    }}
-                                                    onPress={() => {
-                                                        alert('You have no rules to pass up.');
-                                                        // Use centralized wheel completion function
-                                                        handleWheelCompletion();
-                                                    }}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
-                                                        NO RULES TO PASS UP
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        }
+                                        return (
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: '#17a2b8',
+                                                    paddingHorizontal: 30,
+                                                    paddingVertical: 15,
+                                                    borderRadius: 10,
+                                                    marginTop: 30,
+                                                    alignSelf: 'center',
+                                                }}
+                                                onPress={() => {
+                                                    setShowUpWorkflowModal(true);
+                                                }}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                    PASS RULE UP
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
                                     } else if (currentLayer.content === 'Down') {
-                                        // Check if current player has rules to pass
-                                        const currentPlayer = gameState?.players.find(p => p.id === gameState?.activePlayer);
-                                        const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === currentPlayer?.id && rule.isActive);
-
-                                        if (currentPlayerRules && currentPlayerRules.length > 0) {
-                                            return (
-                                                <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: '#6f42c1',
-                                                        paddingHorizontal: 30,
-                                                        paddingVertical: 15,
-                                                        borderRadius: 10,
-                                                        marginTop: 30,
-                                                        alignSelf: 'center',
-                                                    }}
-                                                    onPress={() => {
-                                                        // Use the same workflow as host actions
-                                                        handleDownModifier();
-                                                    }}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
-                                                        PASS RULE DOWN
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        } else {
-                                            // Player has no rules, show a message and close
-                                            return (
-                                                <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: '#6b7280',
-                                                        paddingHorizontal: 30,
-                                                        paddingVertical: 15,
-                                                        borderRadius: 10,
-                                                        marginTop: 30,
-                                                        alignSelf: 'center',
-                                                    }}
-                                                    onPress={() => {
-                                                        alert('You have no rules to pass down.');
-                                                        // Use centralized wheel completion function
-                                                        handleWheelCompletion();
-                                                    }}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
-                                                        NO RULES TO PASS DOWN
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        }
+                                        return (
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: '#6f42c1',
+                                                    paddingHorizontal: 30,
+                                                    paddingVertical: 15,
+                                                    borderRadius: 10,
+                                                    marginTop: 30,
+                                                    alignSelf: 'center',
+                                                }}
+                                                onPress={() => {
+                                                    setShowDownWorkflowModal(true);
+                                                }}
+                                            >
+                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                    PASS RULE DOWN
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
                                     } else if (currentLayer.content === 'Swap') {
                                         return (
                                             <TouchableOpacity
@@ -1341,11 +1387,7 @@ export default function WheelScreen() {
                                                     alignSelf: 'center',
                                                 }}
                                                 onPress={() => {
-                                                    // Handle Swap modifier - open swap modal
-                                                    setShowSwapModal(true);
-                                                    setSwapStep('selectOwnRule');
-                                                    setSelectedOwnRule(null);
-                                                    setSelectedOtherPlayer(null);
+                                                    setShowSwapWorkflowModal(true);
                                                 }}
                                             >
                                                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
@@ -1562,6 +1604,69 @@ export default function WheelScreen() {
                     onContinue={handleContinueGame}
                     onEnd={handleEndGame}
                     onClose={() => setShowEndGameConfirmationModal(false)}
+                />
+
+                {/* Workflow Modals */}
+                <CloneWorkflowModal
+                    visible={showCloneWorkflowModal}
+                    onClose={() => setShowCloneWorkflowModal(false)}
+                    onCloneComplete={handleCloneComplete}
+                    gameState={gameState}
+                    sourcePlayerId={gameState?.activePlayer}
+                    title="Clone Rule"
+                    description="Choose a rule to clone to another player"
+                />
+
+                <FlipWorkflowModal
+                    visible={showFlipWorkflowModal}
+                    onClose={() => setShowFlipWorkflowModal(false)}
+                    onFlipComplete={handleFlipComplete}
+                    gameState={gameState}
+                    sourcePlayerId={gameState?.activePlayer}
+                    title="Flip Rule"
+                    description="Choose a rule to flip its meaning"
+                />
+
+                <UpDownWorkflowModal
+                    visible={showUpWorkflowModal}
+                    onClose={() => setShowUpWorkflowModal(false)}
+                    onUpDownComplete={handleUpDownComplete}
+                    gameState={gameState}
+                    sourcePlayerId={gameState?.activePlayer}
+                    direction="up"
+                    title="Pass Rule Up"
+                    description="Choose a rule to pass to the player above you"
+                />
+
+                <UpDownWorkflowModal
+                    visible={showDownWorkflowModal}
+                    onClose={() => setShowDownWorkflowModal(false)}
+                    onUpDownComplete={handleUpDownComplete}
+                    gameState={gameState}
+                    sourcePlayerId={gameState?.activePlayer}
+                    direction="down"
+                    title="Pass Rule Down"
+                    description="Choose a rule to pass to the player below you"
+                />
+
+                <SwapWorkflowModal
+                    visible={showSwapWorkflowModal}
+                    onClose={() => setShowSwapWorkflowModal(false)}
+                    onSwapComplete={handleSwapComplete}
+                    gameState={gameState}
+                    sourcePlayerId={gameState?.activePlayer}
+                    title="Swap Rules"
+                    description="Choose a rule to swap with another player"
+                />
+
+                <ShredWorkflowModal
+                    visible={showShredWorkflowModal}
+                    onClose={() => setShowShredWorkflowModal(false)}
+                    onShredComplete={handleShredComplete}
+                    gameState={gameState}
+                    sourcePlayerId={gameState?.activePlayer}
+                    title="Shred Rule"
+                    description="Choose a rule to remove from your collection"
                 />
             </SafeAreaView>
         </StripedBackground>

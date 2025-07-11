@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { colors } from '../../styles/shared';
 
 interface EndGameConfirmationModalProps {
     visible: boolean;
@@ -52,7 +53,7 @@ export default function EndGameConfirmationModal({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backgroundColor: colors.background.overlay,
         justifyContent: 'center',
         alignItems: 'center',
     },

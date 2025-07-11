@@ -1127,7 +1127,6 @@ export default function GameScreen() {
                 />
 
                 {/* Host Action Modals */}
-                {/* Host Action Selection Modal */}
                 <HostPlayerActionModal
                     visible={showPlayerActionModal}
                     selectedPlayerForAction={selectedPlayerForAction}
