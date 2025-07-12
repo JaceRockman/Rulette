@@ -47,6 +47,10 @@ const shared = StyleSheet.create({
     container: {
         flex: 1,
     },
+    scrollView: {
+        flex: 1,
+        padding: 20,
+    },
     button: {
         backgroundColor: colors.gameChangerWhite,
         borderColor: colors.border.primary,
@@ -99,6 +103,20 @@ const shared = StyleSheet.create({
         marginHorizontal: 16,
         fontSize: 14,
         fontWeight: 'bold',
+    },
+    listedUserCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 8,
+        paddingVertical: 16,
+        paddingHorizontal: 8,
+        marginBottom: 8,
+        alignItems: 'center',
+        width: '50%',
+    },
+    listedUserText: {
+        fontSize: 18,
+        fontWeight: '500',
+        color: '#1f2937',
     },
 });
 

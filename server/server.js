@@ -239,9 +239,17 @@ io.on('connection', (socket) => {
     });
 
     // Start game
-    socket.on('start_game', ({ gameId }) => {
+    socket.on('start_game', ({ gameId, settings }) => {
         const game = games.get(gameId);
         if (!game) return;
+
+        game.numRules = settings.numRules || 3;
+        game.numPrompts = settings.numPrompts || 3;
+        game.startingPoints = settings.startingPoints || 20;
+
+        game.players.forEach(player => {
+            player.points = settings.startingPoints;
+        });
 
         game.isGameStarted = true;
         game.roundNumber = 1;
@@ -253,9 +261,8 @@ io.on('connection', (socket) => {
             console.log('Server: Setting initial activePlayer to:', game.activePlayer, 'for game:', gameId);
         }
 
-        console.log('Server: Broadcasting game_updated after start with activePlayer:', game.activePlayer, 'for game:', gameId);
         io.to(gameId).emit('game_updated', game);
-        io.to(gameId).emit('game_started');
+        io.to(gameId).emit('navigate_to_screen', { screen: 'RuleWriting' });
     });
 
     // Update game settings

@@ -15,9 +15,9 @@ import { useGame } from '../context/GameContext';
 import * as Clipboard from 'expo-clipboard';
 import StripedBackground from '../components/Backdrop';
 import OutlinedText from '../components/OutlinedText';
-import socketService from '../services/socketService';
 import PrimaryButton from '../components/Buttons';
 import { Player } from '../types/game';
+import shared from '../shared/styles';
 
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -33,14 +33,6 @@ export default function LobbyScreen() {
 
     const isHost = currentUser?.isHost;
     const lobbyCode = gameState?.lobbyCode || route.params?.lobbyCode || '';
-
-    // Navigate to rule writing when game starts
-    React.useEffect(() => {
-        console.log('gameState', gameState);
-        if (gameState?.isGameStarted) {
-            navigation.navigate('RuleWriting');
-        }
-    }, [gameState?.isGameStarted, navigation]);
 
     const copyLobbyCode = async () => {
         await Clipboard.setStringAsync(lobbyCode);
@@ -59,22 +51,8 @@ export default function LobbyScreen() {
             startingPoints: parseInt(startingPoints) || 20
         };
 
-        // Send the settings to the server
-        socketService.updateGameSettings(settings);
-
-        // Update the game state with the settings before starting
-        if (gameState) {
-            const updatedGameState = {
-                ...gameState,
-                numRules: settings.numRules,
-                numPrompts: settings.numPrompts
-            };
-            // Dispatch the updated game state
-            dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
-        }
-
-        // Start the game - navigation will be handled by useEffect when game state updates
-        startGame();
+        // Start the game with settings - this will update settings on server and start the game
+        startGame(settings);
     };
 
     const host = getHostPlayer();
@@ -82,11 +60,11 @@ export default function LobbyScreen() {
 
     return (
         <StripedBackground>
-            <SafeAreaView style={styles.container}>
-                <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
+            <SafeAreaView style={shared.container}>
+                <ScrollView style={shared.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
                     {/* Lobby Code Section */}
-                    <View style={styles.section}>
-                        <OutlinedText style={{ textAlign: 'center' }}>Lobby Code</OutlinedText>
+                    <View style={shared.section}>
+                        <OutlinedText>Lobby Code</OutlinedText>
                         <PrimaryButton
                             title={lobbyCode}
                             onPress={copyLobbyCode}
@@ -95,12 +73,12 @@ export default function LobbyScreen() {
                     </View>
 
                     {/* Host Section */}
-                    <View style={styles.section}>
+                    <View style={shared.section}>
                         <OutlinedText>Host</OutlinedText>
                         {host && (
                             <View style={styles.hostContainer}>
-                                <View key={host.id} style={styles.hostItem}>
-                                    <Text style={styles.playerName}>{host.name}</Text>
+                                <View key={host.id} style={shared.listedUserCard}>
+                                    <Text style={shared.listedUserText}>{host.name}</Text>
                                 </View>
                             </View>
                         )}
@@ -110,13 +88,13 @@ export default function LobbyScreen() {
                     </View>
 
                     {/* Players Section */}
-                    <View style={styles.section}>
+                    <View style={shared.section}>
                         <OutlinedText>Players</OutlinedText>
                         {nonHostPlayers && nonHostPlayers.length > 0 && (
                             <View style={styles.playerGrid}>
                                 {nonHostPlayers?.map((player: Player) => (
-                                    <View key={player.id} style={styles.playerItem}>
-                                        <Text style={styles.playerName}>{player.name}</Text>
+                                    <View key={player.id} style={shared.listedUserCard}>
+                                        <Text style={shared.listedUserText}>{player.name}</Text>
                                     </View>
                                 ))}
                             </View>
@@ -128,8 +106,8 @@ export default function LobbyScreen() {
 
                     {/* Host Settings Section */}
                     {isHost && (
-                        <View style={styles.section}>
-                            <OutlinedText style={styles.gameSettingsTitle}>Game Settings</OutlinedText>
+                        <View style={shared.section}>
+                            <OutlinedText>Game Settings</OutlinedText>
 
                             <View style={styles.settingContainer}>
                                 <OutlinedText style={styles.settingLabel}>Starting Points</OutlinedText>
@@ -171,7 +149,7 @@ export default function LobbyScreen() {
 
                     {/* Start Game Button */}
                     {isHost && (
-                        <View style={styles.section}>
+                        <View style={shared.section}>
                             <PrimaryButton
                                 onPress={handleStartGame}
                                 disabled={!gameState?.players?.length}
@@ -186,80 +164,17 @@ export default function LobbyScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollView: {
-        flex: 1,
-        padding: 20,
-    },
-    section: {
-        marginBottom: 30,
-
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 15,
-        textAlign: 'center',
-    },
-    codeContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 12,
-        paddingVertical: 3,
-        paddingHorizontal: 16,
-        alignItems: 'center',
-        alignSelf: 'center',
-        width: '50%'
-    },
-    lobbyCode: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1f2937',
+    lobbyCodeText: {
         letterSpacing: 2,
-    },
-    copyText: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginTop: 5,
     },
     hostContainer: {
         alignItems: 'center',
-    },
-    hostItem: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 8,
-        paddingVertical: 16,
-        paddingHorizontal: 8,
-        marginBottom: 8,
-        alignItems: 'center',
-        width: '50%',
     },
     playerGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         paddingHorizontal: 10,
-    },
-    playerItem: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 8,
-        paddingVertical: 16,
-        paddingHorizontal: 8,
-        marginBottom: 8,
-        alignItems: 'center',
-        width: '48%',
-    },
-    playerName: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: '#1f2937',
-    },
-    gameSettingsTitle: {
-        fontSize: 28,
-        textAlign: 'center',
-        marginBottom: 20,
     },
     settingContainer: {
         alignItems: 'center',
@@ -278,8 +193,5 @@ const styles = StyleSheet.create({
         color: '#1f2937',
         width: 200,
         textAlign: 'center',
-    },
-    lobbyCodeText: {
-        letterSpacing: 2,
     },
 }); 

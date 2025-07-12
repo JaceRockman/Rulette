@@ -21,7 +21,7 @@ interface GameContextType {
     addRule: (text: string, plaqueColor: string) => void;
     addPrompt: (text: string, plaqueColor: string) => void;
     updatePlaque: (id: string, text: string, type: 'rule' | 'prompt') => void;
-    startGame: () => void;
+    startGame: (settings?: { numRules?: number; numPrompts?: number; startingPoints?: number }) => void;
     synchronizedSpinWheel: (finalIndex: number, duration: number) => void;
     updatePoints: (playerId: string, points: number) => void;
     swapRules: (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => void;
@@ -44,7 +44,6 @@ type GameAction =
     | { type: 'ADD_MODIFIER'; payload: Modifier }
     | { type: 'UPDATE_RULE'; payload: Rule }
     | { type: 'UPDATE_PROMPT'; payload: Prompt }
-    | { type: 'START_GAME' }
     | { type: 'SPIN_WHEEL'; payload: StackItem[] }
     | { type: 'SYNCHRONIZED_WHEEL_SPIN'; payload: { spinningPlayerId: string; finalIndex: number; duration: number } }
     | { type: 'UPDATE_POINTS'; payload: { playerId: string; points: number } }
@@ -130,13 +129,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             return {
                 ...state,
                 prompts: (state.prompts || []).map((p: Prompt) => p.id === action.payload.id ? action.payload : p),
-            };
-
-        case 'START_GAME':
-            return {
-                ...state,
-                isGameStarted: true,
-                roundNumber: 1,
             };
 
         case 'SPIN_WHEEL':
@@ -409,10 +401,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.setOnGameUpdated((game) => {
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
-        socketService.setOnGameStarted(() => {
-            // When game starts, all players should navigate to rule writing screen
-            // This will be handled by the navigation logic in the screens
-        });
         socketService.setOnWheelSpun((stack) => {
             dispatch({ type: 'SPIN_WHEEL', payload: stack });
         });
@@ -468,6 +456,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (!gameState) return;
         if (!gameState.players) return;
         if (!gameState.wheelSegments) return;
+        if (!gameState.isGameStarted) return;
 
         const nonHostPlayers = gameState.players?.filter(player => !player.isHost) || [];
         const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
@@ -571,10 +560,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const startGame = () => {
+    const startGame = (settings?: { numRules?: number; numPrompts?: number; startingPoints?: number }) => {
         if (!gameState) return;
-        // Use socket service to start the game for all players
-        socketService.startGame();
+
+        // Use socket service to start the game with settings (server will update settings and start game)
+        socketService.startGame(settings);
     };
 
     const synchronizedSpinWheel = (finalIndex: number, duration: number) => {

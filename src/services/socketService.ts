@@ -176,9 +176,9 @@ class SocketService {
         });
     }
 
-    startGame() {
+    startGame(settings?: { numRules?: number; numPrompts?: number; startingPoints?: number }) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('start_game', { gameId: this.gameState.id });
+        this.socket.emit('start_game', { gameId: this.gameState.id, settings });
     }
 
     broadcastSynchronizedWheelSpin(finalIndex: number, scrollAmount: number, duration: number) {
