@@ -9,8 +9,8 @@ interface GameContextType {
     currentUser: Player | null;
     activePlayer: Player | null;
     dispatch: React.Dispatch<GameAction>;
-    getWrittenRules: () => Rule[];
-    getWrittenPrompts: () => Prompt[];
+    getRulesByAuthor: (authorId: string) => Rule[];
+    getPromptsByAuthor: (authorId: string) => Prompt[];
     getNonHostPlayers: () => Player[] | null | undefined;
     getHostPlayer: () => Player | null | undefined;
     joinLobby: (lobbyCode: string, playerName: string) => void;
@@ -18,20 +18,20 @@ interface GameContextType {
     createTestingState: () => void;
     setNumRules: (num: number) => void;
     setNumPrompts: (num: number) => void;
-    addRule: (text: string, plaqueColor: string) => void;
-    addPrompt: (text: string, plaqueColor: string) => void;
+    addRule: (authorId: string, text: string, plaqueColor: string) => void;
+    addPrompt: (authorId: string, text: string, plaqueColor: string) => void;
     updatePlaque: (id: string, text: string, type: 'rule' | 'prompt') => void;
     startGame: (settings?: { numRules?: number; numPrompts?: number; startingPoints?: number }) => void;
     synchronizedSpinWheel: (finalIndex: number, duration: number) => void;
     updatePoints: (playerId: string, points: number) => void;
     swapRules: (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => void;
-    cloneRuleToPlayer: (ruleId: string, targetPlayerId: string) => void;
+    cloneRuleToPlayer: (authorId: string, ruleId: string, targetPlayerId: string) => void;
     shredRule: (ruleId: string) => void;
     assignRule: (ruleId: string, playerId: string) => void;
     removeWheelLayer: (segmentId: string) => void;
     endGame: () => void;
-    markRulesCompleted: () => void;
-    markPromptsCompleted: () => void;
+    markRulesCompletedForUser: (userId: string) => void;
+    markPromptsCompletedForUser: (userId: string) => void;
 }
 
 type GameAction =
@@ -419,18 +419,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     // Helper functions to filter rules and prompts based on player role
-    const getWrittenRules = () => {
+    const getRulesByAuthor = (authorId: string) => {
         if (!gameState?.rules || !currentUser) return [];
 
         // Host sees all rules, players see only their own
         if (currentUser.isHost) {
-            return gameState.rules.filter(rule => rule.authorId !== 'system');
+            return gameState.rules.filter(rule => rule.authorId === authorId);
         } else {
-            return gameState.rules.filter(rule => rule.authorId === currentUser.id);
+            return gameState.rules.filter(rule => rule.authorId === authorId);
         }
     };
 
-    const getWrittenPrompts = () => {
+    const getPromptsByAuthor = (authorId: string) => {
         if (!gameState?.prompts || !currentUser) return [];
 
         // Host sees all prompts, players see only their own
@@ -497,43 +497,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         dispatch({ type: 'SET_NUM_PROMPTS', payload: num });
     };
 
-    const createPlaque = (type: 'rule' | 'prompt' | 'modifier', text: string, plaqueColor: string) => {
-        const currentPlayerId = socketService.getCurrentPlayerId();
-        if (!currentPlayerId) return;
-
-        // Create plaque with generated ID, color, and values
+    const createPlaque = (type: 'rule' | 'prompt' | 'modifier', authorId: string = 'system', text: string, plaqueColor: string) => {
         const plaqueId = Math.random().toString(36).substring(2, 15);
-        let plaques: Plaque[] = [];
-        switch (type) {
-            case 'rule':
-                plaques = gameState?.rules;
-            case 'prompt':
-                plaques = gameState?.prompts;
-            case 'modifier':
-                plaques = gameState?.modifiers;
-        }
-
-        const finalPlaqueColor = plaqueColor || getBalancedColor(plaques);
-
-        const plaque = {
+        const plaque: Plaque = {
             id: plaqueId,
             type: type,
             text: text,
-            authorId: currentPlayerId,
-            plaqueColor: finalPlaqueColor,
+            authorId: authorId,
+            plaqueColor: plaqueColor,
             isActive: type === 'rule' ? true : undefined
         };
 
-        // Send plaque to backend
         socketService.addPlaque(plaque);
     };
 
-    const addRule = (text: string, plaqueColor: string) => {
-        createPlaque('rule', text, plaqueColor);
+    const addRule = (authorId: string = 'system', text: string, plaqueColor: string) => {
+        createPlaque('rule', authorId, text, plaqueColor);
     };
 
-    const addPrompt = (text: string, plaqueColor: string) => {
-        createPlaque('prompt', text, plaqueColor);
+    const addPrompt = (authorId: string = 'system', text: string, plaqueColor: string) => {
+        createPlaque('prompt', authorId, text, plaqueColor);
     };
 
     const updatePlaque = (id: string, text: string, type: 'rule' | 'prompt') => {
@@ -589,14 +572,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const cloneRuleToPlayer = (ruleId: string, targetPlayerId: string) => {
+    const cloneRuleToPlayer = (authorId: string = 'system', ruleId: string, targetPlayerId: string) => {
         if (!gameState || !gameState.activePlayer) return;
 
         const rule: Rule | undefined = gameState.rules.find((r: Rule) => r.id === ruleId);
         if (!rule) return;
 
         const newRule: Rule = { ...rule, id: Math.random().toString(36).substring(2, 15) };
-        addRule(newRule.text, newRule.plaqueColor);
+        addRule(authorId, newRule.text, newRule.plaqueColor);
         socketService.assignRule(newRule.id, targetPlayerId);
     };
 
@@ -636,14 +619,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const markRulesCompleted = () => {
+    const markRulesCompletedForUser = (userId: string) => {
         if (!gameState) return;
-        socketService.markRulesCompleted();
+        socketService.markRulesCompletedForUser(userId);
     };
 
-    const markPromptsCompleted = () => {
+    const markPromptsCompletedForUser = (userId: string) => {
         if (!gameState) return;
-        socketService.markPromptsCompleted();
+        socketService.markPromptsCompletedForUser(userId);
     };
 
     return (
@@ -652,8 +635,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             currentUser,
             activePlayer,
             dispatch,
-            getWrittenRules,
-            getWrittenPrompts,
+            getRulesByAuthor,
+            getPromptsByAuthor,
             getNonHostPlayers,
             getHostPlayer,
             joinLobby,
@@ -673,8 +656,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             assignRule,
             removeWheelLayer,
             endGame,
-            markRulesCompleted,
-            markPromptsCompleted,
+            markRulesCompletedForUser,
+            markPromptsCompletedForUser,
         }}>
             {children}
         </GameContext.Provider>

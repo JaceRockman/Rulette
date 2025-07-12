@@ -39,9 +39,20 @@ export const colors = {
     },
 } as const;
 
-export const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
+export const LAYER_PLAQUE_COLORS = [colors.gameChangerBlue, colors.gameChangerMaroon, colors.gameChangerRed, colors.gameChangerWhite];
 
-export const SEGMENT_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fbbf24'];
+export const SEGMENT_COLORS = [colors.gameChangerBlue, colors.gameChangerMaroon, colors.gameChangerRed, colors.gameChangerYellow];
+
+// Define button style separately to avoid circular reference
+const buttonStyle = {
+    backgroundColor: colors.gameChangerWhite,
+    borderColor: colors.border.primary,
+    borderWidth: 3,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center' as const,
+    marginBottom: 16,
+};
 
 const shared = StyleSheet.create({
     container: {
@@ -51,15 +62,8 @@ const shared = StyleSheet.create({
         flex: 1,
         padding: 20,
     },
-    button: {
-        backgroundColor: colors.gameChangerWhite,
-        borderColor: colors.border.primary,
-        borderWidth: 3,
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        marginBottom: 16,
-    },
+    button: buttonStyle,
+    disabledButton: { ...buttonStyle, opacity: 0.5 },
     buttonText: {
         color: colors.text.primary,
         fontSize: 16,

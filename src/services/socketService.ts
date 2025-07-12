@@ -1,5 +1,5 @@
 import io, { Socket } from 'socket.io-client';
-import { GameState, Player, Prompt, Rule } from '../types/game';
+import { GameState, Plaque, Player, Prompt, Rule } from '../types/game';
 
 const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
 
@@ -134,17 +134,17 @@ class SocketService {
         this.socket.emit('join_lobby', { code, playerName });
     }
 
-    markRulesCompleted() {
+    markRulesCompletedForUser(userId: string) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('rules_completed', { gameId: this.gameState.id, playerId: this.currentPlayerId });
+        this.socket.emit('rules_completed', { gameId: this.gameState.id, playerId: userId });
     }
 
-    markPromptsCompleted() {
+    markPromptsCompletedForUser(userId: string) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('prompts_completed', { gameId: this.gameState.id, playerId: this.currentPlayerId });
+        this.socket.emit('prompts_completed', { gameId: this.gameState.id, playerId: userId });
     }
 
-    addPlaque(plaque: { id: string; type: 'rule' | 'prompt' | 'modifier' | 'end'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
+    addPlaque(plaque: Plaque) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('add_plaque', {
             gameId: this.gameState.id,

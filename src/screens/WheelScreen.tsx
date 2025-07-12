@@ -33,7 +33,7 @@ type WheelScreenRouteProp = RouteProp<RootStackParamList, 'Wheel'>;
 export default function WheelScreen() {
     const navigation = useNavigation<WheelScreenNavigationProp>();
     const route = useRoute<WheelScreenRouteProp>();
-    const { gameState, removeWheelLayer, endGame, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule } = useGame();
+    const { gameState, currentUser, removeWheelLayer, endGame, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule } = useGame();
 
     // Get the player ID from navigation params if provided
     const playerId = route.params?.playerId;
@@ -644,7 +644,10 @@ export default function WheelScreen() {
 
     const handleClonePlayerSelect = (player: any) => {
         if (selectedRuleForClone) {
-            cloneRuleToPlayer(selectedRuleForClone.rule.id, player.id);
+            if (!currentUser?.id) {
+                throw new Error('User ID is required to clone a rule');
+            }
+            cloneRuleToPlayer(currentUser.id, selectedRuleForClone.rule.id, player.id);
         }
         setShowClonePlayerModal(false);
 
