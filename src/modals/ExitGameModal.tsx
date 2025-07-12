@@ -8,19 +8,19 @@ import {
     Alert,
 } from 'react-native';
 
-interface HostActionModalProps {
+interface ExitGameModalProps {
     visible: boolean;
     onClose: () => void;
     onEndGame: () => void;
     onSelectNewHost: () => void;
 }
 
-export default function HostActionModal({
+export default function ExitGameModal({
     visible,
     onClose,
     onEndGame,
     onSelectNewHost,
-}: HostActionModalProps) {
+}: ExitGameModalProps) {
     const handleEndGame = () => {
         Alert.alert(
             'End Game',

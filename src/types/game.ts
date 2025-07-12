@@ -13,7 +13,7 @@ export interface Plaque {
     type: 'rule' | 'prompt' | 'modifier' | 'end';
     text: string;
     category?: string;
-    assignedTo?: string; // player id (optional - assigned when wheel lands on it)
+    assignedTo?: Player; // player object
     isActive?: boolean;
     plaqueColor: string;
     authorId: string; // player id who created this plaque

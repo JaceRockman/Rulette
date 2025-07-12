@@ -1,17 +1,20 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { colors } from '../shared/styles';
 
 interface PlaqueProps {
     text: string;
     plaqueColor: string;
-    onPress?: () => void;
     style?: any;
+    onPress?: () => void;
+    onClose?: () => void;
+    onHold?: () => void;
 }
 
-export default function Plaque({ text, plaqueColor, onPress, style }: PlaqueProps) {
+export default function Plaque({ text, plaqueColor, style, onPress, onClose, onHold }: PlaqueProps) {
     // Determine text color based on plaque color (same logic as wheel segments)
-    const isLightPlaque = plaqueColor === '#fbbf24' || plaqueColor === '#fff';
-    const textColor = isLightPlaque ? '#000' : '#fff';
+    const isLightPlaque = plaqueColor === colors.gameChangerWhite;
+    const textColor = isLightPlaque ? colors.gameChangerBlack : colors.gameChangerWhite;
 
     const PlaqueContent = (
         <View style={[styles.plaqueContainer, { backgroundColor: plaqueColor }, style]}>

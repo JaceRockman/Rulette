@@ -8,6 +8,8 @@ interface GameContextType {
     gameState: GameState | null;
     currentUser: Player | null;
     activePlayer: Player | null;
+    showExitGameModal: boolean;
+    setShowExitGameModal: (show: boolean) => void;
     dispatch: React.Dispatch<GameAction>;
     getRulesByAuthor: (authorId: string) => Rule[];
     getPromptsByAuthor: (authorId: string) => Prompt[];
@@ -385,6 +387,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
     const currentUser = gameState?.players.find(p => p.id === currentUserId) || null;
     const activePlayer = gameState?.players.find(p => p.id === gameState?.activePlayer) || null;
+    const [showExitGameModal, setShowExitGameModal] = React.useState(false);
     // Connect to socket on mount
     React.useEffect(() => {
 
@@ -555,8 +558,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const updatePoints = (playerId: string, points: number) => {
-        dispatch({ type: 'UPDATE_POINTS', payload: { playerId, points } });
-        // Also sync to backend via socket service
         socketService.updatePoints(playerId, points);
     };
 
@@ -658,6 +659,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             endGame,
             markRulesCompletedForUser,
             markPromptsCompletedForUser,
+            showExitGameModal,
+            setShowExitGameModal,
         }}>
             {children}
         </GameContext.Provider>

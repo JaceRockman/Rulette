@@ -1,7 +1,7 @@
-export { default as RuleAccusationPopup } from './RuleAccusationPopup';
+export { default as RuleDetailsModal } from './RuleDetailsModal';
 export { default as AccusationJudgementModal } from './AccusationJudgementModal';
 export { default as HostPlayerActionModal } from './HostPlayerActionModal';
-export { default as HostActionModal } from './HostActionModal';
+export { default as ExitGameModal } from './ExitGameModal';
 export { default as RuleSelectionModal } from './RuleSelectionModal';
 export { default as PlayerSelectionModal } from './PlayerSelectionModal';
 export { default as FlipTextInputModal } from './FlipTextInputModal';

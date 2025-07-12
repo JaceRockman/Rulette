@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
@@ -12,7 +12,8 @@ import PromptWritingScreen from './src/screens/PromptWritingScreen';
 import { GameProvider } from './src/context/GameContext';
 import OutlinedText from './src/components/OutlinedText';
 import StripedBackground from './src/components/Backdrop';
-import { View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { colors } from './src/shared/styles';
 
 export type RootStackParamList = {
     Home: undefined;
@@ -26,6 +27,7 @@ export type RootStackParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 
 export default function App() {
+    const [showExitGameModal, setShowExitGameModal] = useState(false);
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <GameProvider>
@@ -45,6 +47,14 @@ export default function App() {
                                     }} />
                                 </StripedBackground>
                             ),
+                            headerRight: () => (
+                                <TouchableOpacity
+                                    onPress={() => setShowExitGameModal(true)}
+                                    style={{ marginLeft: 16 }}
+                                >
+                                    <Text style={{ fontSize: 24, marginRight: 16, color: colors.gameChangerWhite }}>✕</Text>
+                                </TouchableOpacity>
+                            ),
                             headerTintColor: '#fff',
                             headerTransparent: true,
                         }}
@@ -55,6 +65,7 @@ export default function App() {
                             options={{
                                 headerTitle: () => <OutlinedText>Spin That Wheel</OutlinedText>,
                                 headerTitleAlign: 'center',
+                                headerRight: undefined,
                             }}
                         />
                         <Stack.Screen

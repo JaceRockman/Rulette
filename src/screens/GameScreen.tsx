@@ -7,8 +7,6 @@ import {
     ScrollView,
     Alert,
     SafeAreaView,
-    Modal,
-    TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -16,17 +14,16 @@ import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import { Player, Rule } from '../types/game';
 import StripedBackground from '../components/Backdrop';
-import { colors } from '../shared/styles';
 import shared from '../shared/styles';
 import OutlinedText from '../components/OutlinedText';
 import DigitalClock from '../components/ScoreDisplay';
 import Plaque from '../components/Plaque';
 import {
-    RuleAccusationPopup,
+    RuleDetailsModal,
     AccusationJudgementModal,
     HostPlayerActionModal,
-    HostActionModal,
-    FlipTextInputModal
+    FlipTextInputModal,
+    ExitGameModal,
 } from '../modals';
 import RuleSelectionModal from '../modals/RuleSelectionModal';
 import PlayerSelectionModal from '../modals/PlayerSelectionModal';
@@ -36,10 +33,11 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
-    const { gameState, currentUser, activePlayer, updatePoints, assignRule, endGame, dispatch } = useGame();
+    const { gameState, currentUser, activePlayer, showExitGameModal,
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
-    const [showRulePopup, setShowRulePopup] = useState(false);
-    const [selectedRuleForAccusation, setSelectedRuleForAccusation] = useState<{ rule: Rule; accusedPlayer: Player } | null>(null);
+    const [showRuleDetails, setshowRuleDetails] = useState(false);
+    const [selectedRuleForAccusation, setSelectedRuleForAccusation] = useState<{ rule: Rule } | null>(null);
     const [showAccusationPopup, setShowAccusationPopup] = useState(false);
     const [accusationDetails, setAccusationDetails] = useState<{ accuser: Player; accused: Player; rule: Rule } | null>(null);
     const [isAccusationInProgress, setIsAccusationInProgress] = useState(false);
@@ -69,63 +67,7 @@ export default function GameScreen() {
     const [upDownAction, setUpDownAction] = useState<'up' | 'down' | null>(null);
     const [transferredRuleIds, setTransferredRuleIds] = useState<string[]>([]);
     const [upDownPlayerOrder, setUpDownPlayerOrder] = useState<Player[]>([]);
-    const [showHostActionModal, setShowHostActionModal] = useState(false);
     const [showNewHostSelectionModal, setShowNewHostSelectionModal] = useState(false);
-
-
-    // Restore original current user when returning from wheel
-    React.useEffect(() => {
-        const unsubscribe = navigation.addListener('focus', () => {
-            if (originalCurrentPlayer && currentUser && currentUser.id !== originalCurrentPlayer) {
-                dispatch({ type: 'SET_CURRENT_USER', payload: originalCurrentPlayer });
-                setOriginalCurrentPlayer(null);
-            }
-        });
-
-        return unsubscribe;
-    }, [navigation, originalCurrentPlayer, currentUser, dispatch]);
-
-    // Set up custom header for host
-    React.useEffect(() => {
-        if (currentUser?.isHost) {
-            navigation.setOptions({
-                headerLeft: () => (
-                    <TouchableOpacity
-                        onPress={() => setShowHostActionModal(true)}
-                        style={{ marginLeft: 16 }}
-                    >
-                        <Text style={{ fontSize: 24, color: '#ffffff' }}>←</Text>
-                    </TouchableOpacity>
-                ),
-            });
-        } else {
-            navigation.setOptions({
-                headerLeft: undefined,
-            });
-        }
-    }, [navigation, currentUser?.isHost]);
-
-    // Listen for navigation events
-    React.useEffect(() => {
-        const handleNavigateToScreen = (data: { screen: string; params?: any }) => {
-            if (data.screen === 'WHEEL') {
-                // Navigate to wheel screen with the provided parameters
-                navigation.navigate('Wheel', data.params || {});
-            } else if (data.screen === 'GAME_ROOM') {
-                // Navigate back to game room
-                navigation.navigate('Game');
-            } else if (data.screen === 'HOME') {
-                // Navigate to home screen
-                navigation.navigate('Home');
-            }
-        };
-
-        socketService.setOnNavigateToScreen(handleNavigateToScreen);
-
-        return () => {
-            socketService.setOnNavigateToScreen(null);
-        };
-    }, [navigation]);
 
     // Check if all non-host players have completed both phases
     const nonHostPlayers = gameState?.players.filter(player => !player.isHost) || [];
@@ -138,34 +80,41 @@ export default function GameScreen() {
         updatePoints(playerId, newPoints);
     };
 
-    const handleAssignRule = (rule: Rule, playerId: string) => {
-        assignRule(rule.id, playerId);
-        setSelectedRule(null);
-
-        // Broadcast navigation to game room for all players and host
-        socketService.broadcastNavigateToScreen('GAME_ROOM');
+    const handleAssignRuleToPlayer = (ruleId: string, player: Player) => {
+        if (player && gameState) {
+            const rule = gameState.rules.find(r => r.id === ruleId);
+            if (rule) {
+                assignRule(ruleId, player.id);
+                Alert.alert('Rule Given', `Gave rule "${rule.text}" to ${player.name}`);
+            } else {
+                Alert.alert('Rule Not Found', `Rule with ID ${ruleId} not found.`);
+            }
+            setShowGiveRuleModal(false);
+        }
     };
 
-    const handleRuleTap = (rule: Rule, accusedPlayer: Player) => {
+    const handleRuleTap = (rule: Rule) => {
+        setSelectedRule(rule);
+    };
+
+    const handleRuleHold = (rule: Rule, holder: Player, holdee: Player) => {
+        return;
+    };
+
+    const handleAccuse = (rule: Rule, accuser: Player, accused: Player) => {
         // Prevent accusation if one is already in progress
         if (isAccusationInProgress) {
+            Alert.alert('Accusation In Progress', `${accusationDetails?.accuser.name} is accusing ${accusationDetails?.accused.name} of breaking rule "${rule.text}"`);
             return;
         }
-        setSelectedRuleForAccusation({ rule, accusedPlayer });
-        setShowRulePopup(true);
-    };
 
-    const handleAccuse = () => {
-        if (selectedRuleForAccusation && currentUser) {
-            setAccusationDetails({
-                accuser: currentUser,
-                accused: selectedRuleForAccusation.accusedPlayer,
-                rule: selectedRuleForAccusation.rule
-            });
-            setShowRulePopup(false);
-            setShowAccusationPopup(true);
-            setIsAccusationInProgress(true);
-        }
+        setIsAccusationInProgress(true);
+        setAccusationDetails({
+            accuser: accuser,
+            accused: accused,
+            rule: rule
+        });
+        setShowAccusationPopup(true);
     };
 
     const handleAcceptAccusation = () => {
@@ -176,7 +125,7 @@ export default function GameScreen() {
             handleUpdatePoints(accusationDetails.accused.id, accusationDetails.accused.points, -1);
 
             // Check if accuser has any rules to give
-            const accuserRules = gameState.rules.filter(rule => rule.assignedTo === accusationDetails.accuser.id);
+            const accuserRules = gameState.rules.filter(rule => rule.assignedTo?.id === accusationDetails.accuser.id);
 
             if (accuserRules.length > 0) {
                 // Store the accepted accusation details and show rule selection modal
@@ -235,7 +184,7 @@ export default function GameScreen() {
     const handleCloneAction = () => {
         if (selectedPlayerForAction && gameState) {
             // Check if player has rules to clone
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction.id);
             if (playerRules.length > 0) {
                 setShowPlayerActionModal(false);
                 setShowCloneRuleModal(true);
@@ -277,7 +226,7 @@ export default function GameScreen() {
         const clonedRule = {
             ...cloneSelectedRule,
             id: Math.random().toString(36).substr(2, 9),
-            assignedTo: targetPlayer.id
+            assignedTo: targetPlayer
         };
 
         // Add the cloned rule to the game state
@@ -300,7 +249,7 @@ export default function GameScreen() {
             handleUpdatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points, 2);
 
             // Check if player has rules to shred
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction.id);
             if (playerRules.length > 0) {
                 // Show rule selection modal for shredding
                 setShowPlayerActionModal(false);
@@ -327,7 +276,7 @@ export default function GameScreen() {
     const handleFlipAction = () => {
         if (selectedPlayerForAction && gameState) {
             // Check if player has rules to flip
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction.id);
             if (playerRules.length > 0) {
                 setShowPlayerActionModal(false);
                 setShowFlipRuleModal(true);
@@ -402,21 +351,7 @@ export default function GameScreen() {
         }
     };
 
-    const handleGiveRule = (ruleId: string) => {
-        if (selectedPlayerForAction && gameState) {
-            const rule = gameState.rules.find(r => r.id === ruleId);
-            if (rule) {
-                // Assign the rule to the player via socket service
-                assignRule(ruleId, selectedPlayerForAction.id);
-                Alert.alert('Rule Given', `Gave rule "${rule.text}" to ${selectedPlayerForAction.name}`);
-            }
-            setShowGiveRuleModal(false);
-            setSelectedPlayerForAction(null);
 
-            // Broadcast navigation to game room for all players and host
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
-        }
-    };
 
     const handleAccusationTargetSelect = (targetPlayer: Player) => {
         setAccusationTarget(targetPlayer);
@@ -424,7 +359,7 @@ export default function GameScreen() {
 
         // Check if the accusing player has any rules to give
         if (selectedPlayerForAction && gameState) {
-            const accuserRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            const accuserRules = gameState.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction.id);
 
             if (accuserRules.length > 0) {
                 // Show rule selection modal
@@ -489,7 +424,7 @@ export default function GameScreen() {
 
         // Check if any players have rules to pass
         const playersWithRules = nonHostPlayers.filter(player => {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === player.id && rule.isActive);
             return playerRules.length > 0;
         });
 
@@ -519,7 +454,7 @@ export default function GameScreen() {
 
         // Check if any players have rules to pass
         const playersWithRules = nonHostPlayers.filter(player => {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === player.id && rule.isActive);
             return playerRules.length > 0;
         });
 
@@ -543,7 +478,7 @@ export default function GameScreen() {
         const nonHostPlayers = gameState.players.filter(p => !p.isHost);
         return nonHostPlayers.filter(player =>
             gameState.rules.some(rule =>
-                rule.assignedTo === player.id &&
+                rule.assignedTo?.id === player.id &&
                 rule.isActive &&
                 !transferredRuleIds.includes(rule.id)
             )
@@ -610,7 +545,7 @@ export default function GameScreen() {
         if (!selectedPlayerForAction || !gameState) return;
 
         // Get the selected player's rules
-        const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+        const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction.id);
         if (playerRules.length === 0) {
             Alert.alert('No Rules to Swap', `${selectedPlayerForAction.name} has no rules to swap.`);
             setShowPlayerActionModal(false);
@@ -809,7 +744,7 @@ export default function GameScreen() {
 
                                     {/* Player's Assigned Rules */}
                                     {(() => {
-                                        const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id);
+                                        const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === player.id);
                                         return playerRules.length > 0 ? (
                                             <View style={styles.playerRulesContainer}>
                                                 <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
@@ -827,7 +762,7 @@ export default function GameScreen() {
                                                                 }}>
                                                                     <View style={{ width: '48%' }}>
                                                                         <TouchableOpacity
-                                                                            onPress={() => handleRuleTap(playerRules[i], player)}
+                                                                            onPress={() => handleRuleTap(playerRules[i])}
                                                                             activeOpacity={0.8}
                                                                         >
                                                                             <Plaque
@@ -840,7 +775,7 @@ export default function GameScreen() {
                                                                     {hasSecondItem && (
                                                                         <View style={{ width: '48%' }}>
                                                                             <TouchableOpacity
-                                                                                onPress={() => handleRuleTap(playerRules[i + 1], player)}
+                                                                                onPress={() => handleRuleTap(playerRules[i + 1])}
                                                                                 activeOpacity={0.8}
                                                                             >
                                                                                 <Plaque
@@ -924,7 +859,7 @@ export default function GameScreen() {
 
                                     {/* Player's Assigned Rules */}
                                     {(() => {
-                                        const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id);
+                                        const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === player.id);
                                         return playerRules.length > 0 ? (
                                             <View style={styles.playerRulesContainer}>
                                                 <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
@@ -942,7 +877,7 @@ export default function GameScreen() {
                                                                 }}>
                                                                     <View style={{ width: '48%' }}>
                                                                         <TouchableOpacity
-                                                                            onPress={() => handleRuleTap(playerRules[i], player)}
+                                                                            onPress={() => handleRuleTap(playerRules[i])}
                                                                             activeOpacity={0.8}
                                                                         >
                                                                             <Plaque
@@ -955,7 +890,7 @@ export default function GameScreen() {
                                                                     {hasSecondItem && (
                                                                         <View style={{ width: '48%' }}>
                                                                             <TouchableOpacity
-                                                                                onPress={() => handleRuleTap(playerRules[i + 1], player)}
+                                                                                onPress={() => handleRuleTap(playerRules[i + 1])}
                                                                                 activeOpacity={0.8}
                                                                             >
                                                                                 <Plaque
@@ -1027,13 +962,13 @@ export default function GameScreen() {
 
                 {/* Player Action Modals */}
                 {/* Rule Accusation Popup */}
-                <RuleAccusationPopup
-                    visible={showRulePopup}
-                    selectedRuleForAccusation={selectedRuleForAccusation}
+                <RuleDetailsModal
+                    visible={showRuleDetails}
+                    rule={selectedRule || null}
                     currentUser={currentUser}
                     isAccusationInProgress={isAccusationInProgress}
-                    onAccuse={handleAccuse}
-                    onClose={() => setShowRulePopup(false)}
+                    onAccuse={() => handleAccuse(selectedRule!, currentUser!, selectedRule!.assignedTo!)}
+                    onClose={() => setshowRuleDetails(false)}
                 />
 
                 {/* Host Accusation Decision Popup */}
@@ -1050,7 +985,7 @@ export default function GameScreen() {
                     title={`Give Rule to ${selectedPlayerForAction?.name}`}
                     description={`Select an unassigned rule to give to ${selectedPlayerForAction?.name}:`}
                     rules={gameState?.rules.filter(rule => !rule.assignedTo && rule.isActive) || []}
-                    onSelectRule={handleGiveRule}
+                    onSelectRule={(ruleId) => handleAssignRuleToPlayer(ruleId, selectedPlayerForAction!)}
                     onClose={() => {
                         setShowGiveRuleModal(false);
                         setSelectedPlayerForAction(null);
@@ -1208,7 +1143,7 @@ export default function GameScreen() {
                         const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
                         if (!currentPlayer) return [];
                         return gameState.rules.filter(rule =>
-                            rule.assignedTo === currentPlayer.id &&
+                            rule.assignedTo?.id === currentPlayer.id &&
                             rule.isActive &&
                             !transferredRuleIds.includes(rule.id)
                         );
@@ -1250,7 +1185,7 @@ export default function GameScreen() {
                         const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
                         if (!currentPlayer) return [];
                         return gameState.rules.filter(rule =>
-                            rule.assignedTo === currentPlayer.id &&
+                            rule.assignedTo?.id === currentPlayer.id &&
                             rule.isActive &&
                             !transferredRuleIds.includes(rule.id)
                         );
@@ -1270,7 +1205,7 @@ export default function GameScreen() {
                     visible={showSwapOwnRuleModal}
                     title={`Select ${selectedPlayerForAction?.name}'s Rule to Swap`}
                     description={`Choose one of ${selectedPlayerForAction?.name}'s rules to swap:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id && rule.isActive) || []}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction?.id && rule.isActive) || []}
                     onSelectRule={handleSwapOwnRuleSelect}
                     onClose={() => {
                         setShowSwapOwnRuleModal(false);
@@ -1287,7 +1222,7 @@ export default function GameScreen() {
                     players={gameState?.players.filter(player =>
                         !player.isHost &&
                         player.id !== selectedPlayerForAction?.id &&
-                        gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive).length > 0
+                        gameState.rules.filter(rule => rule.assignedTo?.id === player.id && rule.isActive).length > 0
                     ) || []}
                     onSelectPlayer={handleSwapPlayerSelect}
                     onClose={() => {
@@ -1303,7 +1238,7 @@ export default function GameScreen() {
                     title={`Select ${swapTargetPlayer?.name}'s Rule to Swap`}
                     description={`Choose one of ${swapTargetPlayer?.name}'s rules to swap with ${selectedPlayerForAction?.name}:`}
                     rules={gameState?.rules.filter(rule =>
-                        rule.assignedTo === swapTargetPlayer?.id &&
+                        rule.assignedTo?.id === swapTargetPlayer?.id &&
                         rule.isActive &&
                         rule.id !== swapOwnRule?.id
                     ) || []}
@@ -1316,10 +1251,10 @@ export default function GameScreen() {
                     }}
                 />
 
-                {/* Host Action Modal */}
-                <HostActionModal
-                    visible={showHostActionModal}
-                    onClose={() => setShowHostActionModal(false)}
+                {/* Exit Game Modal */}
+                <ExitGameModal
+                    visible={showExitGameModal}
+                    onClose={() => setShowExitGameModal(false)}
                     onEndGame={handleEndGame}
                     onSelectNewHost={handleSelectNewHost}
                 />

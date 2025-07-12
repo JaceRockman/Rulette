@@ -6,6 +6,7 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import shared from '../shared/styles';
+import { colors } from '../shared/styles';
 import StripedBackground from '../components/Backdrop';
 import OutlinedText from '../components/OutlinedText';
 import WheelSegment from '../components/WheelSegment';
@@ -403,7 +404,7 @@ export default function WheelScreen() {
         const targetPlayer = gameState.players[targetPlayerIndex];
 
         // Find a random rule assigned to current player
-        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo === currentPlayer.id && rule.isActive);
+        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo?.id === currentPlayer.id && rule.isActive);
         if (currentPlayerRules.length === 0) {
             alert('You have no rules to pass up.');
             return;
@@ -456,7 +457,7 @@ export default function WheelScreen() {
         const targetPlayer = gameState.players[targetPlayerIndex];
 
         // Find a random rule assigned to current player
-        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo === currentPlayer.id && rule.isActive);
+        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo?.id === currentPlayer.id && rule.isActive);
         if (currentPlayerRules.length === 0) {
             alert('You have no rules to pass down.');
             return;
@@ -944,7 +945,7 @@ export default function WheelScreen() {
                                 return (
                                     <WheelSegment
                                         currentPlaque={currentLayer}
-                                        color={segment?.color || '#fff'}
+                                        color={segment?.color || colors.gameChangerWhite}
                                     />
                                 );
                             }}
@@ -1005,7 +1006,7 @@ export default function WheelScreen() {
                                 backgroundColor: (() => {
                                     const segment = segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                     const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
-                                    return currentLayer?.content?.plaqueColor || segment?.plaqueColor || '#fff';
+                                    return currentLayer?.content?.plaqueColor || segment?.plaqueColor || colors.gameChangerWhite;
                                 })(),
                                 borderRadius: 20,
                                 padding: 40,
@@ -1031,8 +1032,8 @@ export default function WheelScreen() {
                                     color: (() => {
                                         const segment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                         const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
-                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
-                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
+                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || colors.gameChangerWhite;
+                                        return (plaqueColor === colors.gameChangerWhite) ? '#000' : colors.gameChangerWhite;
                                     })(),
                                 }}
                             >
@@ -1057,8 +1058,8 @@ export default function WheelScreen() {
                                     color: (() => {
                                         const segment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                         const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
-                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
-                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
+                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || colors.gameChangerWhite;
+                                        return (plaqueColor === colors.gameChangerWhite) ? '#000' : colors.gameChangerWhite;
                                     })(),
                                     lineHeight: 26,
                                 }}
@@ -1136,8 +1137,8 @@ export default function WheelScreen() {
                                                             color: (() => {
                                                                 const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
                                                                 const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
-                                                                const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
-                                                                return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
+                                                                const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || colors.gameChangerWhite;
+                                                                return (plaqueColor === colors.gameChangerWhite) ? '#000' : colors.gameChangerWhite;
                                                             })(),
                                                         }}
                                                     >
@@ -1210,7 +1211,7 @@ export default function WheelScreen() {
                                                                     setShowShredWorkflowModal(true);
                                                                 }}
                                                             >
-                                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
                                                                     SUCCESS (+2)
                                                                 </Text>
                                                             </TouchableOpacity>
@@ -1261,7 +1262,7 @@ export default function WheelScreen() {
                                                                     });
                                                                 }}
                                                             >
-                                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
                                                                     FAILURE (0)
                                                                 </Text>
                                                             </TouchableOpacity>
@@ -1307,7 +1308,7 @@ export default function WheelScreen() {
                                                     setShowCloneWorkflowModal(true);
                                                 }}
                                             >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                     SELECT RULE TO CLONE
                                                 </Text>
                                             </TouchableOpacity>
@@ -1347,7 +1348,7 @@ export default function WheelScreen() {
                                                     setShowUpWorkflowModal(true);
                                                 }}
                                             >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                     PASS RULE UP
                                                 </Text>
                                             </TouchableOpacity>
@@ -1367,7 +1368,7 @@ export default function WheelScreen() {
                                                     setShowDownWorkflowModal(true);
                                                 }}
                                             >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                     PASS RULE DOWN
                                                 </Text>
                                             </TouchableOpacity>
@@ -1387,7 +1388,7 @@ export default function WheelScreen() {
                                                     setShowSwapWorkflowModal(true);
                                                 }}
                                             >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                     SWAP RULES
                                                 </Text>
                                             </TouchableOpacity>
@@ -1506,7 +1507,7 @@ export default function WheelScreen() {
                                                 });
                                             }}
                                         >
-                                            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                            <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                 CLOSE
                                             </Text>
                                         </TouchableOpacity>
@@ -1538,7 +1539,7 @@ export default function WheelScreen() {
                     })()}
                     onSelectRule={(ruleId) => {
                         const rule = gameState?.rules.find(r => r.id === ruleId);
-                        const player = gameState?.players.find(p => p.id === rule?.assignedTo);
+                        const player = gameState?.players.find(p => p.id === rule?.assignedTo?.id);
                         handleCloneRuleSelect(rule, player);
                     }}
                     onClose={() => setShowCloneModal(false)}

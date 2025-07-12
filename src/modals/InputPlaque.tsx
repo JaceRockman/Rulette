@@ -31,7 +31,7 @@ export default function InputPlaque({
     const textInputRef = useRef<TextInput>(null);
 
     // Determine text color based on plaque color (same logic as wheel segments)
-    const isLightPlaque = plaqueColor === '#fbbf24' || plaqueColor === '#fff';
+    const isLightPlaque = plaqueColor === colors.gameChangerWhite;
     const textColor = isLightPlaque ? '#000' : '#fff';
 
     // Check if input is valid

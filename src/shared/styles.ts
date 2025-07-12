@@ -9,6 +9,7 @@ export const colors = {
     gameChangerBlue: '#6bb9d3',
     gameChangerMaroon: '#b6475e',
     gameChangerWhite: '#fff',
+    gameChangerBlack: '#000',
 
     // Neutral colors
     black: '#000',
@@ -54,7 +55,7 @@ const buttonStyle = {
     marginBottom: 16,
 };
 
-const shared = StyleSheet.create({
+export const shared = StyleSheet.create({
     container: {
         flex: 1,
     },
