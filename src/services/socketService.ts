@@ -8,6 +8,18 @@ class SocketService {
     private gameState: GameState | null = null;
     private currentPlayerId: string | null = null;
 
+    connect() {
+        if (this.socket) {
+            this.socket.disconnect();
+        }
+
+        this.socket = io(SERVER_URL, {
+            transports: ['websocket', 'polling'],
+        });
+
+        this.setupEventListeners();
+    }
+
     // Event callbacks
     private onGameUpdated: ((gameState: GameState) => void) | null = null;
     private onError: ((error: string) => void) | null = null;
@@ -20,17 +32,6 @@ class SocketService {
     private onEndGameContinue: (() => void) | null = null;
     private onEndGameEnd: (() => void) | null = null;
 
-    connect() {
-        if (this.socket) {
-            this.socket.disconnect();
-        }
-
-        this.socket = io(SERVER_URL, {
-            transports: ['websocket', 'polling'],
-        });
-
-        this.setupEventListeners();
-    }
 
     private setupEventListeners() {
         if (!this.socket) return;
@@ -52,6 +53,7 @@ class SocketService {
         });
 
         this.socket.on('lobby_created', (data: { playerId: string; game: GameState }) => {
+            console.log('SocketService: Lobby created:', data);
             this.currentPlayerId = data.playerId;
             this.gameState = data.game;
             this.onLobbyCreated?.(data);
@@ -129,9 +131,9 @@ class SocketService {
         this.socket.emit('create_lobby', { playerName });
     }
 
-    joinLobby(code: string, playerName: string) {
+    joinLobby(lobbyCode: string, playerName: string) {
         if (!this.socket) return;
-        this.socket.emit('join_lobby', { code, playerName });
+        this.socket.emit('join_lobby', { lobbyCode, playerName });
     }
 
     markRulesCompletedForUser(userId: string) {
@@ -189,6 +191,16 @@ class SocketService {
             finalIndex,
             scrollAmount,
             duration
+        });
+    }
+
+    startAccusation(ruleId: string, accuserId: string, accusedId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('start_accusation', {
+            gameId: this.gameState.id,
+            ruleId,
+            accuserId,
+            accusedId
         });
     }
 

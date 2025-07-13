@@ -101,20 +101,14 @@ export default function GameScreen() {
         return;
     };
 
-    const handleAccuse = (rule: Rule, accuser: Player, accused: Player) => {
+    const handleAccusationStarted = (rule: Rule, accuser: Player, accused: Player) => {
         // Prevent accusation if one is already in progress
         if (isAccusationInProgress) {
             Alert.alert('Accusation In Progress', `${accusationDetails?.accuser.name} is accusing ${accusationDetails?.accused.name} of breaking rule "${rule.text}"`);
             return;
         }
 
-        setIsAccusationInProgress(true);
-        setAccusationDetails({
-            accuser: accuser,
-            accused: accused,
-            rule: rule
-        });
-        setShowAccusationPopup(true);
+        socketService.startAccusation(rule.id, accuser.id, accused.id);
     };
 
     const handleAcceptAccusation = () => {
@@ -967,14 +961,15 @@ export default function GameScreen() {
                     rule={selectedRule || null}
                     currentUser={currentUser}
                     isAccusationInProgress={isAccusationInProgress}
-                    onAccuse={() => handleAccuse(selectedRule!, currentUser!, selectedRule!.assignedTo!)}
+                    onAccuse={() => handleAccusationStarted(selectedRule!, currentUser!, selectedRule!.assignedTo!)}
                     onClose={() => setshowRuleDetails(false)}
                 />
 
-                {/* Host Accusation Decision Popup */}
+                {/* Accusation Decision Popup */}
                 <AccusationJudgementModal
                     visible={showAccusationPopup}
                     accusationDetails={accusationDetails}
+                    currentUser={currentUser!}
                     onAccept={handleAcceptAccusation}
                     onDecline={handleDeclineAccusation}
                 />

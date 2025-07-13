@@ -16,7 +16,7 @@ import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import StripedBackground from '../components/Backdrop';
 import shared from '../shared/styles';
-import PrimaryButton from '../components/Buttons';
+import { PrimaryButton } from '../components/Buttons';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 

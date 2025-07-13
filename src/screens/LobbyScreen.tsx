@@ -15,9 +15,10 @@ import { useGame } from '../context/GameContext';
 import * as Clipboard from 'expo-clipboard';
 import StripedBackground from '../components/Backdrop';
 import OutlinedText from '../components/OutlinedText';
-import PrimaryButton from '../components/Buttons';
+import { PrimaryButton } from '../components/Buttons';
 import { Player } from '../types/game';
 import shared from '../shared/styles';
+import socketService from '../services/socketService';
 
 type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
 type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
@@ -25,7 +26,7 @@ type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
 export default function LobbyScreen() {
     const navigation = useNavigation<LobbyScreenNavigationProp>();
     const route = useRoute<LobbyScreenRouteProp>();
-    const { gameState, currentUser, getHostPlayer, getNonHostPlayers, startGame, dispatch } = useGame();
+    const { gameState, currentUser, getHostPlayer, getNonHostPlayers } = useGame();
 
     const [startingPoints, setStartingPoints] = useState('');
     const [numRules, setNumRules] = useState('');
@@ -52,7 +53,7 @@ export default function LobbyScreen() {
         };
 
         // Start the game with settings - this will update settings on server and start the game
-        startGame(settings);
+        socketService.startGame(settings);
     };
 
     const host = getHostPlayer();

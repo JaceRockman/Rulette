@@ -24,11 +24,11 @@ const players = new Map();
 function generateLobbyCode() {
     // Generate 4 random letters (A-Z)
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let code = '';
+    let lobbyCode = '';
     for (let i = 0; i < 4; i++) {
-        code += letters.charAt(Math.floor(Math.random() * letters.length));
+        lobbyCode += letters.charAt(Math.floor(Math.random() * letters.length));
     }
-    return code;
+    return lobbyCode;
 }
 
 // Create a new game
@@ -38,7 +38,7 @@ function createGame(hostId, hostName) {
 
     const game = {
         id: gameId,
-        code: lobbyCode,
+        lobbyCode: lobbyCode,
         players: [{
             id: hostId,
             name: hostName,
@@ -68,17 +68,18 @@ function createGame(hostId, hostName) {
     return game;
 }
 
-// Find game by code
-function findGameByCode(code) {
-    return games.get(code.toUpperCase());
+// Find game by lobby code
+function findGameByCode(lobbyCode) {
+    if (!lobbyCode) return null;
+    return games.get(lobbyCode.toUpperCase());
 }
 
 // Socket connection handling
 io.on('connection', (socket) => {
 
     // Join lobby
-    socket.on('join_lobby', ({ code, playerName }) => {
-        const game = findGameByCode(code);
+    socket.on('join_lobby', ({ lobbyCode, playerName }) => {
+        const game = findGameByCode(lobbyCode);
 
         if (!game) {
             socket.emit('error', { message: 'Lobby not found' });
@@ -262,7 +263,7 @@ io.on('connection', (socket) => {
         }
 
         io.to(gameId).emit('game_updated', game);
-        io.to(gameId).emit('navigate_to_screen', { screen: 'RuleWriting' });
+        io.to(gameId).emit('broadcast_navigate_to_screen', { screen: 'RuleWriting' });
     });
 
     // Update game settings
@@ -384,6 +385,32 @@ io.on('connection', (socket) => {
             io.to(gameId).emit('game_updated', game);
         }
     });
+
+    // Accusation
+    socket.on('start_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const rule = game.rules.find(r => r.id === ruleId);
+        if (!rule) return;
+
+        const accuser = game.players.find(p => p.id === accuserId);
+        if (!accuser) return;
+
+        const accused = game.players.find(p => p.id === accusedId);
+        if (!accused) return;
+
+        game.isAccusationInProgress = true;
+        game.accusationDetails = {
+            ruleId,
+            accuserId,
+            accusedId
+        };
+
+        // Broadcast accusation to all players
+        io.to(gameId).emit('game_updated', game);
+    });
+
 
     // Swap rules
     socket.on('swap_rules', ({ gameId, player1Id, player1RuleId, player2Id, player2RuleId }) => {
@@ -553,7 +580,7 @@ io.on('connection', (socket) => {
                     // If no players left, remove game
                     if (game.players.length === 0) {
                         games.delete(game.id);
-                        games.delete(game.code);
+                        games.delete(game.lobbyCode);
                     } else {
                         // Assign host to first remaining player if host left
                         if (!game.players.some(p => p.isHost)) {
@@ -584,7 +611,7 @@ app.get('/health', (req, res) => {
 
 // Get active games (for debugging)
 app.get('/games', (req, res) => {
-    const gameList = Array.from(games.values()).filter(game => game.id && game.code);
+    const gameList = Array.from(games.values()).filter(game => game.id && game.lobbyCode);
     res.json(gameList);
 });
 
