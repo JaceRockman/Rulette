@@ -63,6 +63,32 @@ export const shared = StyleSheet.create({
         flex: 1,
         padding: 20,
     },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        width: '80%',
+        backgroundColor: colors.gameChangerWhite,
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+    },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: colors.text.primary,
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    modalDescription: {
+        fontSize: 14,
+        color: '#6b7280',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
     button: buttonStyle,
     disabledButton: { ...buttonStyle, opacity: 0.5 },
     buttonText: {

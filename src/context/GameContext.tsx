@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { GameState, Player, Prompt, Rule, StackItem, GameEvent, WheelSegment, WheelSegmentLayer, Modifier, Plaque } from '../types/game';
+import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentLayer, Modifier, Plaque, AccusationDetails } from '../types/game';
 import socketService from '../services/socketService';
 import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../shared/styles';
 import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState } from '../../test/data';
@@ -10,21 +10,21 @@ interface GameContextType {
     activePlayer: Player | null;
     showExitGameModal: boolean;
     setShowExitGameModal: (show: boolean) => void;
+    getBalancedColor: (plaqueType: 'rule' | 'prompt') => string;
     dispatch: React.Dispatch<GameAction>;
     getRulesByAuthor: (authorId: string) => Rule[];
     getPromptsByAuthor: (authorId: string) => Prompt[];
+    getAssignedRulesByPlayer: (playerId: string) => Rule[];
     getNonHostPlayers: () => Player[] | null | undefined;
     getHostPlayer: () => Player | null | undefined;
-    joinLobby: (lobbyCode: string, playerName: string) => void;
-    createLobby: (playerName: string, numRules?: number, numPrompts?: number, startingPoints?: number) => void;
-    createTestingState: () => void;
-    setNumRules: (num: number) => void;
-    setNumPrompts: (num: number) => void;
     addRule: (authorId: string, text: string, plaqueColor: string) => void;
     addPrompt: (authorId: string, text: string, plaqueColor: string) => void;
-    updatePlaque: (id: string, text: string, type: 'rule' | 'prompt') => void;
-    startGame: (settings?: { numRules?: number; numPrompts?: number; startingPoints?: number }) => void;
+    updateRule: (id: string, text: string) => void;
+    updatePrompt: (id: string, text: string) => void;
     synchronizedSpinWheel: (finalIndex: number, duration: number) => void;
+    initiateAccusation: (accusationDetails: AccusationDetails) => void;
+    acceptAccusation: () => void;
+    declineAccusation: () => void;
     updatePoints: (playerId: string, points: number) => void;
     swapRules: (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => void;
     cloneRuleToPlayer: (authorId: string, ruleId: string, targetPlayerId: string) => void;
@@ -284,23 +284,40 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-function getBalancedColor(plaques: Plaque[]): string {
-    // Count existing colors
-    const colorCount: { [color: string]: number } = {};
-    LAYER_PLAQUE_COLORS.forEach(color => {
-        colorCount[color] = 0;
-    });
+function createWheelSegments(state: GameState): WheelSegment[] {
+    if (!state.rules || !state.prompts || !state.modifiers) {
+        throw new Error('No rules, prompts, or modifiers found');
+    }
 
-    plaques.forEach(plaque => {
-        colorCount[plaque.plaqueColor]++;
-    });
+    const newSegments: WheelSegment[] = [];
+    const rules = state.rules;
+    const prompts = state.prompts;
+    const modifiers = state.modifiers;
+    let totalSegments = Math.max(rules.length, prompts.length, 1);
 
-    // Find colors with minimum usage
-    const minCount = Math.min(...Object.values(colorCount));
-    const availableColors = LAYER_PLAQUE_COLORS.filter(color => colorCount[color] === minCount);
+    const remainder = totalSegments % 4;
+    if (remainder !== 0) {
+        totalSegments += (4 - remainder);
+    }
 
-    // Randomly select from available colors
-    return availableColors[Math.floor(Math.random() * availableColors.length)];
+    for (let i = 0; i < totalSegments; i++) {
+        const layers: WheelSegmentLayer[] = [];
+
+        addRuleLayer(layers, rules, i);
+        addPromptLayer(layers, prompts, i);
+        addModifierLayer(layers, i);
+        addEndLayer(layers);
+
+        newSegments.push({
+            id: Math.random().toString(36).substr(2, 9),
+            layers,
+            currentLayerIndex: 0,
+            color: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
+            plaqueColor: LAYER_PLAQUE_COLORS[i % LAYER_PLAQUE_COLORS.length]
+        });
+    }
+
+    return newSegments;
 }
 
 function addRuleLayer(layers: WheelSegmentLayer[], rules: Rule[], index: number) {
@@ -384,7 +401,7 @@ function addEndLayer(layers: WheelSegmentLayer[]) {
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
     const [gameState, dispatch] = useReducer(gameReducer, initialState);
-    const [currentUserId, setCurrentUserId] = React.useState<string | null>(null);
+    const [currentUserId, setCurrentUserId] = React.useState<string | null>(socketService.getCurrentUserId());
     const currentUser = gameState?.players.find(p => p.id === currentUserId) || null;
     const activePlayer = gameState?.players.find(p => p.id === gameState?.activePlayer) || null;
     const [showExitGameModal, setShowExitGameModal] = React.useState(false);
@@ -421,7 +438,54 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         };
     }, []);
 
-    // Helper functions to filter rules and prompts based on player role
+    // Create wheel segments when all non-host players have completed
+    React.useEffect(() => {
+        if (!currentUser?.isHost) return;
+
+        const nonHostPlayers = getNonHostPlayers() || [];
+        if (nonHostPlayers.length === 0) return;
+
+        const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
+            player.rulesCompleted && player.promptsCompleted
+        );
+
+        if (allNonHostPlayersCompleted && (gameState.wheelSegments?.length || 0) === 0) {
+            const generatedWheelSegments = createWheelSegments(gameState);
+            socketService.syncWheelSegments(generatedWheelSegments);
+        } else {
+            throw new Error('All non-host players must have completed their rules and prompts before wheel segments can be created');
+        }
+    }, [gameState?.players, gameState?.isGameStarted, gameState?.wheelSegments?.length, dispatch]);
+
+    // Helper functions used in multiple places
+    const getBalancedColor = (plaqueType: 'rule' | 'prompt'): string => {
+        let plaques: Plaque[] = [];
+        if (plaqueType === 'rule') {
+            plaques = gameState?.rules || [];
+        } else if (plaqueType === 'prompt') {
+            plaques = gameState?.prompts || [];
+        } else {
+            throw new Error('Invalid plaque type');
+        }
+
+        const colorCount: { [color: string]: number } = {};
+        LAYER_PLAQUE_COLORS.forEach(color => {
+            colorCount[color] = 0;
+        });
+
+        plaques.forEach(plaque => {
+            colorCount[plaque.plaqueColor]++;
+        });
+
+        // Find colors with minimum usage
+        const minCount = Math.min(...Object.values(colorCount));
+        const availableColors = LAYER_PLAQUE_COLORS.filter(color => colorCount[color] === minCount);
+        const selectedColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+
+        // Randomly select from available colors
+        return selectedColor;
+    };
+
     const getRulesByAuthor = (authorId: string) => {
         if (!gameState?.rules || !currentUser) return [];
 
@@ -444,60 +508,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    function getNonHostPlayers(): Player[] | null | undefined {
-        if (!gameState?.players) return [];
+    const getNonHostPlayers = (): Player[] | null | undefined => {
         return gameState.players.filter(player => !player.isHost);
     };
 
-    function getHostPlayer(): Player | null | undefined {
-        if (!gameState?.players) return null;
+    const getHostPlayer = (): Player | null | undefined => {
         return gameState.players.find(player => player.isHost);
     };
 
-    // Create wheel segments when all non-host players have completed
-    React.useEffect(() => {
-        if (!gameState) return;
-        if (!gameState.players) return;
-        if (!gameState.wheelSegments) return;
-        if (!gameState.isGameStarted) return;
-
-        const nonHostPlayers = gameState.players?.filter(player => !player.isHost) || [];
-        const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
-            player.rulesCompleted && player.promptsCompleted
-        );
-
-        // Only create wheel segments if all non-host players have completed and segments haven't been created yet
-        if (allNonHostPlayersCompleted && (gameState.wheelSegments?.length || 0) === 0) {
-            // Add a small delay to ensure all rules and prompts are synced from the backend
-            setTimeout(() => {
-                dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
-            }, 500);
-        }
-
-        socketService.syncWheelSegments(gameState.wheelSegments);
-    }, [gameState?.players, gameState?.isGameStarted, gameState?.wheelSegments?.length, dispatch]);
-
-    const joinLobby = (lobbyCode: string, playerName: string) => {
-        socketService.joinLobby(lobbyCode, playerName);
-    };
-
-    const createLobby = (playerName: string, numRules = 3, numPrompts = 3, startingPoints = 20) => {
-        // Note: numRules, numPrompts, startingPoints can be sent to backend if supported
-        socketService.createLobby(playerName);
-    };
-
-    const createTestingState = () => {
-        const testingGameState = testingState();
-        dispatch({ type: 'SET_GAME_STATE', payload: testingGameState });
-        dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
-    };
-
-    const setNumRules = (num: number) => {
-        dispatch({ type: 'SET_NUM_RULES', payload: num });
-    };
-
-    const setNumPrompts = (num: number) => {
-        dispatch({ type: 'SET_NUM_PROMPTS', payload: num });
+    const getAssignedRulesByPlayer = (playerId: string) => {
+        return gameState.rules.filter(rule => rule.assignedTo?.id === playerId);
     };
 
     const createPlaque = (type: 'rule' | 'prompt' | 'modifier', authorId: string = 'system', text: string, plaqueColor: string) => {
@@ -514,52 +534,115 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.addPlaque(plaque);
     };
 
+    const updatePlaque = (type: 'rule' | 'prompt', id: string, text: string) => {
+        if (type === 'rule') {
+            const existingRule = gameState?.rules.find(r => r.id === id);
+            if (!existingRule) throw new Error('Rule not found');
+
+            const updatedPlaque = { ...existingRule, text: text };
+
+            socketService.updatePlaque(updatedPlaque);
+        } else {
+            const existingPrompt = gameState?.prompts.find(p => p.id === id);
+            if (!existingPrompt) throw new Error('Prompt not found');
+
+            const updatedPlaque = { ...existingPrompt, text: text };
+
+            socketService.updatePlaque(updatedPlaque);
+        }
+    };
+
+    const markRulesCompletedForUser = (userId: string) => {
+        if (!gameState) return;
+        socketService.markRulesCompletedForUser(userId);
+    };
+
+    const markPromptsCompletedForUser = (userId: string) => {
+        if (!gameState) return;
+        socketService.markPromptsCompletedForUser(userId);
+    };
+
     const addRule = (authorId: string = 'system', text: string, plaqueColor: string) => {
         createPlaque('rule', authorId, text, plaqueColor);
+    };
+
+    const updateRule = (id: string, text: string) => {
+        updatePlaque('rule', id, text);
+    };
+
+    const assignRule = (ruleId: string, playerId: string) => {
+        if (!gameState) return;
+        socketService.assignRule(ruleId, playerId);
     };
 
     const addPrompt = (authorId: string = 'system', text: string, plaqueColor: string) => {
         createPlaque('prompt', authorId, text, plaqueColor);
     };
 
-    const updatePlaque = (id: string, text: string, type: 'rule' | 'prompt') => {
-        if (type === 'rule') {
-            // Find the existing rule to get its current data
-            const existingRule = gameState?.rules.find(r => r.id === id);
-            if (!existingRule) return;
-
-            // Create updated plaque with new text but same ID and other properties
-            const updatedPlaque = { ...existingRule, text: text };
-
-            // Send updated plaque to backend
-            socketService.updatePlaque(updatedPlaque);
-        } else {
-            // Find the existing prompt to get its current data
-            const existingPrompt = gameState?.prompts.find(p => p.id === id);
-            if (!existingPrompt) return;
-
-            // Create updated plaque with new text but same ID and other properties
-            const updatedPlaque = { ...existingPrompt, text: text };
-
-            // Send updated plaque to backend
-            socketService.updatePlaque(updatedPlaque);
-        }
+    const updatePrompt = (id: string, text: string) => {
+        updatePlaque('prompt', id, text);
     };
 
-    const startGame = (settings?: { numRules?: number; numPrompts?: number; startingPoints?: number }) => {
-        if (!gameState) return;
+    const givePrompt = (promptId: string, playerId: string) => {
+        socketService.givePrompt(playerId, promptId);
+    };
 
-        // Use socket service to start the game with settings (server will update settings and start game)
-        socketService.startGame(settings);
+    const triggerCloneModifier = (modifierId: string, playerId: string) => {
+        socketService.triggerCloneModifier(modifierId, playerId);
+    };
+
+    const triggerSwapModifier = (modifierId: string, playerId: string) => {
+        socketService.triggerSwapModifier(modifierId, playerId);
+    };
+
+    const triggerFlipModifier = (modifierId: string, playerId: string) => {
+        socketService.triggerFlipModifier(modifierId, playerId);
+    };
+
+    const triggerUpModifier = (modifierId: string, playerId: string) => {
+        socketService.triggerUpModifier(modifierId, playerId);
+    };
+
+    const triggerDownModifier = (modifierId: string, playerId: string) => {
+        socketService.triggerDownModifier(modifierId, playerId);
     };
 
     const synchronizedSpinWheel = (finalIndex: number, duration: number) => {
         dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: { spinningPlayerId: currentUserId || '', finalIndex, duration } });
     };
 
+    const initiateAccusation = (accusationDetails: AccusationDetails) => {
+        if (!gameState) return;
+
+        if (gameState.activeAccusationDetails) {
+            throw new Error('Accusation already in progress');
+        }
+
+        socketService.startAccusation(accusationDetails);
+    };
+
+    const acceptAccusation = (accusationDetails: AccusationDetails) => {
+        socketService.acceptAccusation(accusationDetails);
+    };
+
+    const declineAccusation = (accusationDetails: AccusationDetails) => {
+        socketService.declineAccusation(accusationDetails);
+    };
+
     const updatePoints = (playerId: string, points: number) => {
+        if (!gameState) return;
+        if (points < 0) throw new Error('Points must be greater than or equal to 0');
+        if (points > 99) throw new Error('Points must be less than 100');
+
         socketService.updatePoints(playerId, points);
     };
+
+
+
+
+
+
+
 
     const swapRules = (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => {
         if (!gameState) return;
@@ -593,19 +676,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const assignRule = (ruleId: string, playerId: string) => {
-        if (!gameState) return;
-
-        const rule = gameState.rules.find((r: Rule) => r.id === ruleId);
-        if (rule) {
-            // Send to backend via socket service
-            socketService.assignRule(ruleId, playerId);
-        }
-    };
-
     const removeWheelLayer = (segmentId: string) => {
-        dispatch({ type: 'REMOVE_WHEEL_LAYER', payload: segmentId });
-        // Also sync to backend via socket service
         socketService.removeWheelLayer(segmentId);
     };
 
@@ -620,36 +691,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const markRulesCompletedForUser = (userId: string) => {
-        if (!gameState) return;
-        socketService.markRulesCompletedForUser(userId);
-    };
-
-    const markPromptsCompletedForUser = (userId: string) => {
-        if (!gameState) return;
-        socketService.markPromptsCompletedForUser(userId);
-    };
-
     return (
         <GameContext.Provider value={{
             gameState,
             currentUser,
             activePlayer,
             dispatch,
+            getBalancedColor,
             getRulesByAuthor,
             getPromptsByAuthor,
+            getAssignedRulesByPlayer,
             getNonHostPlayers,
             getHostPlayer,
-            joinLobby,
-            createLobby,
-            createTestingState,
-            setNumRules,
-            setNumPrompts,
             addRule,
             addPrompt,
-            updatePlaque,
-            startGame,
+            updateRule,
+            updatePrompt,
             synchronizedSpinWheel,
+            initiateAccusation,
+            acceptAccusation,
+            declineAccusation,
             updatePoints,
             swapRules,
             cloneRuleToPlayer,

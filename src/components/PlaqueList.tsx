@@ -4,11 +4,10 @@ import { Plaque as PlaqueType } from "../types/game";
 
 interface PlaqueListProps {
     plaques: PlaqueType[];
-    onPress: Function;
-    authorId: string;
+    onPress: (plaque: PlaqueType) => void;
 }
 
-export const render2ColumnPlaqueList = ({ plaques, onPress, authorId }: PlaqueListProps) => {
+export const render2ColumnPlaqueList = ({ plaques, onPress }: PlaqueListProps) => {
     const rows = [];
     for (let i = 0; i < plaques.length; i += 2) {
         const hasSecondItem = plaques[i + 1];
@@ -17,14 +16,14 @@ export const render2ColumnPlaqueList = ({ plaques, onPress, authorId }: PlaqueLi
                 <Plaque
                     text={plaques[i].text}
                     plaqueColor={plaques[i].plaqueColor || '#fff'}
-                    onPress={() => onPress(plaques[i].id, plaques[i].text, plaques[i].plaqueColor || '#fff')}
+                    onPress={() => onPress(plaques[i])}
                     style={{ minHeight: 100 }}
                 />
                 {hasSecondItem && (
                     <Plaque
                         text={plaques[i + 1].text}
                         plaqueColor={plaques[i + 1].plaqueColor || '#fff'}
-                        onPress={() => onPress(plaques[i + 1].id, plaques[i + 1].text, plaques[i + 1].plaqueColor || '#fff')}
+                        onPress={() => onPress(plaques[i + 1])}
                     />
                 )}
             </View>

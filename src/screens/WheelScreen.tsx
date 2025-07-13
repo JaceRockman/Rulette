@@ -223,7 +223,7 @@ export default function WheelScreen() {
 
     // Memoize current player info to avoid repeated function calls during render
     const currentPlayerInfo = React.useMemo(() => {
-        const currentClientId = socketService.getCurrentPlayerId();
+        const currentClientId = socketService.getCurrentUserId();
         const currentPlayer = gameState?.players.find(p => p.id === currentClientId);
         return {
             id: currentClientId,
@@ -252,7 +252,7 @@ export default function WheelScreen() {
 
     const handleSpin = () => {
         // Check if the current player is the active player
-        const currentClientId = socketService.getCurrentPlayerId();
+        const currentClientId = socketService.getCurrentUserId();
         const isActivePlayer = gameState?.activePlayer === currentClientId;
 
         if (!isActivePlayer) {
@@ -350,13 +350,13 @@ export default function WheelScreen() {
         PanResponder.create({
             onStartShouldSetPanResponder: () => {
                 // Only allow the active player to start pan gestures
-                const currentClientId = socketService.getCurrentPlayerId();
+                const currentClientId = socketService.getCurrentUserId();
                 const isActivePlayer = gameState?.activePlayer === currentClientId;
                 return isActivePlayer;
             },
             onMoveShouldSetPanResponder: (_, gestureState) => {
                 // Only allow the active player to move pan gestures
-                const currentClientId = socketService.getCurrentPlayerId();
+                const currentClientId = socketService.getCurrentUserId();
                 const isActivePlayer = gameState?.activePlayer === currentClientId;
                 return isActivePlayer && Math.abs(gestureState.dy) > 10;
             },
@@ -1169,7 +1169,7 @@ export default function WheelScreen() {
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 10 }}>
                                                 {/* Only show buttons for the host */}
                                                 {(() => {
-                                                    const currentClientId = socketService.getCurrentPlayerId();
+                                                    const currentClientId = socketService.getCurrentUserId();
                                                     const isHost = gameState?.players.find(p => p.id === currentClientId)?.isHost;
 
                                                     if (!isHost) {
@@ -1275,7 +1275,7 @@ export default function WheelScreen() {
                                 } else if (currentLayer && currentLayer.type === 'modifier' && typeof currentLayer.content === 'string') {
                                     // Only show modifier buttons for the active player (spinning player)
                                     const spinningPlayerId = gameState?.activePlayer;
-                                    const currentClientId = socketService.getCurrentPlayerId();
+                                    const currentClientId = socketService.getCurrentUserId();
                                     const isActivePlayer = spinningPlayerId === currentClientId;
 
                                     if (!isActivePlayer) {
@@ -1397,7 +1397,7 @@ export default function WheelScreen() {
                                 } else {
                                     // Only show CLOSE button for the active player (spinning player) and not for end segments
                                     const spinningPlayerId = gameState?.activePlayer;
-                                    const currentClientId = socketService.getCurrentPlayerId();
+                                    const currentClientId = socketService.getCurrentUserId();
                                     const isActivePlayer = spinningPlayerId === currentClientId;
                                     const selectedSegment = segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                     const currentLayer = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];

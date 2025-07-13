@@ -4,15 +4,15 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import shared, { LAYER_PLAQUE_COLORS } from '../shared/styles';
+import shared from '../shared/styles';
 import StripedBackground from '../components/Backdrop';
 import InputPlaque from '../modals/InputPlaque';
-import Plaque from '../components/Plaque';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
+import { Plaque } from '../types/game';
 
 export default function RuleWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addRule, updatePlaque, currentUser, markRulesCompletedForUser, getRulesByAuthor } = useGame();
+    const { gameState, currentUser, getRulesByAuthor, getBalancedColor, addRule, updateRule, markRulesCompletedForUser } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
@@ -20,6 +20,7 @@ export default function RuleWritingScreen() {
     const [editingRuleId, setEditingRuleId] = useState<string | null>(null);
     const [editingPlaqueColor, setEditingPlaqueColor] = useState('#fff');
 
+    const isHost = currentUser?.isHost;
     const numRules = Number(gameState?.numRules) || 3;
 
     const closeRuleWritingPopup = () => {
@@ -32,44 +33,31 @@ export default function RuleWritingScreen() {
 
     const handleWriteRule = () => {
         setInputValue('');
-
-        // Count existing rule colors
-        const colorCount: { [color: string]: number } = {};
-        LAYER_PLAQUE_COLORS.forEach(color => colorCount[color] = 0);
-
-        gameState?.rules?.forEach(rule => {
-            if (rule.plaqueColor && colorCount[rule.plaqueColor] !== undefined) {
-                colorCount[rule.plaqueColor]++;
-            }
-        });
-
-        // Find colors with minimum usage
-        const minCount = Math.min(...Object.values(colorCount));
-        const availableColors = LAYER_PLAQUE_COLORS.filter(color => colorCount[color] === minCount);
-
-        // Randomly select from available colors
-        const selectedColor = availableColors[Math.floor(Math.random() * availableColors.length)];
-        setCurrentPlaqueColor(selectedColor);
+        setCurrentPlaqueColor(getBalancedColor('rule'));
         setShowInputPlaque(true);
     };
 
     const handleAddRule = () => {
-        if (inputValue.trim()) {
-            addRule(currentUser?.id ?? 'system', inputValue.trim(), currentPlaqueColor);
+        const validatedInput = inputValue.trim();
+
+        if (validatedInput) {
+            addRule(currentUser?.id ?? 'system', validatedInput, currentPlaqueColor);
             closeRuleWritingPopup();
         }
     };
 
-    const handleEditRule = (ruleId: string, currentText: string, plaqueColor: string) => {
-        setEditingRuleId(ruleId);
-        setInputValue(currentText);
-        setEditingPlaqueColor(plaqueColor);
+    const handleEditRule = (rule: Plaque) => {
+        setEditingRuleId(rule.id);
+        setInputValue(rule.text);
+        setEditingPlaqueColor(rule.plaqueColor || '#fff');
         setShowEditPlaque(true);
     };
 
-    const handleConfirmEdit = () => {
-        if (inputValue.trim() && editingRuleId) {
-            updatePlaque(editingRuleId, inputValue.trim(), 'rule');
+    const handleConfirmEditRule = () => {
+        const validatedInput = inputValue.trim();
+
+        if (validatedInput && editingRuleId) {
+            updateRule(editingRuleId, validatedInput);
             closeRuleWritingPopup();
         }
     };
@@ -89,20 +77,19 @@ export default function RuleWritingScreen() {
     const canAddRule = currentUser?.isHost || visibleRuleCount < numRules;
     const canContinue = currentUser?.isHost || visibleRuleCount === numRules;
 
+    const rulesToDisplay = isHost ? gameState?.rules : getRulesByAuthor(currentUser?.id ?? 'system');
+
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
                 <ScrollView
                     style={{ flex: 1 }}
                     contentContainerStyle={{ paddingTop: 100, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
-                    showsVerticalScrollIndicator={false}
-                >
-
+                    showsVerticalScrollIndicator={false}>
                     <TouchableOpacity
                         style={[canContinue ? shared.button : shared.disabledButton]}
                         onPress={handleWriteRule}
-                        disabled={!canAddRule}
-                    >
+                        disabled={!canAddRule}>
                         <Text style={shared.buttonText}>
                             {canAddRule ? 'Add Rule' : `Max Rules (${numRules})`}
                         </Text>
@@ -110,9 +97,8 @@ export default function RuleWritingScreen() {
 
                     <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20, flex: 1 }}>
                         {render2ColumnPlaqueList({
-                            plaques: getRulesByAuthor(currentUser?.id ?? 'system'),
+                            plaques: rulesToDisplay || [],
                             onPress: handleEditRule,
-                            authorId: currentUser?.id ?? 'system'
                         })}
                     </View>
 
@@ -122,8 +108,7 @@ export default function RuleWritingScreen() {
                     <TouchableOpacity
                         style={[canContinue ? shared.button : shared.disabledButton]}
                         onPress={canContinue ? handleContinue : undefined}
-                        disabled={!canContinue}
-                    >
+                        disabled={!canContinue}>
                         <Text style={shared.buttonText}>Done</Text>
                     </TouchableOpacity>
                 </ScrollView>
@@ -131,7 +116,7 @@ export default function RuleWritingScreen() {
                 <InputPlaque
                     visible={showInputPlaque}
                     title="ADD RULE"
-                    placeholder="Enter a rule..."
+                    placeholder="Enter rule..."
                     value={inputValue}
                     onChangeText={setInputValue}
                     onConfirm={handleAddRule}
@@ -143,10 +128,10 @@ export default function RuleWritingScreen() {
                 <InputPlaque
                     visible={showEditPlaque}
                     title="EDIT RULE"
-                    placeholder="Edit the rule..."
+                    placeholder="Edit rule..."
                     value={inputValue}
                     onChangeText={setInputValue}
-                    onConfirm={handleConfirmEdit}
+                    onConfirm={handleConfirmEditRule}
                     onCancel={closeRuleWritingPopup}
                     maxLength={100}
                     plaqueColor={editingPlaqueColor}

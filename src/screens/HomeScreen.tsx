@@ -17,27 +17,29 @@ import { useGame } from '../context/GameContext';
 import StripedBackground from '../components/Backdrop';
 import shared from '../shared/styles';
 import { PrimaryButton } from '../components/Buttons';
+import socketService from '../services/socketService';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
     const navigation = useNavigation<HomeScreenNavigationProp>();
-    const { createLobby, joinLobby } = useGame();
     const [playerName, setPlayerName] = useState('');
     const [lobbyCode, setLobbyCode] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [isJoining, setIsJoining] = useState(false);
 
     const handleCreateLobby = () => {
-        if (!playerName.trim()) {
+        const trimmedPlayerName = playerName.trim();
+
+        if (!trimmedPlayerName) {
             Alert.alert('Error', 'Please enter your name');
             return;
         }
 
         setIsCreating(true);
-        createLobby(playerName.trim());
-        setIsCreating(false);
+        socketService.createLobby(trimmedPlayerName);
         navigation.navigate('Lobby', {});
+        setIsCreating(false);
     };
 
     const handleJoinLobby = () => {
@@ -47,9 +49,9 @@ export default function HomeScreen() {
         }
 
         setIsJoining(true);
-        joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim());
-        setIsJoining(false);
+        socketService.joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim());
         navigation.navigate('Lobby', { lobbyCode: lobbyCode.trim().toUpperCase() });
+        setIsJoining(false);
     };
 
     return (

@@ -1,13 +1,13 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { Player } from '../types/game';
-import { colors } from '../shared/styles';
+import { colors, shared } from '../shared/styles';
 
-interface HostPlayerActionModalProps {
+interface HostActionModalProps {
     visible: boolean;
     selectedPlayerForAction: Player | null;
     onGiveRule: () => void;
-    onSuccessfulPrompt: () => void;
+    onGivePrompt: () => void;
     onSuccessfulAccusation: () => void;
     onCloneRule: () => void;
     onFlipRule: () => void;
@@ -17,11 +17,11 @@ interface HostPlayerActionModalProps {
     onClose: () => void;
 }
 
-export default function HostPlayerActionModal({
+export default function HostActionModal({
     visible,
     selectedPlayerForAction,
     onGiveRule,
-    onSuccessfulPrompt,
+    onGivePrompt,
     onSuccessfulAccusation,
     onCloneRule,
     onFlipRule,
@@ -29,7 +29,7 @@ export default function HostPlayerActionModal({
     onDownAction,
     onSwapAction,
     onClose
-}: HostPlayerActionModalProps) {
+}: HostActionModalProps) {
     return (
         <Modal
             visible={visible}
@@ -38,10 +38,10 @@ export default function HostPlayerActionModal({
             onRequestClose={onClose}
             statusBarTranslucent={true}
         >
-            <View style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>Host Actions for {selectedPlayerForAction?.name}</Text>
-                    <Text style={styles.modalRuleText}>
+            <View style={shared.modalOverlay}>
+                <View style={shared.modalContent}>
+                    <Text style={shared.modalTitle}>Host Actions for {selectedPlayerForAction?.name}</Text>
+                    <Text style={shared.modalDescription}>
                         Select an action for this player to perform:
                     </Text>
 
@@ -55,16 +55,16 @@ export default function HostPlayerActionModal({
 
                         <TouchableOpacity
                             style={[styles.actionButton, { backgroundColor: colors.gameChangerYellow }]}
-                            onPress={onSuccessfulPrompt}
+                            onPress={onGivePrompt}
                         >
-                            <Text style={styles.actionButtonText}>Successful Prompt (+2 points)</Text>
+                            <Text style={styles.actionButtonText}>Give Prompt</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
                             style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
                             onPress={onSuccessfulAccusation}
                         >
-                            <Text style={styles.actionButtonText}>Successful Accusation (+1 point)</Text>
+                            <Text style={styles.actionButtonText}>Successful Accusation</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -116,32 +116,6 @@ export default function HostPlayerActionModal({
 }
 
 const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    modalContent: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 20,
-        width: '80%',
-        maxHeight: '85%',
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    modalRuleText: {
-        fontSize: 14,
-        color: '#6b7280',
-        marginBottom: 16,
-        textAlign: 'center',
-    },
     buttonContainer: {
         gap: 12,
         marginTop: 20,

@@ -1,13 +1,13 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
-import { Rule, Player } from '../types/game';
+import { Rule, Player, AccusationDetails } from '../types/game';
 import Plaque from '../components/Plaque';
 import { colors } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 
 interface AccusationJudgementModalProps {
     visible: boolean;
-    accusationDetails: { accuser: Player; accused: Player; rule: Rule } | null;
+    accusationDetails: AccusationDetails | null;
     currentUser: Player;
     onAccept: () => void;
     onDecline: () => void;
@@ -20,23 +20,22 @@ export default function AccusationJudgementModal({
     onAccept,
     onDecline,
 }: AccusationJudgementModalProps) {
-    if (!accusationDetails?.accuser || !accusationDetails?.accused || !accusationDetails?.rule) return null;
+    if (!accusationDetails) return null;
 
     return (
         <Modal
             visible={visible}
             transparent={true}
             animationType="fade"
-            onRequestClose={onDecline}
             statusBarTranslucent={true}
         >
             <SafeAreaView style={styles.modalOverlay}>
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Rule Violation</Text>
                     <Text style={styles.modalRuleText}>
-                        {accusationDetails?.accuser.name} has accused {accusationDetails?.accused.name} of breaking rule:
+                        {accusationDetails.accuser.name} has accused {accusationDetails.accused.name} of breaking rule:
                     </Text>
-                    <Plaque text={accusationDetails?.rule.text} plaqueColor={accusationDetails?.rule.plaqueColor} />
+                    <Plaque text={accusationDetails.rule.text} plaqueColor={accusationDetails.rule.plaqueColor} />
 
                     {currentUser?.isHost && (
                         <View style={styles.buttonContainer}>

@@ -8,9 +8,6 @@ import {
     Alert,
     SafeAreaView,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import * as Clipboard from 'expo-clipboard';
 import StripedBackground from '../components/Backdrop';
@@ -20,20 +17,18 @@ import { Player } from '../types/game';
 import shared from '../shared/styles';
 import socketService from '../services/socketService';
 
-type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
-type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
-
 export default function LobbyScreen() {
-    const navigation = useNavigation<LobbyScreenNavigationProp>();
-    const route = useRoute<LobbyScreenRouteProp>();
     const { gameState, currentUser, getHostPlayer, getNonHostPlayers } = useGame();
 
-    const [startingPoints, setStartingPoints] = useState('');
-    const [numRules, setNumRules] = useState('');
-    const [numPrompts, setNumPrompts] = useState('');
+    const [startingPoints, setStartingPoints] = useState('20');
+    const [numRules, setNumRules] = useState('3');
+    const [numPrompts, setNumPrompts] = useState('3');
 
-    const isHost = currentUser?.isHost;
-    const lobbyCode = gameState?.lobbyCode || route.params?.lobbyCode || '';
+    const host = getHostPlayer();
+    const nonHostPlayers = getNonHostPlayers();
+    const isHost = currentUser?.id === host?.id;
+
+    const lobbyCode = gameState?.lobbyCode || '';
 
     const copyLobbyCode = async () => {
         await Clipboard.setStringAsync(lobbyCode);
@@ -55,9 +50,6 @@ export default function LobbyScreen() {
         // Start the game with settings - this will update settings on server and start the game
         socketService.startGame(settings);
     };
-
-    const host = getHostPlayer();
-    const nonHostPlayers = getNonHostPlayers();
 
     return (
         <StripedBackground>
@@ -84,7 +76,7 @@ export default function LobbyScreen() {
                             </View>
                         )}
                         {!host && (
-                            <Text>No Host Found</Text>
+                            <Text style={{ textAlign: 'center' }}>No Host Found</Text>
                         )}
                     </View>
 
@@ -101,7 +93,7 @@ export default function LobbyScreen() {
                             </View>
                         )}
                         {nonHostPlayers && nonHostPlayers.length === 0 && (
-                            <Text>No Players Found</Text>
+                            <Text style={{ textAlign: 'center' }}>No Players</Text>
                         )}
                     </View>
 
@@ -114,9 +106,9 @@ export default function LobbyScreen() {
                                 <OutlinedText style={styles.settingLabel}>Starting Points</OutlinedText>
                                 <TextInput
                                     style={styles.settingInput}
+                                    keyboardType="numeric"
                                     value={startingPoints}
                                     onChangeText={setStartingPoints}
-                                    keyboardType="numeric"
                                     placeholder="20"
                                     placeholderTextColor="#9ca3af"
                                 />
@@ -126,9 +118,9 @@ export default function LobbyScreen() {
                                 <OutlinedText style={styles.settingLabel}>Number of Rules</OutlinedText>
                                 <TextInput
                                     style={styles.settingInput}
+                                    keyboardType="numeric"
                                     value={numRules}
                                     onChangeText={setNumRules}
-                                    keyboardType="numeric"
                                     placeholder="3"
                                     placeholderTextColor="#9ca3af"
                                 />

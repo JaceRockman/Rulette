@@ -12,34 +12,33 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import { Player, Rule } from '../types/game';
-import StripedBackground from '../components/Backdrop';
-import shared from '../shared/styles';
-import OutlinedText from '../components/OutlinedText';
-import DigitalClock from '../components/ScoreDisplay';
-import Plaque from '../components/Plaque';
+import { Plaque, Player, Rule } from '../types/game';
+import { Backdrop, OutlinedText, ScoreDisplay, PrimaryButton, SecondaryButton, WheelSegment, render2ColumnPlaqueList } from '../components';
 import {
     RuleDetailsModal,
     AccusationJudgementModal,
-    HostPlayerActionModal,
+    HostActionModal,
     FlipTextInputModal,
     ExitGameModal,
+    PromptModal,
 } from '../modals';
 import RuleSelectionModal from '../modals/RuleSelectionModal';
 import PlayerSelectionModal from '../modals/PlayerSelectionModal';
 import socketService from '../services/socketService';
+import shared from '../shared/styles';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, activePlayer, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch } = useGame();
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, getAssignedRulesByPlayer, initiateAccusation, acceptAccusation, declineAccusation } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
-    const [showRuleDetails, setshowRuleDetails] = useState(false);
-    const [selectedRuleForAccusation, setSelectedRuleForAccusation] = useState<{ rule: Rule } | null>(null);
+    const [showRuleDetails, setShowRuleDetails] = useState(false);
     const [showAccusationPopup, setShowAccusationPopup] = useState(false);
-    const [accusationDetails, setAccusationDetails] = useState<{ accuser: Player; accused: Player; rule: Rule } | null>(null);
+
+
+
     const [isAccusationInProgress, setIsAccusationInProgress] = useState(false);
     const [showRuleSelectionModal, setShowRuleSelectionModal] = useState(false);
     const [acceptedAccusationDetails, setAcceptedAccusationDetails] = useState<{ accuser: Player; accused: Player; rule: Rule } | null>(null);
@@ -101,47 +100,6 @@ export default function GameScreen() {
         return;
     };
 
-    const handleAccusationStarted = (rule: Rule, accuser: Player, accused: Player) => {
-        // Prevent accusation if one is already in progress
-        if (isAccusationInProgress) {
-            Alert.alert('Accusation In Progress', `${accusationDetails?.accuser.name} is accusing ${accusationDetails?.accused.name} of breaking rule "${rule.text}"`);
-            return;
-        }
-
-        socketService.startAccusation(rule.id, accuser.id, accused.id);
-    };
-
-    const handleAcceptAccusation = () => {
-        if (accusationDetails && gameState) {
-            // Give point to accuser
-            handleUpdatePoints(accusationDetails.accuser.id, accusationDetails.accuser.points, 1);
-            // Take point from accused
-            handleUpdatePoints(accusationDetails.accused.id, accusationDetails.accused.points, -1);
-
-            // Check if accuser has any rules to give
-            const accuserRules = gameState.rules.filter(rule => rule.assignedTo?.id === accusationDetails.accuser.id);
-
-            if (accuserRules.length > 0) {
-                // Store the accepted accusation details and show rule selection modal
-                setAcceptedAccusationDetails(accusationDetails);
-                setShowAccusationPopup(false);
-                setShowRuleSelectionModal(true);
-            } else {
-                // Use shared logic for completing accusation without rules
-                completeAccusationWithoutRules(accusationDetails.accuser, accusationDetails.accused, accusationDetails.rule.text);
-                setShowAccusationPopup(false);
-                setAccusationDetails(null);
-                setIsAccusationInProgress(false);
-            }
-        }
-    };
-
-    const handleDeclineAccusation = () => {
-        setShowAccusationPopup(false);
-        setAccusationDetails(null);
-        setIsAccusationInProgress(false);
-    };
-
     const handleGiveRuleToAccused = (ruleId: string) => {
         if (acceptedAccusationDetails) {
             // Assign the selected rule to the accused player
@@ -160,7 +118,7 @@ export default function GameScreen() {
 
     // Host player action handlers
     const handlePlayerTap = (player: Player) => {
-        if (currentUser?.isHost && player.id !== currentUser.id) {
+        if (currentUser?.isHost) {
             // Check if all non-host players have completed both phases
             if (!allNonHostPlayersCompleted) {
                 Alert.alert(
@@ -237,10 +195,9 @@ export default function GameScreen() {
         socketService.broadcastNavigateToScreen('GAME_ROOM');
     };
 
-    const handleSuccessfulPromptAction = () => {
+    const handleGivePromptAction = () => {
         if (selectedPlayerForAction && gameState) {
-            // Give points first
-            handleUpdatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points, 2);
+            socketService.givePrompt(selectedPlayerForAction.id, gameState.activePromptDetails?.selectedPrompt?.id || '');
 
             // Check if player has rules to shred
             const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction.id);
@@ -254,6 +211,21 @@ export default function GameScreen() {
                 setSelectedPlayerForAction(null);
             }
         }
+    };
+
+    const handlePromptRulePress = (plaque: Plaque) => {
+        setShowRuleDetails(true);
+        setSelectedRule(plaque as Rule);
+    };
+
+    const handlePromptSuccess = () => {
+        setShowRuleDetails(false);
+        setSelectedRule(null);
+    };
+
+    const handlePromptFailure = () => {
+        setShowRuleDetails(false);
+        setSelectedRule(null);
     };
 
     const handleSuccessfulAccusationAction = () => {
@@ -645,10 +617,23 @@ export default function GameScreen() {
         }
     };
 
+    const playerRulesComponent = (player: Player) => {
+        const playerRules = gameState?.rules.filter(rule => rule.assignedTo?.id === player.id);
+        return playerRules && playerRules.length > 0 ? (
+            <View style={styles.playerRulesContainer}>
+                <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
+                {render2ColumnPlaqueList({
+                    plaques: playerRules,
+                    onPress: (plaque: Plaque) => handleRuleTap(plaque as Rule),
+                })}
+            </View>
+        ) : null;
+    };
+
     // Show game over screen if game has ended
     if (gameState?.gameEnded && gameState?.winner) {
         return (
-            <StripedBackground>
+            <Backdrop>
                 <View style={[shared.container, { justifyContent: 'center', alignItems: 'center' }]}>
                     <OutlinedText style={{ fontSize: 48, marginBottom: 20, textAlign: 'center' }}>
                         GAME OVER!
@@ -699,13 +684,13 @@ export default function GameScreen() {
                         <Text style={shared.buttonText}>Back to Home</Text>
                     </TouchableOpacity>
                 </View>
-            </StripedBackground>
+            </Backdrop>
         );
     }
 
     if (!gameState || !currentUser) {
         return (
-            <StripedBackground>
+            <Backdrop>
                 <SafeAreaView style={styles.container}>
                     <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
                         <View style={styles.content}>
@@ -713,17 +698,18 @@ export default function GameScreen() {
                         </View>
                     </ScrollView>
                 </SafeAreaView>
-            </StripedBackground>
+            </Backdrop>
         );
     }
 
     return (
-        <StripedBackground>
-            <SafeAreaView style={styles.container}>
+        <Backdrop>
+            <SafeAreaView style={shared.container}>
                 <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
+
                     {/* Host Section */}
                     {gameState.players.find(player => player.isHost) && (
-                        <View style={styles.section}>
+                        <View style={shared.section}>
                             <OutlinedText>Host</OutlinedText>
                             {gameState.players.filter(player => player.isHost).map((player) => (
                                 <TouchableOpacity
@@ -737,59 +723,7 @@ export default function GameScreen() {
                                     </Text>
 
                                     {/* Player's Assigned Rules */}
-                                    {(() => {
-                                        const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === player.id);
-                                        return playerRules.length > 0 ? (
-                                            <View style={styles.playerRulesContainer}>
-                                                <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
-                                                <View style={styles.playerRulesGrid}>
-                                                    {(() => {
-                                                        const rows = [];
-                                                        for (let i = 0; i < playerRules.length; i += 2) {
-                                                            const hasSecondItem = playerRules[i + 1];
-                                                            const row = (
-                                                                <View key={i} style={{
-                                                                    flexDirection: 'row',
-                                                                    marginBottom: 12,
-                                                                    justifyContent: 'space-between',
-                                                                    width: '100%'
-                                                                }}>
-                                                                    <View style={{ width: '48%' }}>
-                                                                        <TouchableOpacity
-                                                                            onPress={() => handleRuleTap(playerRules[i])}
-                                                                            activeOpacity={0.8}
-                                                                        >
-                                                                            <Plaque
-                                                                                text={playerRules[i].text}
-                                                                                plaqueColor={playerRules[i].plaqueColor || '#fff'}
-                                                                                style={{ minHeight: 100 }}
-                                                                            />
-                                                                        </TouchableOpacity>
-                                                                    </View>
-                                                                    {hasSecondItem && (
-                                                                        <View style={{ width: '48%' }}>
-                                                                            <TouchableOpacity
-                                                                                onPress={() => handleRuleTap(playerRules[i + 1])}
-                                                                                activeOpacity={0.8}
-                                                                            >
-                                                                                <Plaque
-                                                                                    text={playerRules[i + 1].text}
-                                                                                    plaqueColor={playerRules[i + 1].plaqueColor || '#fff'}
-                                                                                    style={{ minHeight: 100 }}
-                                                                                />
-                                                                            </TouchableOpacity>
-                                                                        </View>
-                                                                    )}
-                                                                </View>
-                                                            );
-                                                            rows.push(row);
-                                                        }
-                                                        return rows;
-                                                    })()}
-                                                </View>
-                                            </View>
-                                        ) : null;
-                                    })()}
+                                    {playerRulesComponent(player)}
                                 </TouchableOpacity>
                             ))}
                         </View>
@@ -828,7 +762,7 @@ export default function GameScreen() {
                                                     <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>-1</Text>
                                                 </TouchableOpacity>
                                                 <View style={styles.pointsContainer}>
-                                                    <DigitalClock value={player.points} />
+                                                    <ScoreDisplay value={player.points} />
                                                 </View>
                                                 <TouchableOpacity
                                                     style={{
@@ -846,132 +780,51 @@ export default function GameScreen() {
                                             </>
                                         ) : (
                                             <View style={styles.pointsContainer}>
-                                                <DigitalClock value={player.points} />
+                                                <ScoreDisplay value={player.points} />
                                             </View>
                                         )}
                                     </View>
 
                                     {/* Player's Assigned Rules */}
-                                    {(() => {
-                                        const playerRules = gameState.rules.filter(rule => rule.assignedTo?.id === player.id);
-                                        return playerRules.length > 0 ? (
-                                            <View style={styles.playerRulesContainer}>
-                                                <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
-                                                <View style={styles.playerRulesGrid}>
-                                                    {(() => {
-                                                        const rows = [];
-                                                        for (let i = 0; i < playerRules.length; i += 2) {
-                                                            const hasSecondItem = playerRules[i + 1];
-                                                            const row = (
-                                                                <View key={i} style={{
-                                                                    flexDirection: 'row',
-                                                                    marginBottom: 12,
-                                                                    justifyContent: 'space-between',
-                                                                    width: '100%'
-                                                                }}>
-                                                                    <View style={{ width: '48%' }}>
-                                                                        <TouchableOpacity
-                                                                            onPress={() => handleRuleTap(playerRules[i])}
-                                                                            activeOpacity={0.8}
-                                                                        >
-                                                                            <Plaque
-                                                                                text={playerRules[i].text}
-                                                                                plaqueColor={playerRules[i].plaqueColor || '#fff'}
-                                                                                style={{ minHeight: 100 }}
-                                                                            />
-                                                                        </TouchableOpacity>
-                                                                    </View>
-                                                                    {hasSecondItem && (
-                                                                        <View style={{ width: '48%' }}>
-                                                                            <TouchableOpacity
-                                                                                onPress={() => handleRuleTap(playerRules[i + 1])}
-                                                                                activeOpacity={0.8}
-                                                                            >
-                                                                                <Plaque
-                                                                                    text={playerRules[i + 1].text}
-                                                                                    plaqueColor={playerRules[i + 1].plaqueColor || '#fff'}
-                                                                                    style={{ minHeight: 100 }}
-                                                                                />
-                                                                            </TouchableOpacity>
-                                                                        </View>
-                                                                    )}
-                                                                </View>
-                                                            );
-                                                            rows.push(row);
-                                                        }
-                                                        return rows;
-                                                    })()}
-                                                </View>
-                                            </View>
-                                        ) : null;
-                                    })()}
+                                    {playerRulesComponent(player)}
                                 </TouchableOpacity>
                             ))}
                         </View>
                     )}
-
-                    {/* Show current active player info */}
-                    {gameState?.activePlayer && (
-                        <View style={styles.section}>
-                            <Text style={{
-                                fontSize: 16,
-                                color: '#e5e7eb',
-                                textAlign: 'center',
-                                fontStyle: 'italic',
-                                marginBottom: 10
-                            }}>
-                                Current Turn: {gameState.players.find(p => p.id === gameState.activePlayer)?.name}
-                                {currentUser?.id === gameState.activePlayer && ' (You)'}
-                            </Text>
-                            <Text style={{
-                                fontSize: 12,
-                                color: '#9ca3af',
-                                textAlign: 'center',
-                                fontStyle: 'italic'
-                            }}>
-                                Active Player ID: {gameState.activePlayer}
-                            </Text>
-                            <Text style={{
-                                fontSize: 10,
-                                color: '#6b7280',
-                                textAlign: 'center',
-                                fontStyle: 'italic'
-                            }}>
-                                Debug: Current User ID: {currentUser?.id} | Is Active: {currentUser?.id === gameState.activePlayer ? 'YES' : 'NO'}
-                            </Text>
-                            <Text style={{
-                                fontSize: 10,
-                                color: '#6b7280',
-                                textAlign: 'center',
-                                fontStyle: 'italic'
-                            }}>
-                                Debug: All Players: {gameState.players.map(p => `${p.name}(${p.id}${p.isHost ? ',H' : ''})`).join(', ')}
-                            </Text>
-                        </View>
-                    )}
-
-
                 </ScrollView>
 
-
-                {/* Player Action Modals */}
                 {/* Rule Accusation Popup */}
                 <RuleDetailsModal
                     visible={showRuleDetails}
                     rule={selectedRule || null}
                     currentUser={currentUser}
                     isAccusationInProgress={isAccusationInProgress}
-                    onAccuse={() => handleAccusationStarted(selectedRule!, currentUser!, selectedRule!.assignedTo!)}
-                    onClose={() => setshowRuleDetails(false)}
+                    onAccuse={() => initiateAccusation({ rule: selectedRule!, accuser: currentUser!, accused: selectedRule!.assignedTo! })}
+                    onClose={() => setShowRuleDetails(false)}
                 />
 
-                {/* Accusation Decision Popup */}
+                {/* Accusation Judgement Popup */}
                 <AccusationJudgementModal
                     visible={showAccusationPopup}
-                    accusationDetails={accusationDetails}
+                    accusationDetails={gameState?.activeAccusationDetails || null}
                     currentUser={currentUser!}
-                    onAccept={handleAcceptAccusation}
-                    onDecline={handleDeclineAccusation}
+                    onAccept={acceptAccusation}
+                    onDecline={declineAccusation}
+                />
+
+                {/* Host Action Modals */}
+                <HostActionModal
+                    visible={showPlayerActionModal}
+                    selectedPlayerForAction={selectedPlayerForAction}
+                    onGiveRule={handleGiveRuleAction}
+                    onSuccessfulPrompt={handlePromptSuccess}
+                    onSuccessfulAccusation={handleSuccessfulAccusationAction}
+                    onCloneRule={handleCloneAction}
+                    onFlipRule={handleFlipAction}
+                    onUpAction={handleUpAction}
+                    onDownAction={handleDownAction}
+                    onSwapAction={handleSwapAction}
+                    onClose={() => setShowPlayerActionModal(false)}
                 />
 
                 {/* Give Rule Modal */}
@@ -985,21 +838,6 @@ export default function GameScreen() {
                         setShowGiveRuleModal(false);
                         setSelectedPlayerForAction(null);
                     }}
-                />
-
-                {/* Host Action Modals */}
-                <HostPlayerActionModal
-                    visible={showPlayerActionModal}
-                    selectedPlayerForAction={selectedPlayerForAction}
-                    onGiveRule={handleGiveRuleAction}
-                    onSuccessfulPrompt={handleSuccessfulPromptAction}
-                    onSuccessfulAccusation={handleSuccessfulAccusationAction}
-                    onCloneRule={handleCloneAction}
-                    onFlipRule={handleFlipAction}
-                    onUpAction={handleUpAction}
-                    onDownAction={handleDownAction}
-                    onSwapAction={handleSwapAction}
-                    onClose={() => setShowPlayerActionModal(false)}
                 />
 
                 {/* Give Rule to Player Modal */}
@@ -1017,17 +855,14 @@ export default function GameScreen() {
                     }}
                 />
 
-                {/* Successful Prompt Modal */}
-                <RuleSelectionModal
-                    visible={showShredRuleModal}
-                    title={`Shred a Rule from ${selectedPlayerForAction?.name}`}
-                    description={`${selectedPlayerForAction?.name} gained 2 points for a successful prompt! Now select a rule to shred:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id) || []}
-                    onSelectRule={handleShredRule}
-                    onClose={() => {
-                        setShowShredRuleModal(false);
-                        setSelectedPlayerForAction(null);
-                    }}
+                {/* Prompt Player Modal */}
+                <PromptModal
+                    visible={gameState?.activePromptDetails !== null}
+                    selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer}
+                    prompt={gameState?.activePromptDetails?.selectedPrompt || null}
+                    onPressRule={handlePromptRulePress}
+                    onSuccess={handlePromptSuccess}
+                    onFailure={handlePromptFailure}
                     cancelButtonText="None"
                 />
 

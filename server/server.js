@@ -374,6 +374,56 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('wheel_spun', stack);
     });
 
+    // Start accusation
+    socket.on('start_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const rule = game.rules.find(r => r.id === ruleId);
+        if (!rule) return;
+
+        const accuser = game.players.find(p => p.id === accuserId);
+        if (!accuser) return;
+
+        const accused = game.players.find(p => p.id === accusedId);
+        if (!accused) return;
+
+        game.isAccusationInProgress = true;
+        game.activeAccusationDetails = {
+            rule,
+            accuser,
+            accused
+        };
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Accept accusation
+    socket.on('accept_accusation', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const rule = game.rules.find(r => r.id === game.activeAccusationDetails.rule.id);
+        if (!rule) return;
+
+        game.players.find(p => p.id === game.activeAccusationDetails.accuser.id).points += 1;
+        game.players.find(p => p.id === game.activeAccusationDetails.accused.id).points -= 1;
+        game.activeAccusationDetails.accusationAccepted = true;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Decline accusation
+    socket.on('decline_accusation', ({ gameId, accusationDetails }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const rule = game.rules.find(r => r.id === accusationDetails.ruleId);
+        if (!rule) return;
+
+        game.accusationDetails.accepted = false;
+        io.to(gameId).emit('game_updated', game);
+    });
+
     // Update points
     socket.on('update_points', ({ gameId, playerId, points }) => {
         const game = games.get(gameId);
@@ -383,6 +433,28 @@ io.on('connection', (socket) => {
         if (player) {
             player.points = Math.max(0, points);
             io.to(gameId).emit('game_updated', game);
+        }
+    });
+
+    // Give prompt
+    socket.on('give_prompt', ({ gameId, playerId, promptId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const player = game.players.find(p => p.id === playerId);
+        const prompt = game.prompts.find(p => p.id === promptId);
+        if (player && prompt) {
+            game.activePromptDetails = {
+                selectedPrompt: prompt,
+                selectedPlayer: player
+            };
+            io.to(gameId).emit('game_updated', game);
+        } else if (!player && !prompt) {
+            socket.emit('error', { message: 'Player and prompt not found' });
+        } else if (!player) {
+            socket.emit('error', { message: 'Player not found' });
+        } else if (!prompt) {
+            socket.emit('error', { message: 'Prompt not found' });
         }
     });
 
@@ -401,7 +473,7 @@ io.on('connection', (socket) => {
         if (!accused) return;
 
         game.isAccusationInProgress = true;
-        game.accusationDetails = {
+        game.activeAccusationDetails = {
             ruleId,
             accuserId,
             accusedId

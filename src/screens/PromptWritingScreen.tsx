@@ -7,19 +7,20 @@ import { useGame } from '../context/GameContext';
 import shared from '../shared/styles';
 import StripedBackground from '../components/Backdrop';
 import InputPlaque from '../modals/InputPlaque';
-import Plaque from '../components/Plaque';
-import { LAYER_PLAQUE_COLORS } from '../shared/styles';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
+import { Plaque } from '../types/game';
 
 export default function PromptWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addPrompt, updatePlaque, dispatch, currentUser, markPromptsCompletedForUser, getPromptsByAuthor } = useGame();
+    const { gameState, currentUser, getPromptsByAuthor, getBalancedColor, addPrompt, updatePrompt, markPromptsCompletedForUser } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [currentPlaqueColor, setCurrentPlaqueColor] = useState('#fff');
     const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
     const [editingPlaqueColor, setEditingPlaqueColor] = useState('#fff');
+
+    const isHost = currentUser?.isHost;
     const numPrompts = Number(gameState?.numPrompts) || 3;
 
     const closePromptWritingPopup = () => {
@@ -32,44 +33,31 @@ export default function PromptWritingScreen() {
 
     const handleAddPrompt = () => {
         setInputValue('');
-
-        // Count existing prompt colors
-        const colorCount: { [color: string]: number } = {};
-        LAYER_PLAQUE_COLORS.forEach(color => colorCount[color] = 0);
-
-        gameState?.prompts?.forEach(prompt => {
-            if (prompt.plaqueColor && colorCount[prompt.plaqueColor] !== undefined) {
-                colorCount[prompt.plaqueColor]++;
-            }
-        });
-
-        // Find colors with minimum usage
-        const minCount = Math.min(...Object.values(colorCount));
-        const availableColors = LAYER_PLAQUE_COLORS.filter(color => colorCount[color] === minCount);
-
-        // Randomly select from available colors
-        const selectedColor = availableColors[Math.floor(Math.random() * availableColors.length)];
-        setCurrentPlaqueColor(selectedColor);
+        setCurrentPlaqueColor(getBalancedColor('prompt'));
         setShowInputPlaque(true);
     };
 
     const handleConfirmPrompt = () => {
-        if (inputValue.trim()) {
-            addPrompt(currentUser?.id ?? 'system', inputValue.trim(), currentPlaqueColor);
+        const validatedInput = inputValue.trim();
+
+        if (validatedInput) {
+            addPrompt(currentUser?.id ?? 'system', validatedInput, currentPlaqueColor);
             closePromptWritingPopup();
         }
     };
 
-    const handleEditPrompt = (promptId: string, currentText: string, plaqueColor: string) => {
-        setEditingPromptId(promptId);
-        setInputValue(currentText);
-        setEditingPlaqueColor(plaqueColor);
+    const handleEditPrompt = (prompt: Plaque) => {
+        setEditingPromptId(prompt.id);
+        setInputValue(prompt.text);
+        setEditingPlaqueColor(prompt.plaqueColor || '#fff');
         setShowEditPlaque(true);
     };
 
     const handleConfirmEdit = () => {
-        if (inputValue.trim() && editingPromptId) {
-            updatePlaque(editingPromptId, inputValue.trim(), 'prompt');
+        const validatedInput = inputValue.trim();
+
+        if (validatedInput && editingPromptId) {
+            updatePrompt(editingPromptId, validatedInput);
             closePromptWritingPopup();
         }
     };
@@ -92,19 +80,19 @@ export default function PromptWritingScreen() {
     const canAddPrompt = currentUser?.isHost || visiblePromptCount < numPrompts;
     const canContinue = currentUser?.isHost || visiblePromptCount === numPrompts;
 
+    const promptsToDisplay = isHost ? gameState?.prompts : getPromptsByAuthor(currentUser?.id ?? 'system');
+
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
                 <ScrollView
                     style={{ flex: 1 }}
                     contentContainerStyle={{ paddingTop: 100, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
-                    showsVerticalScrollIndicator={false}
-                >
+                    showsVerticalScrollIndicator={false}>
                     <TouchableOpacity
                         style={[canContinue ? shared.button : shared.disabledButton]}
                         onPress={handleAddPrompt}
-                        disabled={!canAddPrompt}
-                    >
+                        disabled={!canAddPrompt}>
                         <Text style={shared.buttonText}>
                             {canAddPrompt ? 'Add Prompt' : `Max Prompts (${numPrompts})`}
                         </Text>
@@ -112,9 +100,8 @@ export default function PromptWritingScreen() {
 
                     <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20, flex: 1 }}>
                         {render2ColumnPlaqueList({
-                            plaques: getPromptsByAuthor(currentUser?.id ?? 'system'),
+                            plaques: promptsToDisplay || [],
                             onPress: handleEditPrompt,
-                            authorId: currentUser?.id ?? 'system'
                         })}
                     </View>
 
@@ -124,8 +111,7 @@ export default function PromptWritingScreen() {
                     <TouchableOpacity
                         style={[canContinue ? shared.button : shared.disabledButton]}
                         onPress={canContinue ? handleDone : undefined}
-                        disabled={!canContinue}
-                    >
+                        disabled={!canContinue}>
                         <Text style={shared.buttonText}>Done</Text>
                     </TouchableOpacity>
                 </ScrollView>

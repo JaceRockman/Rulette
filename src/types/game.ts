@@ -60,6 +60,15 @@ export interface GameState {
     wheelSegments: WheelSegment[];
     currentUser?: string; // The user ID of the person currently using the app
     activePlayer?: string; // The player ID of the player currently taking their turn (excludes host)
+    activePromptDetails?: {
+        selectedPrompt: Prompt;
+        selectedPlayer: Player;
+    };
+    activeAccusationDetails?: {
+        rule: Rule;
+        accuser: Player;
+        accused: Player;
+    };
     isGameStarted: boolean;
     isWheelSpinning: boolean;
     currentStack: StackItem[];
@@ -82,8 +91,9 @@ export interface LobbySettings {
     pointsPerRuleBreak: number;
 }
 
-export interface GameEvent {
-    type: 'player_joined' | 'player_left' | 'game_started' | 'wheel_spun' | 'points_changed' | 'rule_assigned' | 'rule_swapped';
-    data: any;
-    timestamp: number;
-} 
+export interface AccusationDetails {
+    rule: Rule;
+    accuser: Player;
+    accused: Player;
+    accusationAccepted?: boolean;
+}
