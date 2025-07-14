@@ -6,6 +6,7 @@ export interface Player {
     isHost: boolean;
     rulesCompleted?: boolean;
     promptsCompleted?: boolean;
+    currentModal?: string; // Modal identifier for this player
 }
 
 export interface Plaque {
@@ -86,9 +87,9 @@ export interface LobbySettings {
 }
 
 export interface ActiveAccusationDetails {
-    ruleId: string;
-    accuserId: string;
-    accusedId: string;
+    rule: Rule;
+    accuser: Player;
+    accused: Player;
     accusationAccepted?: boolean;
 }
 

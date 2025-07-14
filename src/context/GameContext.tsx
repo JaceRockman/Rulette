@@ -43,6 +43,7 @@ interface GameContextType {
     endGame: () => void;
     markRulesCompletedForUser: (userId: string) => void;
     markPromptsCompletedForUser: (userId: string) => void;
+    setPlayerModal: (playerId: string, modalName?: string) => void;
 }
 
 type GameAction =
@@ -628,8 +629,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const initiateAccusation = (accusationDetails: ActiveAccusationDetails) => {
         if (!gameState) return;
 
-        console.log('gameState', gameState.activeAccusationDetails);
-
         if (gameState.activeAccusationDetails) {
             Alert.alert('Accusation already in progress');
             return;
@@ -710,6 +709,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const setPlayerModal = (playerId: string, modalName?: string) => {
+        if (!gameState) return;
+        const playerIndex = gameState.players.findIndex(p => p.id === playerId);
+        if (playerIndex !== -1) {
+            gameState.players[playerIndex].currentModal = modalName;
+        }
+    };
+
     return (
         <GameContext.Provider value={{
             gameState,
@@ -745,6 +752,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             markPromptsCompletedForUser,
             showExitGameModal,
             setShowExitGameModal,
+            setPlayerModal,
         }}>
             {children}
         </GameContext.Provider>

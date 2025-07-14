@@ -9,6 +9,7 @@ export { default as SwapModal } from './SwapModal';
 export { default as EndGameConfirmationModal } from './EndGameConfirmationModal';
 export { default as PromptPerformanceModal } from './PromptPerformanceModal';
 export { default as PromptResolutionModal } from './PromptResolutionModal';
+export { default as WaitForRuleSelectionModal } from './WaitForRuleSelectionModal';
 
 // Workflow Modals
 export { default as CloneWorkflowModal } from './CloneWorkflowModal';

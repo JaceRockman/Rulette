@@ -9,7 +9,8 @@ import { SecondaryButton } from '../components/Buttons';
 interface RuleDetailsModalProps {
     visible: boolean;
     rule: Rule | null;
-    currentUser: Player | null;
+    viewingPlayer: Player | null;
+    viewedPlayer: Player | null;
     isAccusationInProgress: boolean;
     onAccuse: (accusationDetails: ActiveAccusationDetails) => void;
     onClose: () => void;
@@ -18,19 +19,15 @@ interface RuleDetailsModalProps {
 export default function RuleDetailsModal({
     visible,
     rule,
-    currentUser,
+    viewingPlayer,
+    viewedPlayer,
     isAccusationInProgress,
     onAccuse,
     onClose
 }: RuleDetailsModalProps) {
     if (!visible || !rule) return null;
-    console.log('visible', visible);
 
     const plaqueColor = rule.plaqueColor || colors.gameChangerWhite;
-
-    const viewingPlayer = currentUser?.id
-    const viewedPlayer = rule.assignedTo
-    if (!viewingPlayer || !viewedPlayer) return null;
 
     const playerIsViewingOwnRule = viewingPlayer === viewedPlayer;
 
@@ -55,7 +52,7 @@ export default function RuleDetailsModal({
                     {!playerIsViewingOwnRule && (
                         <SecondaryButton
                             title="Accuse!"
-                            onPress={() => onAccuse({ ruleId: rule.id, accuserId: viewingPlayer, accusedId: viewedPlayer })}
+                            onPress={() => onAccuse({ rule, accuser: viewingPlayer!, accused: viewedPlayer! })}
                             disabled={isAccusationInProgress}
                             buttonStyle={{ width: '40%', opacity: isAccusationInProgress ? 0.5 : 1 }}
                         />

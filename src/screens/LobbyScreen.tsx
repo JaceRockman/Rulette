@@ -35,7 +35,7 @@ export default function LobbyScreen() {
     };
 
     const handleStartGame = () => {
-        if (!gameState?.players?.length) {
+        if (nonHostPlayers?.length === 0) {
             Alert.alert('Error', 'Need at least one player to start');
             return;
         }

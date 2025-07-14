@@ -26,20 +26,19 @@ export default function RuleSelectionModal({
     cancelButtonText = 'Cancel'
 }: RuleSelectionModalProps) {
     // Error handler for empty content
-    useEffect(() => {
-        if (visible && (!rules || rules.length === 0)) {
-            Alert.alert(
-                'No Rules Available',
-                'There are no rules available for selection. This might be due to a game state error.',
-                [
-                    {
-                        text: 'OK',
-                        onPress: onClose
-                    }
-                ]
-            );
-        }
-    }, [visible, rules, onClose]);
+    if (visible && (!rules || rules.length === 0)) {
+        console.log('rules', rules);
+        Alert.alert(
+            'No Rules Available',
+            'There are no rules available for selection. This might be due to a game state error.',
+            [
+                {
+                    text: 'OK',
+                    onPress: onClose
+                }
+            ]
+        );
+    }
 
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
 
@@ -95,7 +94,10 @@ export default function RuleSelectionModal({
                     </ScrollView>
 
                     {selectedRule && (
-                        <PrimaryButton title="Accept" onPress={() => onAccept(selectedRule)} />
+                        <PrimaryButton title="Accept" onPress={() => {
+                            visible = false;
+                            onAccept(selectedRule);
+                        }} />
                     )}
 
                     <SecondaryButton title={cancelButtonText} onPress={onClose} />

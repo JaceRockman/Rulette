@@ -22,6 +22,7 @@ import {
     ExitGameModal,
     PromptPerformanceModal,
     PromptResolutionModal,
+    WaitForRuleSelectionModal,
 } from '../modals';
 import RuleSelectionModal from '../modals/RuleSelectionModal';
 import PlayerSelectionModal from '../modals/PlayerSelectionModal';
@@ -34,37 +35,21 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, getAssignedRulesByPlayer, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule } = useGame();
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, getAssignedRulesByPlayer, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
-    const [showRuleDetails, setShowRuleDetails] = useState(false);
+    const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
 
 
-
-    const [isAccusationInProgress, setIsAccusationInProgress] = useState(false);
-    const [showRuleSelectionModal, setShowRuleSelectionModal] = useState(false);
-    const [acceptedAccusationDetails, setAcceptedAccusationDetails] = useState<{ accuser: Player; accused: Player; rule: Rule } | null>(null);
 
     const [selectedPlayerForAction, setSelectedPlayerForAction] = useState<Player | null>(null);
     const [showHostActionModal, setShowHostActionModal] = useState(false);
     const [showPromptSelectionModal, setShowPromptSelectionModal] = useState(false);
-    const [showShredRuleModal, setShowShredRuleModal] = useState(false);
     const [showGiveRuleModal, setShowGiveRuleModal] = useState(false);
-    const [showAccusationTargetModal, setShowAccusationTargetModal] = useState(false);
-    const [showAccusationRuleModal, setShowAccusationRuleModal] = useState(false);
     const [accusationTarget, setAccusationTarget] = useState<Player | null>(null);
-    const [originalCurrentPlayer, setOriginalCurrentPlayer] = useState<string | null>(null);
-    const [showSwapPlayerModal, setShowSwapPlayerModal] = useState(false);
-    const [showSwapOwnRuleModal, setShowSwapOwnRuleModal] = useState(false);
-    const [showSwapTargetRuleModal, setShowSwapTargetRuleModal] = useState(false);
     const [swapTargetPlayer, setSwapTargetPlayer] = useState<Player | null>(null);
     const [swapOwnRule, setSwapOwnRule] = useState<Rule | null>(null);
-    const [showCloneRuleModal, setShowCloneRuleModal] = useState(false);
-    const [showCloneTargetModal, setShowCloneTargetModal] = useState(false);
     const [cloneSelectedRule, setCloneSelectedRule] = useState<Rule | null>(null);
-    const [showFlipRuleModal, setShowFlipRuleModal] = useState(false);
     const [flipSelectedRule, setFlipSelectedRule] = useState<Rule | null>(null);
-    const [showUpRuleModal, setShowUpRuleModal] = useState(false);
-    const [showDownRuleModal, setShowDownRuleModal] = useState(false);
     const [upDownCurrentPlayerIndex, setUpDownCurrentPlayerIndex] = useState(0);
     const [upDownAction, setUpDownAction] = useState<'up' | 'down' | null>(null);
     const [transferredRuleIds, setTransferredRuleIds] = useState<string[]>([]);
@@ -76,6 +61,12 @@ export default function GameScreen() {
     const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
         player.rulesCompleted && player.promptsCompleted
     ) || false;
+
+    // Update local state to current modal based on game state
+    React.useEffect(() => {
+        console.log('modalState', gameState?.players.find(player => player.id === currentUser?.id)?.currentModal);
+        setCurrentModal(gameState?.players.find(player => player.id === currentUser?.id)?.currentModal);
+    }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal]);
 
     const handleUpdatePoints = (playerId: string, currentPoints: number, change: number) => {
         const newPoints = Math.max(0, Math.min(99, currentPoints + change));
@@ -95,7 +86,7 @@ export default function GameScreen() {
     };
 
     const handleRuleTap = (rule: Rule) => {
-        setShowRuleDetails(true);
+        if (currentUser) setPlayerModal(currentUser.id, 'RuleDetails');
         setSelectedRule(rule);
     };
 
@@ -121,16 +112,32 @@ export default function GameScreen() {
     };
 
     const handleInitiateAccusation = (accusationDetails: ActiveAccusationDetails) => {
+        console.log('accusationDetails', accusationDetails);
         initiateAccusation(accusationDetails);
-        setShowRuleDetails(false);
         setSelectedRule(null);
     };
 
     const handleAcceptAccusation = () => {
         acceptAccusation();
-        setShowRuleDetails(false);
         setSelectedRule(null);
     };
+
+    const handleGivePromptAction = () => {
+        setShowHostActionModal(false);
+        setShowPromptSelectionModal(true);
+    };
+
+    const handlePromptRulePress = (rule: Rule) => {
+        if (currentUser) setPlayerModal(currentUser.id, 'RuleDetails');
+        setSelectedRule(rule);
+    };
+
+
+
+
+
+
+
 
 
 
@@ -146,7 +153,7 @@ export default function GameScreen() {
             const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
             if (playerRules.length > 0) {
                 setShowHostActionModal(false);
-                setShowCloneRuleModal(true);
+                if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
             } else {
                 Alert.alert('No Rules to Clone', `${selectedPlayerForAction.name} has no assigned rules to clone.`);
                 setShowHostActionModal(false);
@@ -162,7 +169,7 @@ export default function GameScreen() {
         if (!rule) return;
 
         setCloneSelectedRule(rule);
-        setShowCloneRuleModal(false);
+        if (currentUser) setPlayerModal(currentUser.id, undefined);
 
         // Show player selection modal for the target player
         const otherPlayers = gameState.players.filter(player =>
@@ -175,7 +182,7 @@ export default function GameScreen() {
             return;
         }
 
-        setShowCloneTargetModal(true);
+        if (currentUser) setPlayerModal(currentUser.id, 'ClonePlayerSelection');
     };
 
     const handleCloneTargetSelect = (targetPlayer: Player) => {
@@ -193,30 +200,11 @@ export default function GameScreen() {
         // Reset all clone state
         setCloneSelectedRule(null);
         setSelectedPlayerForAction(null);
-        setShowCloneTargetModal(false);
+        if (currentUser) setPlayerModal(currentUser.id, undefined);
 
         // Broadcast navigation to game room for all players and host
         socketService.broadcastNavigateToScreen('Game');
     };
-
-    const handleGivePromptAction = () => {
-        setShowHostActionModal(false);
-        setShowPromptSelectionModal(true);
-    };
-
-    const handlePromptRulePress = (rule: Rule) => {
-        setShowRuleDetails(true);
-        setSelectedRule(rule);
-    };
-
-
-
-
-
-
-
-
-
 
 
 
@@ -227,7 +215,7 @@ export default function GameScreen() {
 
             // Show target selection modal
             setShowHostActionModal(false);
-            setShowAccusationTargetModal(true);
+            if (currentUser) setPlayerModal(currentUser.id, 'AccusationTargetSelection');
         }
     };
 
@@ -237,7 +225,7 @@ export default function GameScreen() {
             const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
             if (playerRules.length > 0) {
                 setShowHostActionModal(false);
-                setShowFlipRuleModal(true);
+                if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
             } else {
                 Alert.alert('No Rules to Flip', `${selectedPlayerForAction.name} has no assigned rules to flip.`);
                 setShowHostActionModal(false);
@@ -253,7 +241,7 @@ export default function GameScreen() {
         if (!rule) return;
 
         setFlipSelectedRule(rule);
-        setShowFlipRuleModal(false);
+        if (currentUser) setPlayerModal(currentUser.id, undefined);
     };
 
     const handleFlipTextSubmit = (flippedText: string) => {
@@ -297,7 +285,7 @@ export default function GameScreen() {
 
     const handleAccusationTargetSelect = (targetPlayer: Player) => {
         setAccusationTarget(targetPlayer);
-        setShowAccusationTargetModal(false);
+        if (currentUser) setPlayerModal(currentUser.id, undefined);
 
         // Check if the accusing player has any rules to give
         if (selectedPlayerForAction && gameState) {
@@ -305,7 +293,7 @@ export default function GameScreen() {
 
             if (accuserRules.length > 0) {
                 // Show rule selection modal
-                setShowAccusationRuleModal(true);
+                if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
             } else {
                 // Use shared logic for completing accusation without rules
                 completeAccusationWithoutRules(selectedPlayerForAction, targetPlayer);
@@ -345,7 +333,7 @@ export default function GameScreen() {
                 assignRule(ruleId, accusationTarget.id);
                 Alert.alert('Accusation Complete', `${selectedPlayerForAction.name} successfully accused ${accusationTarget.name} and gave them the rule "${rule.text}"`);
             }
-            setShowAccusationRuleModal(false);
+            if (currentUser) setPlayerModal(currentUser.id, undefined);
             setSelectedPlayerForAction(null);
             setAccusationTarget(null);
 
@@ -381,7 +369,7 @@ export default function GameScreen() {
         setTransferredRuleIds([]);
         setUpDownPlayerOrder(playersWithRules);
         setShowHostActionModal(false);
-        setShowUpRuleModal(true);
+        if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
     };
 
     // Handle Down action - start the modal flow
@@ -411,7 +399,7 @@ export default function GameScreen() {
         setTransferredRuleIds([]);
         setUpDownPlayerOrder(playersWithRules);
         setShowHostActionModal(false);
-        setShowDownRuleModal(true);
+        if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
     };
 
     // Helper to get players with rules left to pass
@@ -474,8 +462,7 @@ export default function GameScreen() {
             setUpDownCurrentPlayerIndex(0);
             setTransferredRuleIds([]);
             setUpDownPlayerOrder([]);
-            setShowUpRuleModal(false);
-            setShowDownRuleModal(false);
+            if (currentUser) setPlayerModal(currentUser.id, undefined);
 
             // Broadcast navigation to game room for all players and host
             socketService.broadcastNavigateToScreen('Game');
@@ -497,7 +484,7 @@ export default function GameScreen() {
 
         // Start the swap flow by showing the player's rules
         setShowHostActionModal(false);
-        setShowSwapOwnRuleModal(true);
+        if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
     };
 
     // Handler for when the first rule is selected (from the selected player)
@@ -508,7 +495,7 @@ export default function GameScreen() {
         if (!rule) return;
 
         setSwapOwnRule(rule);
-        setShowSwapOwnRuleModal(false);
+        if (currentUser) setPlayerModal(currentUser.id, undefined);
 
         // Show player selection modal for the target player
         const nonHostPlayers = gameState.players.filter(p => !p.isHost && p.id !== selectedPlayerForAction.id);
@@ -519,7 +506,7 @@ export default function GameScreen() {
             return;
         }
 
-        setShowSwapPlayerModal(true);
+        if (currentUser) setPlayerModal(currentUser.id, 'SwapPlayerSelection');
     };
 
     // Handler for when the target player is selected
@@ -527,13 +514,13 @@ export default function GameScreen() {
         if (!swapOwnRule || !selectedPlayerForAction) return;
 
         setSwapTargetPlayer(targetPlayer);
-        setShowSwapPlayerModal(false);
+        if (currentUser) setPlayerModal(currentUser.id, undefined);
 
         // Immediately give the first rule to the target player
         assignRule(swapOwnRule.id, targetPlayer.id);
 
         // Show the target player's rules for selection (excluding the rule we just gave them)
-        setShowSwapTargetRuleModal(true);
+        if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
     };
 
     // Handler for when the target rule is selected
@@ -552,7 +539,7 @@ export default function GameScreen() {
         setSwapOwnRule(null);
         setSwapTargetPlayer(null);
         setSelectedPlayerForAction(null);
-        setShowSwapTargetRuleModal(false);
+        if (currentUser) setPlayerModal(currentUser.id, undefined);
 
         // Broadcast navigation to game room for all players and host
         socketService.broadcastNavigateToScreen('Game');
@@ -779,34 +766,51 @@ export default function GameScreen() {
                     }
                 </ScrollView>
 
-                {/* Rule Accusation Popup */}
+                {/* Rule Details Popup */}
                 <RuleDetailsModal
-                    visible={showRuleDetails}
-                    rule={selectedRule || null}
-                    currentUser={currentUser}
-                    isAccusationInProgress={isAccusationInProgress}
+                    visible={currentModal === 'RuleDetails'}
+                    rule={selectedRule}
+                    viewingPlayer={currentUser}
+                    viewedPlayer={gameState?.players.find(player => player.id === selectedRule?.assignedTo) || null}
+                    isAccusationInProgress={gameState?.activeAccusationDetails !== undefined && gameState?.activeAccusationDetails?.accusationAccepted === undefined}
                     onAccuse={handleInitiateAccusation}
-                    onClose={() => setShowRuleDetails(false)}
+                    onClose={() => {
+                        setSelectedRule(null);
+                        if (currentUser) setPlayerModal(currentUser.id, undefined);
+                    }}
                 />
 
                 {/* Accusation Judgement Popup */}
                 <AccusationJudgementModal
-                    visible={gameState?.activeAccusationDetails !== undefined && gameState?.activeAccusationDetails?.accusationAccepted === undefined}
+                    visible={currentModal === 'AccusationJudgement'}
                     activeAccusationDetails={gameState?.activeAccusationDetails || null}
                     currentUser={currentUser!}
                     onAccept={handleAcceptAccusation}
-                    onDecline={endAccusation}
+                    onDecline={() => {
+                        endAccusation();
+                        if (currentUser) setPlayerModal(currentUser.id, undefined);
+                    }}
                 />
 
                 {/* Accusation Rule Passing Modal */}
                 <RuleSelectionModal
-                    visible={gameState?.activeAccusationDetails?.accusationAccepted === true && gameState?.activeAccusationDetails?.accuserId === currentUser?.id}
-                    title={`Accusation Accepted`}
-                    description={`Select a rule to give to ${gameState?.activeAccusationDetails?.accusedId}:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeAccusationDetails?.accuserId) || []}
-                    onAccept={(rule: Rule) => assignRule(rule.id, gameState?.activeAccusationDetails?.accusedId!)}
+                    visible={currentModal === 'SuccessfulAccusationRuleSelection'}
+                    title={`Accusation Accepted!`}
+                    description={`Select a rule to give to ${gameState?.activeAccusationDetails?.accused?.name}:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeAccusationDetails?.accuser.id) || []}
+                    onAccept={(rule: Rule) => {
+                        endAccusation();
+                        assignRule(rule.id, gameState?.activeAccusationDetails?.accused.id!);
+                    }}
                     onClose={endAccusation}
                     cancelButtonText="Skip"
+                />
+
+                {/* Wait For Rule Selection Modal */}
+                <WaitForRuleSelectionModal
+                    visible={currentModal === 'WaitForRuleSelection'}
+                    accuser={gameState?.activeAccusationDetails?.accuser || null}
+                    accused={gameState?.activeAccusationDetails?.accused || null}
                 />
 
                 {/* Host Action Modals */}
@@ -848,20 +852,29 @@ export default function GameScreen() {
 
                 {/* Prompt Initiated Modal */}
                 <PromptPerformanceModal
-                    visible={gameState?.activePromptDetails !== null && gameState?.activePromptDetails !== undefined}
+                    visible={currentModal === 'PromptPerformance'}
                     selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
                     prompt={gameState?.activePromptDetails?.selectedPrompt || null}
                     onPressRule={handlePromptRulePress}
-                    onSuccess={acceptPrompt}
-                    onFailure={endPrompt}
+                    onSuccess={() => {
+                        if (currentUser) setPlayerModal(currentUser.id, 'PromptResolution');
+                        acceptPrompt();
+                    }}
+                    onFailure={() => {
+                        if (currentUser) setPlayerModal(currentUser.id, undefined);
+                        endPrompt();
+                    }}
                 />
 
                 {/* Prompt Resolution Modal */}
                 <PromptResolutionModal
-                    visible={gameState?.activePromptDetails?.isPromptAccepted === true}
+                    visible={currentModal === 'PromptResolution'}
                     selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
                     prompt={gameState?.activePromptDetails?.selectedPrompt || null}
-                    onShredRule={(ruleId: string) => shredRule(ruleId)}
+                    onShredRule={(ruleId: string) => {
+                        shredRule(ruleId);
+                        if (currentUser) setPlayerModal(currentUser.id, undefined);
+                    }}
                 />
 
 

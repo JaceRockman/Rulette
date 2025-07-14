@@ -74,6 +74,21 @@ function findGameByCode(lobbyCode) {
     return games.get(lobbyCode.toUpperCase());
 }
 
+function setPlayerModal(game, playerId, modal) {
+    if (!game) return;
+    const player = game.players.find(p => p.id === playerId);
+    if (player) {
+        player.currentModal = modal;
+    }
+}
+
+function setAllPlayerModals(game, modal) {
+    if (!game) return;
+    game.players.forEach(player => {
+        player.currentModal = modal;
+    })
+}
+
 // Socket connection handling
 io.on('connection', (socket) => {
 
@@ -388,12 +403,20 @@ io.on('connection', (socket) => {
         const accused = game.players.find(p => p.id === accusedId);
         if (!accused) return;
 
+        console.log('accuser', accuser);
+        console.log('accused', accused);
+
         game.isAccusationInProgress = true;
         game.activeAccusationDetails = {
             rule,
             accuser,
             accused
         };
+
+        setAllPlayerModals(game, 'AccusationJudgement');
+
+        console.log('game.activeAccusationDetails', game.activeAccusationDetails);
+        console.log('game.players', game.players);
 
         io.to(gameId).emit('game_updated', game);
     });
@@ -406,9 +429,26 @@ io.on('connection', (socket) => {
         const rule = game.rules.find(r => r.id === game.activeAccusationDetails.rule.id);
         if (!rule) return;
 
-        game.players.find(p => p.id === game.activeAccusationDetails.accuser.id).points += 1;
-        game.players.find(p => p.id === game.activeAccusationDetails.accused.id).points -= 1;
-        game.activeAccusationDetails = undefined;
+        const accuser = game.players.find(p => p.id === game.activeAccusationDetails.accuser.id);
+        const accused = game.players.find(p => p.id === game.activeAccusationDetails.accused.id);
+
+        accuser.points += 1;
+        accused.points -= 1;
+
+        if (accuser.isHost || game.rules.filter(r => r.assignedTo === accuser.id).length === 0) {
+            game.activeAccusationDetails = undefined;
+            setAllPlayerModals(game, undefined);
+        } else {
+            game.activeAccusationDetails.accusationAccepted = true;
+            game.players.forEach(player => {
+                if (player.id === accuser.id) {
+                    setPlayerModal(game, player.id, 'SuccessfulAccusationRuleSelection');
+                } else {
+                    setPlayerModal(game, player.id, 'WaitForRuleSelection');
+                }
+            });
+        }
+
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -416,7 +456,10 @@ io.on('connection', (socket) => {
     socket.on('end_accusation', ({ gameId }) => {
         const game = games.get(gameId);
         if (!game) return;
+
         game.activeAccusationDetails = undefined;
+        setAllPlayerModals(game, undefined);
+
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -667,6 +710,7 @@ io.on('connection', (socket) => {
 
         // Find and remove player
         for (const [playerId, playerData] of players.entries()) {
+            console.log('disconnecting playerData', playerData);
             if (playerData.socketId === socket.id) {
                 const game = games.get(playerData.gameId);
                 if (game) {
