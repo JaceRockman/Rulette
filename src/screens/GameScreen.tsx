@@ -861,9 +861,7 @@ export default function GameScreen() {
                     visible={gameState?.activePromptDetails?.isPromptAccepted === true}
                     selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
                     prompt={gameState?.activePromptDetails?.selectedPrompt || null}
-                    onPressRule={(rule: Rule) => shredRule(rule.id)}
-                    onSuccess={acceptPrompt}
-                    onFailure={endPrompt}
+                    onShredRule={(ruleId: string) => shredRule(ruleId)}
                 />
 
 

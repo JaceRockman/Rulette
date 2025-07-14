@@ -26,7 +26,7 @@ export default function PromptPerformanceModal({
     onFailure
 }: PromptPerformanceModalProps) {
     const { gameState } = useGame();
-    const promptedPlayerRules = gameState?.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction?.id) || [];
+    const promptedPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id) || [];
     const currentUser = gameState?.players.find(p => p.id === socketService.getCurrentUserId());
     const isPromptedPlayer = currentUser?.id === selectedPlayerForAction?.id;
     const isHost = currentUser?.isHost;

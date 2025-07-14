@@ -6,27 +6,23 @@ import Plaque from '../components/Plaque';
 import { useGame } from '../context/GameContext';
 import { socketService } from '../services/socketService';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
-import { PrimaryButton, SecondaryButton } from '../components/Buttons';
+import { PrimaryButton } from '../components/Buttons';
 
 interface PromptResolutionModalProps {
     visible: boolean;
     selectedPlayerForAction: Player | null;
     prompt: Prompt | null;
-    onPressRule: (rule: Rule) => void;
-    onSuccess: () => void;
-    onFailure: () => void;
+    onShredRule: (ruleId: string) => void;
 }
 
 export default function PromptResolutionModal({
     visible,
     selectedPlayerForAction,
     prompt,
-    onPressRule,
-    onSuccess,
-    onFailure
+    onShredRule
 }: PromptResolutionModalProps) {
     const { gameState } = useGame();
-    const promptedPlayerRules = gameState?.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction?.id) || [];
+    const promptedPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id) || [];
     const currentUser = gameState?.players.find(p => p.id === socketService.getCurrentUserId());
     const isPromptedPlayer = currentUser?.id === selectedPlayerForAction?.id;
     const isHost = currentUser?.isHost;
@@ -54,6 +50,7 @@ export default function PromptResolutionModal({
                                 selectedPlaque: selectedRule,
                                 onPress: (plaque: PlaqueType) => setSelectedRule(plaque as Rule)
                             })}
+                            <PrimaryButton title="Shred Rule" onPress={() => onShredRule(selectedRule?.id!)} />
                         </View>
                     )}
                     {!isPromptedPlayer && (
