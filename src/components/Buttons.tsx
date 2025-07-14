@@ -4,7 +4,7 @@ import { colors } from '../shared/styles';
 
 interface PrimaryButtonProps {
     title: string;
-    onPress: () => void;
+    onPress: (() => void) | undefined;
     disabled?: boolean;
     buttonStyle?: any;
     textStyle?: any
@@ -20,7 +20,7 @@ export function PrimaryButton({ title, onPress, disabled, buttonStyle, textStyle
 
 interface SecondaryButtonProps {
     title: string;
-    onPress: () => void;
+    onPress: () => void | undefined;
     disabled?: boolean;
     buttonStyle?: any;
     textStyle?: any
@@ -36,12 +36,16 @@ export function SecondaryButton({ title, onPress, disabled, buttonStyle, textSty
 
 const styles = StyleSheet.create({
     primaryButton: {
+        minWidth: 80,
+        minHeight: 40,
         backgroundColor: colors.gameChangerWhite,
         borderColor: colors.border.primary,
         borderWidth: 3,
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
+        textAlign: 'center',
+        justifyContent: 'center',
         marginBottom: 16,
     },
     primaryButtonText: {
@@ -50,12 +54,16 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     secondaryButton: {
+        minWidth: 60,
+        minHeight: 30,
         backgroundColor: colors.gameChangerBlack,
         borderColor: colors.gameChangerRed,
         borderWidth: 3,
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
+        textAlign: 'center',
+        justifyContent: 'center',
         marginBottom: 16,
     },
     secondaryButtonText: {

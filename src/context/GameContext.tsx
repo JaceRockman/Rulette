@@ -3,6 +3,11 @@ import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentL
 import socketService from '../services/socketService';
 import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../shared/styles';
 import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState } from '../../test/data';
+import { useNavigation } from '@react-navigation/native';
+import { RootStackParamList } from '../../App';
+import { StackNavigationProp } from '@react-navigation/stack';
+
+type RuleScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 interface GameContextType {
     gameState: GameState | null;
@@ -288,8 +293,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 function createWheelSegments(state: GameState): WheelSegment[] {
-    if (!state.rules || !state.prompts || !state.modifiers) {
-        throw new Error('No rules, prompts, or modifiers found');
+    // Don't create wheel segments if there are no rules or prompts yet
+    if (!state.rules || state.rules.length === 0 || !state.prompts || state.prompts.length === 0) {
+        console.log('GameContext: Skipping wheel segment creation - no rules or prompts yet');
+        return [];
     }
 
     const newSegments: WheelSegment[] = [];
@@ -328,9 +335,8 @@ function addRuleLayer(layers: WheelSegmentLayer[], rules: Rule[], index: number)
         return;
     }
 
-    const rulePlaqueColor = rules[index].plaqueColor || LAYER_PLAQUE_COLORS[index % LAYER_PLAQUE_COLORS.length];
-
     if (index < rules.length) {
+        const rulePlaqueColor = rules[index].plaqueColor || LAYER_PLAQUE_COLORS[index % LAYER_PLAQUE_COLORS.length];
         const ruleContent = { ...rules[index], plaqueColor: rulePlaqueColor };
         layers.push({
             type: 'rule',
@@ -339,7 +345,8 @@ function addRuleLayer(layers: WheelSegmentLayer[], rules: Rule[], index: number)
         });
     } else {
         if (exampleRules.length === 0) {
-            throw new Error('No rules found');
+            console.log('GameContext: No example rules found, skipping rule layer');
+            return;
         }
 
         const fillerRule = exampleRules[index % exampleRules.length];
@@ -357,9 +364,8 @@ function addPromptLayer(layers: WheelSegmentLayer[], prompts: Prompt[], index: n
         return;
     }
 
-    const promptPlaqueColor = prompts[index].plaqueColor || LAYER_PLAQUE_COLORS[index % LAYER_PLAQUE_COLORS.length];
-
     if (index < prompts.length) {
+        const promptPlaqueColor = prompts[index].plaqueColor || LAYER_PLAQUE_COLORS[index % LAYER_PLAQUE_COLORS.length];
         const promptContent = { ...prompts[index], plaqueColor: promptPlaqueColor };
         layers.push({
             type: 'prompt',
@@ -368,7 +374,8 @@ function addPromptLayer(layers: WheelSegmentLayer[], prompts: Prompt[], index: n
         });
     } else {
         if (examplePrompts.length === 0) {
-            throw new Error('No prompts found');
+            console.log('GameContext: No example prompts found, skipping prompt layer');
+            return;
         }
 
         const fillerPrompt = examplePrompts[index % examplePrompts.length];
@@ -403,6 +410,7 @@ function addEndLayer(layers: WheelSegmentLayer[]) {
 }
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
+    const navigation = useNavigation<RuleScreenNavigationProp>();
     const [gameState, dispatch] = useReducer(gameReducer, initialState);
     const [currentUserId, setCurrentUserId] = React.useState<string | null>(socketService.getCurrentUserId());
     const currentUser = gameState?.players.find(p => p.id === currentUserId) || null;
@@ -418,6 +426,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnJoinedLobby(({ playerId, game }) => {
+            console.log('GameContext: ' + game);
             setCurrentUserId(playerId);
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
@@ -432,9 +441,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             console.log('GameContext: SYNCHRONIZED_WHEEL_SPIN data:', data);
             dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: data });
         });
-        socketService.setOnNavigateToScreen((data) => {
-            // Handle navigation to different screens
-            // This will be handled by individual screens that need to respond to navigation
+        socketService.setOnNavigateToScreen((data: { screen: string; params?: any }) => {
+            console.log('GameContext: Navigating to screen:', data);
+            if (data.screen && navigation) {
+                navigation.navigate(data.screen as keyof RootStackParamList, data.params);
+            }
         });
         return () => {
             socketService.disconnect();
@@ -455,8 +466,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (allNonHostPlayersCompleted && (gameState.wheelSegments?.length || 0) === 0) {
             const generatedWheelSegments = createWheelSegments(gameState);
             socketService.syncWheelSegments(generatedWheelSegments);
-        } else {
-            throw new Error('All non-host players must have completed their rules and prompts before wheel segments can be created');
         }
     }, [gameState?.players, gameState?.isGameStarted, gameState?.wheelSegments?.length, dispatch]);
 
@@ -533,6 +542,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             plaqueColor: plaqueColor,
             isActive: type === 'rule' ? true : undefined
         };
+
+        console.log('GameContext: Creating plaque:', plaque);
 
         socketService.addPlaque(plaque);
     };

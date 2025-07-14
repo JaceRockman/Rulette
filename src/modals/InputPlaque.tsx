@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Animated, TextInput, SafeAreaView } from 'react-native';
+import { colors } from '../shared/styles';
 
 interface InputPlaqueProps {
     visible: boolean;

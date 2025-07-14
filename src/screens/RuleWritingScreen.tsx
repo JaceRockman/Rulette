@@ -9,6 +9,7 @@ import StripedBackground from '../components/Backdrop';
 import InputPlaque from '../modals/InputPlaque';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
 import { Plaque } from '../types/game';
+import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 
 export default function RuleWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
@@ -83,17 +84,15 @@ export default function RuleWritingScreen() {
         <StripedBackground>
             <SafeAreaView style={shared.container}>
                 <ScrollView
-                    style={{ flex: 1 }}
-                    contentContainerStyle={{ paddingTop: 100, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
+                    style={{ width: '100%' }}
+                    contentContainerStyle={{ paddingTop: 120, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
                     showsVerticalScrollIndicator={false}>
-                    <TouchableOpacity
-                        style={[canContinue ? shared.button : shared.disabledButton]}
+                    <PrimaryButton
+                        title={canAddRule ? "Add Rule" : `Max Rules (${numRules})`}
                         onPress={handleWriteRule}
-                        disabled={!canAddRule}>
-                        <Text style={shared.buttonText}>
-                            {canAddRule ? 'Add Rule' : `Max Rules (${numRules})`}
-                        </Text>
-                    </TouchableOpacity>
+                        disabled={!canAddRule}
+                        buttonStyle={{ width: '40%', height: "10%", opacity: canAddRule ? 1 : 0.5 }}
+                    />
 
                     <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20, flex: 1 }}>
                         {render2ColumnPlaqueList({
@@ -105,12 +104,12 @@ export default function RuleWritingScreen() {
                     {/* Spacer to push Done button to bottom */}
                     <View style={{ flex: 1 }} />
 
-                    <TouchableOpacity
-                        style={[canContinue ? shared.button : shared.disabledButton]}
-                        onPress={canContinue ? handleContinue : undefined}
-                        disabled={!canContinue}>
-                        <Text style={shared.buttonText}>Done</Text>
-                    </TouchableOpacity>
+                    <PrimaryButton
+                        title="Done"
+                        onPress={handleContinue}
+                        disabled={!canContinue}
+                        buttonStyle={{ width: '40%', height: "10%", opacity: canContinue ? 1 : 0.5 }}
+                    />
                 </ScrollView>
 
                 <InputPlaque

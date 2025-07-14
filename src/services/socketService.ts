@@ -59,6 +59,10 @@ class SocketService {
             this.onLobbyCreated?.(data);
         });
 
+        this.socket.on('broadcast_navigate_to_screen', (data: { screen: string; params?: any }) => {
+            this.onNavigateToScreen?.(data);
+        });
+
         this.socket.on('game_started', () => {
             this.onGameStarted?.();
         });
@@ -249,8 +253,6 @@ class SocketService {
             console.log('SocketService: Cannot advance to next player - socket or gameState not available');
             return;
         }
-        console.log('SocketService: Calling advanceToNextPlayer for game:', this.gameState.id);
-        console.log('SocketService: Current activePlayer:', this.gameState.activePlayer);
         this.socket.emit('advance_to_next_player', {
             gameId: this.gameState.id
         });
@@ -261,7 +263,6 @@ class SocketService {
             console.log('SocketService: Cannot update game settings - socket or gameState not available');
             return;
         }
-        console.log('SocketService: Updating game settings:', settings, 'for game:', this.gameState.id);
         this.socket.emit('update_game_settings', {
             gameId: this.gameState.id,
             settings

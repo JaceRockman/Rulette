@@ -30,8 +30,8 @@ export default function App() {
     const [showExitGameModal, setShowExitGameModal] = useState(false);
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
-            <GameProvider>
-                <NavigationContainer>
+            <NavigationContainer>
+                <GameProvider>
                     <StatusBar hidden={true} />
                     <Stack.Navigator
                         initialRouteName="Home"
@@ -109,8 +109,8 @@ export default function App() {
                             }}
                         />
                     </Stack.Navigator>
-                </NavigationContainer>
-            </GameProvider>
+                </GameProvider>
+            </NavigationContainer>
         </GestureHandlerRootView>
     );
 } 

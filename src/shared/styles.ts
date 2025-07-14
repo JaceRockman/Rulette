@@ -40,7 +40,7 @@ export const colors = {
     },
 } as const;
 
-export const LAYER_PLAQUE_COLORS = [colors.gameChangerBlue, colors.gameChangerMaroon, colors.gameChangerRed, colors.gameChangerWhite];
+export const LAYER_PLAQUE_COLORS = [colors.gameChangerBlue, colors.gameChangerYellow, colors.gameChangerRed];
 
 export const SEGMENT_COLORS = [colors.gameChangerBlue, colors.gameChangerMaroon, colors.gameChangerRed, colors.gameChangerYellow];
 

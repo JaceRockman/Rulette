@@ -7,7 +7,7 @@ import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 
 interface AccusationJudgementModalProps {
     visible: boolean;
-    ActiveAccusationDetails: ActiveAccusationDetails | null;
+    activeAccusationDetails: ActiveAccusationDetails | null;
     currentUser: Player;
     onAccept: () => void;
     onDecline: () => void;
@@ -15,12 +15,12 @@ interface AccusationJudgementModalProps {
 
 export default function AccusationJudgementModal({
     visible,
-    ActiveAccusationDetails,
+    activeAccusationDetails,
     currentUser,
     onAccept,
     onDecline,
 }: AccusationJudgementModalProps) {
-    if (!accusationDetails) return null;
+    if (!activeAccusationDetails) return null;
 
     return (
         <Modal
@@ -33,9 +33,9 @@ export default function AccusationJudgementModal({
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Rule Violation</Text>
                     <Text style={styles.modalRuleText}>
-                        {accusationDetails.accuser.name} has accused {accusationDetails.accused.name} of breaking rule:
+                        {activeAccusationDetails.accuser.name} has accused {activeAccusationDetails.accused.name} of breaking rule:
                     </Text>
-                    <Plaque text={accusationDetails.rule.text} plaqueColor={accusationDetails.rule.plaqueColor} />
+                    <Plaque text={activeAccusationDetails.rule.text} plaqueColor={activeAccusationDetails.rule.plaqueColor} />
 
                     {currentUser?.isHost && (
                         <View style={styles.buttonContainer}>

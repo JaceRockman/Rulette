@@ -11,6 +11,7 @@ interface PlaqueListProps {
 
 export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: PlaqueListProps) => {
     const rows = [];
+    if (plaques.length === 0) return null;
     for (let i = 0; i < plaques.length; i += 2) {
         const hasSecondItem = plaques[i + 1];
         const row = (
@@ -38,9 +39,8 @@ export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: Pl
 
 const styles = StyleSheet.create({
     plaqueList: {
+        width: '100%',
         flexDirection: 'row',
-        marginBottom: 24,
         justifyContent: 'flex-start',
-        marginLeft: '5%'
     }
 });

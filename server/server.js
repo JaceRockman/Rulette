@@ -401,7 +401,7 @@ io.on('connection', (socket) => {
     // Accept accusation
     socket.on('accept_accusation', ({ gameId }) => {
         const game = games.get(gameId);
-        if (!game) return;
+        if (!game || !game.activeAccusationDetails) return;
 
         const rule = game.rules.find(r => r.id === game.activeAccusationDetails.rule.id);
         if (!rule) return;
@@ -501,9 +501,9 @@ io.on('connection', (socket) => {
 
         game.isAccusationInProgress = true;
         game.activeAccusationDetails = {
-            ruleId,
-            accuserId,
-            accusedId
+            rule,
+            accuser,
+            accused
         };
 
         // Broadcast accusation to all players
