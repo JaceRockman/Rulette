@@ -12,7 +12,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import { Plaque, Player, Prompt, Rule } from '../types/game';
+import { ActiveAccusationDetails, Plaque, Player, Prompt, Rule } from '../types/game';
 import { Backdrop, OutlinedText, ScoreDisplay, PrimaryButton, SecondaryButton, WheelSegment, render2ColumnPlaqueList } from '../components';
 import {
     RuleDetailsModal,
@@ -119,6 +119,26 @@ export default function GameScreen() {
             setShowHostActionModal(true);
         }
     };
+
+    const handleInitiateAccusation = (accusationDetails: ActiveAccusationDetails) => {
+        initiateAccusation(accusationDetails);
+        setShowRuleDetails(false);
+        setSelectedRule(null);
+    };
+
+    const handleAcceptAccusation = () => {
+        acceptAccusation();
+        setShowRuleDetails(false);
+        setSelectedRule(null);
+    };
+
+
+
+
+
+
+
+
 
     const handleCloneAction = () => {
         if (selectedPlayerForAction && gameState) {
@@ -765,26 +785,26 @@ export default function GameScreen() {
                     rule={selectedRule || null}
                     currentUser={currentUser}
                     isAccusationInProgress={isAccusationInProgress}
-                    onAccuse={() => initiateAccusation({ rule: selectedRule!, accuser: currentUser!, accused: gameState?.players.find(player => player.id === selectedRule?.assignedTo) || null })}
+                    onAccuse={handleInitiateAccusation}
                     onClose={() => setShowRuleDetails(false)}
                 />
 
                 {/* Accusation Judgement Popup */}
                 <AccusationJudgementModal
-                    visible={gameState?.activeAccusationDetails !== undefined}
+                    visible={gameState?.activeAccusationDetails !== undefined && gameState?.activeAccusationDetails?.accusationAccepted === undefined}
                     activeAccusationDetails={gameState?.activeAccusationDetails || null}
                     currentUser={currentUser!}
-                    onAccept={acceptAccusation}
+                    onAccept={handleAcceptAccusation}
                     onDecline={endAccusation}
                 />
 
                 {/* Accusation Rule Passing Modal */}
                 <RuleSelectionModal
-                    visible={gameState?.activeAccusationDetails?.accusationAccepted === true && gameState?.activeAccusationDetails?.accuser.id === currentUser?.id}
+                    visible={gameState?.activeAccusationDetails?.accusationAccepted === true && gameState?.activeAccusationDetails?.accuserId === currentUser?.id}
                     title={`Accusation Accepted`}
-                    description={`Select a rule to give to ${gameState?.activeAccusationDetails?.accused?.name}:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeAccusationDetails?.accuser.id) || []}
-                    onAccept={(rule: Rule) => assignRule(rule.id, gameState?.activeAccusationDetails?.accused?.id!)}
+                    description={`Select a rule to give to ${gameState?.activeAccusationDetails?.accusedId}:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeAccusationDetails?.accuserId) || []}
+                    onAccept={(rule: Rule) => assignRule(rule.id, gameState?.activeAccusationDetails?.accusedId!)}
                     onClose={endAccusation}
                     cancelButtonText="Skip"
                 />

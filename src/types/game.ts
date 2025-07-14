@@ -86,9 +86,9 @@ export interface LobbySettings {
 }
 
 export interface ActiveAccusationDetails {
-    rule: Rule;
-    accuser: Player;
-    accused: Player | null;
+    ruleId: string;
+    accuserId: string;
+    accusedId: string;
     accusationAccepted?: boolean;
 }
 

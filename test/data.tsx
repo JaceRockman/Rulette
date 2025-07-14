@@ -68,13 +68,13 @@ export const exampleRules: Rule[] = [
 ];
 
 export const examplePrompts: Prompt[] = [
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3", authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3", authorId: "system", isActive: true },
 ];
 
 export const allModifiers: Modifier[] = [

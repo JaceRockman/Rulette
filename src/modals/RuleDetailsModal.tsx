@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet, SafeAreaView, Modal } from 'react-native';
-import { Rule, Player } from '../types/game';
+import { Rule, Player, ActiveAccusationDetails } from '../types/game';
 import { colors } from '../shared/styles';
 import { shared } from '../shared/styles';
 import Plaque from '../components/Plaque';
@@ -11,7 +11,7 @@ interface RuleDetailsModalProps {
     rule: Rule | null;
     currentUser: Player | null;
     isAccusationInProgress: boolean;
-    onAccuse: () => void;
+    onAccuse: (accusationDetails: ActiveAccusationDetails) => void;
     onClose: () => void;
 }
 
@@ -24,12 +24,15 @@ export default function RuleDetailsModal({
     onClose
 }: RuleDetailsModalProps) {
     if (!visible || !rule) return null;
-    console.log('rule', rule);
+    console.log('visible', visible);
 
     const plaqueColor = rule.plaqueColor || colors.gameChangerWhite;
 
-    const playerIsViewingOwnRule = currentUser?.id === rule.assignedTo;
-    console.log('playerIsViewingOwnRule', playerIsViewingOwnRule);
+    const viewingPlayer = currentUser?.id
+    const viewedPlayer = rule.assignedTo
+    if (!viewingPlayer || !viewedPlayer) return null;
+
+    const playerIsViewingOwnRule = viewingPlayer === viewedPlayer;
 
     return (
         <Modal
@@ -52,7 +55,7 @@ export default function RuleDetailsModal({
                     {!playerIsViewingOwnRule && (
                         <SecondaryButton
                             title="Accuse!"
-                            onPress={onAccuse}
+                            onPress={() => onAccuse({ ruleId: rule.id, accuserId: viewingPlayer, accusedId: viewedPlayer })}
                             disabled={isAccusationInProgress}
                             buttonStyle={{ width: '40%', opacity: isAccusationInProgress ? 0.5 : 1 }}
                         />

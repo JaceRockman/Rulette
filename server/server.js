@@ -375,7 +375,7 @@ io.on('connection', (socket) => {
     });
 
     // Start accusation
-    socket.on('start_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
+    socket.on('initiate_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
         const game = games.get(gameId);
         if (!game) return;
 
@@ -408,7 +408,7 @@ io.on('connection', (socket) => {
 
         game.players.find(p => p.id === game.activeAccusationDetails.accuser.id).points += 1;
         game.players.find(p => p.id === game.activeAccusationDetails.accused.id).points -= 1;
-        game.activeAccusationDetails.accusationAccepted = true;
+        game.activeAccusationDetails = undefined;
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -428,6 +428,7 @@ io.on('connection', (socket) => {
         const player = game.players.find(p => p.id === playerId);
         if (player) {
             player.points = Math.max(0, points);
+            game.selectedRule = undefined;
             io.to(gameId).emit('game_updated', game);
         }
     });

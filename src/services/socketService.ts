@@ -202,13 +202,13 @@ class SocketService {
     initiateAccusation(accusationDetails: ActiveAccusationDetails) {
         if (!this.socket || !this.gameState) return;
 
-        const { rule, accuser, accused } = accusationDetails;
+        const { ruleId, accuserId, accusedId } = accusationDetails;
 
-        this.socket.emit('start_accusation', {
+        this.socket.emit('initiate_accusation', {
             gameId: this.gameState.id,
-            ruleId: rule.id,
-            accuserId: accuser.id,
-            accusedId: accused?.id || null
+            ruleId,
+            accuserId,
+            accusedId
         });
     }
 

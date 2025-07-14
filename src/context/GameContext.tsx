@@ -6,6 +6,7 @@ import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState } f
 import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { Alert } from 'react-native';
 
 type RuleScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
@@ -627,8 +628,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const initiateAccusation = (accusationDetails: ActiveAccusationDetails) => {
         if (!gameState) return;
 
+        console.log('gameState', gameState.activeAccusationDetails);
+
         if (gameState.activeAccusationDetails) {
-            throw new Error('Accusation already in progress');
+            Alert.alert('Accusation already in progress');
+            return;
         }
 
         socketService.initiateAccusation(accusationDetails);
