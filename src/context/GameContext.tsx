@@ -529,7 +529,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const getAssignedRulesByPlayer = (playerId: string) => {
-        return gameState.rules.filter(rule => rule.assignedTo?.id === playerId);
+        return gameState.rules.filter(rule => rule.assignedTo === playerId);
     };
 
     const createPlaque = (type: 'rule' | 'prompt' | 'modifier', authorId: string = 'system', text: string, plaqueColor: string) => {
@@ -585,7 +585,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const assignRule = (ruleId: string, playerId: string) => {
-        if (!gameState) return;
         socketService.assignRule(ruleId, playerId);
     };
 

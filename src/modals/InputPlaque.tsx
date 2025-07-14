@@ -31,10 +31,6 @@ export default function InputPlaque({
     const popupOpacity = useRef(new Animated.Value(0)).current;
     const textInputRef = useRef<TextInput>(null);
 
-    // Determine text color based on plaque color (same logic as wheel segments)
-    const isLightPlaque = plaqueColor === colors.gameChangerWhite;
-    const textColor = isLightPlaque ? '#000' : '#fff';
-
     // Check if input is valid
     const trimmedValue = value.trim();
     const isValid = trimmedValue.length >= minLength;
@@ -117,7 +113,7 @@ export default function InputPlaque({
                         fontWeight: 'bold',
                         textAlign: 'center',
                         marginBottom: 20,
-                        color: textColor,
+                        color: colors.gameChangerBlack,
                     }}
                 >
                     {title}

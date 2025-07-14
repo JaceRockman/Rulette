@@ -13,7 +13,7 @@ export interface Plaque {
     type: 'rule' | 'prompt' | 'modifier' | 'end';
     text: string;
     category?: string;
-    assignedTo?: Player; // player object
+    assignedTo?: string; // player id
     isActive?: boolean;
     plaqueColor: string;
     authorId: string; // player id who created this plaque
@@ -88,7 +88,7 @@ export interface LobbySettings {
 export interface ActiveAccusationDetails {
     rule: Rule;
     accuser: Player;
-    accused: Player;
+    accused: Player | null;
     accusationAccepted?: boolean;
 }
 

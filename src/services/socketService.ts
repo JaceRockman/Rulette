@@ -42,6 +42,7 @@ class SocketService {
         });
 
         this.socket.on('game_updated', (gameState: GameState) => {
+            console.log('SocketService: Game updated:', gameState);
             this.gameState = gameState;
             this.onGameUpdated?.(gameState);
         });
@@ -207,7 +208,7 @@ class SocketService {
             gameId: this.gameState.id,
             ruleId: rule.id,
             accuserId: accuser.id,
-            accusedId: accused.id
+            accusedId: accused?.id || null
         });
     }
 

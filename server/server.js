@@ -527,12 +527,15 @@ io.on('connection', (socket) => {
 
     // Assign rule
     socket.on('assign_rule', ({ gameId, ruleId, playerId }) => {
+        console.log('Server: Assigning rule:', ruleId, 'to player:', playerId, 'for game:', gameId);
         const game = games.get(gameId);
         if (!game) return;
 
         const rule = game.rules.find(r => r.id === ruleId);
-        if (rule) {
-            rule.assignedTo = playerId;
+        const player = game.players.find(p => p.id === playerId);
+
+        if (rule && player) {
+            rule.assignedTo = player.id;
             io.to(gameId).emit('game_updated', game);
         }
     });
@@ -654,15 +657,7 @@ io.on('connection', (socket) => {
         const oldActivePlayer = game.activePlayer;
         const newActivePlayer = nonHostPlayers[nextPlayerIndex];
         game.activePlayer = newActivePlayer.id;
-        console.log('Server: Advancing activePlayer from:', oldActivePlayer, 'to:', newActivePlayer.id, '(', newActivePlayer.name, ') for game:', gameId);
 
-        console.log('Server: Game state after advancement:');
-        console.log('Server: - activePlayer:', game.activePlayer);
-        console.log('Server: - players:', game.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
-
-        // Broadcast the updated game state to all players
-        console.log('Server: Broadcasting game_updated after advancing player with activePlayer:', game.activePlayer, 'for game:', gameId, 'at:', new Date().toISOString());
-        console.log('Server: Full game state being sent:', JSON.stringify(game, null, 2));
         io.to(gameId).emit('game_updated', game);
     });
 

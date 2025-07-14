@@ -8,7 +8,7 @@ import { useGame } from '../context/GameContext';
 import shared from '../shared/styles';
 import { colors } from '../shared/styles';
 import StripedBackground from '../components/Backdrop';
-import OutlinedText from '../components/OutlinedText';
+import { Rule } from '../types/game';
 import WheelSegment from '../components/WheelSegment';
 import {
     FlipTextInputModal,
@@ -30,6 +30,8 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type WheelScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wheel'>;
 type WheelScreenRouteProp = RouteProp<RootStackParamList, 'Wheel'>;
+
+
 
 export default function WheelScreen() {
     const navigation = useNavigation<WheelScreenNavigationProp>();
@@ -198,7 +200,7 @@ export default function WheelScreen() {
                 if (winner) {
                     endGame();
                     // Navigate to game room to show game over screen
-                    socketService.broadcastNavigateToScreen('GAME_ROOM');
+                    socketService.broadcastNavigateToScreen('Game');
                 }
                 console.log('WheelScreen: End game end popup closed');
             });
@@ -215,7 +217,7 @@ export default function WheelScreen() {
     React.useEffect(() => {
         if (gameState?.gameEnded && gameState?.winner) {
             // Navigate to game screen to show the game over screen
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('Game');
         }
     }, [gameState?.gameEnded, gameState?.winner, navigation]);
 
@@ -404,7 +406,7 @@ export default function WheelScreen() {
         const targetPlayer = gameState.players[targetPlayerIndex];
 
         // Find a random rule assigned to current player
-        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo?.id === currentPlayer.id && rule.isActive);
+        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo === currentPlayer.id && rule.isActive);
         if (currentPlayerRules.length === 0) {
             alert('You have no rules to pass up.');
             return;
@@ -457,7 +459,7 @@ export default function WheelScreen() {
         const targetPlayer = gameState.players[targetPlayerIndex];
 
         // Find a random rule assigned to current player
-        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo?.id === currentPlayer.id && rule.isActive);
+        const currentPlayerRules = gameState.rules.filter(rule => rule.assignedTo === currentPlayer.id && rule.isActive);
         if (currentPlayerRules.length === 0) {
             alert('You have no rules to pass down.');
             return;
@@ -535,7 +537,7 @@ export default function WheelScreen() {
             popupScale.setValue(0);
             popupOpacity.setValue(0);
             // Broadcast navigation to game room for all players and host
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('Game');
 
             // Advance to next player after wheel spinning is complete (only once)
             if (!hasAdvancedPlayer) {
@@ -679,7 +681,7 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('Game');
 
             // Advance to next player after wheel spinning is complete (only once)
             if (!hasAdvancedPlayer) {
@@ -736,7 +738,7 @@ export default function WheelScreen() {
                 setSynchronizedSpinResult(null);
                 popupScale.setValue(0);
                 popupOpacity.setValue(0);
-                socketService.broadcastNavigateToScreen('GAME_ROOM');
+                socketService.broadcastNavigateToScreen('Game');
 
                 // Advance to next player after wheel spinning is complete (only once)
                 if (!hasAdvancedPlayer) {
@@ -778,7 +780,7 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('Game');
 
             // Advance to next player after wheel spinning is complete (only once)
             if (!hasAdvancedPlayer) {
@@ -897,7 +899,7 @@ export default function WheelScreen() {
                 if (winner) {
                     endGame();
                     // Navigate to game room to show game over screen
-                    socketService.broadcastNavigateToScreen('GAME_ROOM');
+                    socketService.broadcastNavigateToScreen('Game');
                 }
             });
         }, 0);
@@ -1252,7 +1254,7 @@ export default function WheelScreen() {
                                                                         setSynchronizedSpinResult(null);
                                                                         popupScale.setValue(0);
                                                                         popupOpacity.setValue(0);
-                                                                        socketService.broadcastNavigateToScreen('GAME_ROOM');
+                                                                        socketService.broadcastNavigateToScreen('Game');
 
                                                                         // Advance to next player after wheel spinning is complete (only once)
                                                                         if (!hasAdvancedPlayer) {
@@ -1497,7 +1499,7 @@ export default function WheelScreen() {
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
                                                     // Broadcast navigation to game room for all players and host
-                                                    socketService.broadcastNavigateToScreen("GAME_ROOM");
+                                                    socketService.broadcastNavigateToScreen("Game");
 
                                                     // Advance to next player after wheel spinning is complete (only once)
                                                     if (!hasAdvancedPlayer) {
@@ -1537,9 +1539,8 @@ export default function WheelScreen() {
                             return gameState?.rules.filter(rule => rule.assignedTo && rule.isActive) || [];
                         }
                     })()}
-                    onSelectRule={(ruleId) => {
-                        const rule = gameState?.rules.find(r => r.id === ruleId);
-                        const player = gameState?.players.find(p => p.id === rule?.assignedTo?.id);
+                    onAccept={(rule) => {
+                        const player = gameState?.players.find(p => p.id === rule?.assignedTo);
                         handleCloneRuleSelect(rule, player);
                     }}
                     onClose={() => setShowCloneModal(false)}
@@ -1574,7 +1575,7 @@ export default function WheelScreen() {
                     title="Select Rule to Shred"
                     description="Choose a rule to remove from your collection"
                     rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive) || []}
-                    onSelectRule={handleShredRuleSelect}
+                    onAccept={handleShredRuleSelect}
                     onClose={() => setShowShredModal(false)}
                 />
                 {/* Flip Text Input Modal */}
@@ -1592,9 +1593,7 @@ export default function WheelScreen() {
                     title="Select Rule to Flip"
                     description="Choose a rule to flip its meaning"
                     rules={gameState?.rules.filter(rule => rule.assignedTo && rule.isActive) || []}
-                    onSelectRule={(ruleId) => {
-                        handleFlipRuleSelect(ruleId);
-                    }}
+                    onAccept={(rule: Rule) => handleFlipRuleSelect(rule.id)}
                     onClose={() => setShowFlipModal(false)}
                 />
                 <EndGameConfirmationModal

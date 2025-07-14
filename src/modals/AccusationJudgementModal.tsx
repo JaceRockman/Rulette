@@ -33,7 +33,7 @@ export default function AccusationJudgementModal({
                 <View style={styles.modalContent}>
                     <Text style={styles.modalTitle}>Rule Violation</Text>
                     <Text style={styles.modalRuleText}>
-                        {activeAccusationDetails.accuser.name} has accused {activeAccusationDetails.accused.name} of breaking rule:
+                        {activeAccusationDetails.accuser.name} has accused {activeAccusationDetails.accused?.name} of breaking rule:
                     </Text>
                     <Plaque text={activeAccusationDetails.rule.text} plaqueColor={activeAccusationDetails.rule.plaqueColor} />
 
