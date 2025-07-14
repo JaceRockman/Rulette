@@ -1,5 +1,5 @@
 import io, { Socket } from 'socket.io-client';
-import { AccusationDetails, GameState, Plaque, Player, Prompt, Rule } from '../types/game';
+import { ActiveAccusationDetails, GameState, Plaque, Player, Prompt, Rule } from '../types/game';
 
 const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
 
@@ -69,10 +69,6 @@ class SocketService {
 
         this.socket.on('synchronized_wheel_spin', (data: { spinningPlayerId: string; finalIndex: number; scrollAmount: number; duration: number }) => {
             this.onSynchronizedWheelSpin?.(data);
-        });
-
-        this.socket.on('give_prompt', (data: { playerId: string; promptId: string }) => {
-            this.onGivePrompt?.(data);
         });
 
         this.socket.on('navigate_to_screen', (data: { screen: string; params?: any }) => {
@@ -198,7 +194,7 @@ class SocketService {
         });
     }
 
-    initiateAccusation(accusationDetails: AccusationDetails) {
+    initiateAccusation(accusationDetails: ActiveAccusationDetails) {
         if (!this.socket || !this.gameState) return;
 
         const { rule, accuser, accused } = accusationDetails;
@@ -218,9 +214,9 @@ class SocketService {
         });
     }
 
-    declineAccusation() {
+    endAccusation() {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('decline_accusation', {
+        this.socket.emit('end_accusation', {
             gameId: this.gameState.id,
         });
     }
@@ -287,6 +283,28 @@ class SocketService {
             gameId: this.gameState.id,
             playerId,
             promptId
+        });
+    }
+
+    acceptPrompt() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('accept_prompt', {
+            gameId: this.gameState.id
+        });
+    }
+
+    endPrompt() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_prompt', {
+            gameId: this.gameState.id
+        });
+    }
+
+    shredRule(ruleId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('shred_rule', {
+            gameId: this.gameState.id,
+            ruleId
         });
     }
 

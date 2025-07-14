@@ -1,16 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { Rule } from '../types/game';
 import Plaque from '../components/Plaque';
 
-import { colors } from '../shared/styles';
+import { colors, shared } from '../shared/styles';
+import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 
 interface RuleSelectionModalProps {
     visible: boolean;
     title: string;
     description: string;
     rules: Rule[];
-    onSelectRule: (ruleId: string) => void;
+    onAccept: (rule: Rule) => void;
     onClose: () => void;
     cancelButtonText?: string;
 }
@@ -20,7 +21,7 @@ export default function RuleSelectionModal({
     title,
     description,
     rules,
-    onSelectRule,
+    onAccept,
     onClose,
     cancelButtonText = 'Cancel'
 }: RuleSelectionModalProps) {
@@ -40,6 +41,8 @@ export default function RuleSelectionModal({
         }
     }, [visible, rules, onClose]);
 
+    const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
+
     // Create 2-column grid layout
     const renderRulesGrid = () => {
         if (!rules || rules.length === 0) return null;
@@ -53,7 +56,7 @@ export default function RuleSelectionModal({
                         <Plaque
                             text={rules[i].text}
                             plaqueColor={rules[i].plaqueColor || '#fff'}
-                            onPress={() => onSelectRule(rules[i].id)}
+                            onPress={() => setSelectedRule(rules[i])}
                             style={styles.rulePlaque}
                         />
                     </View>
@@ -62,7 +65,7 @@ export default function RuleSelectionModal({
                             <Plaque
                                 text={rules[i + 1].text}
                                 plaqueColor={rules[i + 1].plaqueColor || '#fff'}
-                                onPress={() => onSelectRule(rules[i + 1].id)}
+                                onPress={() => setSelectedRule(rules[i + 1])}
                                 style={styles.rulePlaque}
                             />
                         </View>
@@ -91,12 +94,11 @@ export default function RuleSelectionModal({
                         {renderRulesGrid()}
                     </ScrollView>
 
-                    <TouchableOpacity
-                        style={styles.modalCancelButton}
-                        onPress={onClose}
-                    >
-                        <Text style={styles.modalCancelText}>{cancelButtonText}</Text>
-                    </TouchableOpacity>
+                    {selectedRule && (
+                        <PrimaryButton title="Accept" onPress={() => onAccept(selectedRule)} />
+                    )}
+
+                    <SecondaryButton title={cancelButtonText} onPress={onClose} />
                 </View>
             </SafeAreaView>
         </Modal>

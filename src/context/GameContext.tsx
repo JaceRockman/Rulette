@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentLayer, Modifier, Plaque, AccusationDetails } from '../types/game';
+import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentLayer, Modifier, Plaque, ActiveAccusationDetails } from '../types/game';
 import socketService from '../services/socketService';
 import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../shared/styles';
 import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState } from '../../test/data';
@@ -22,10 +22,13 @@ interface GameContextType {
     updateRule: (id: string, text: string) => void;
     updatePrompt: (id: string, text: string) => void;
     synchronizedSpinWheel: (finalIndex: number, duration: number) => void;
-    initiateAccusation: (accusationDetails: AccusationDetails) => void;
+    initiateAccusation: (accusationDetails: ActiveAccusationDetails) => void;
     acceptAccusation: () => void;
-    declineAccusation: () => void;
+    endAccusation: () => void;
+    acceptPrompt: () => void;
+    endPrompt: () => void;
     updatePoints: (playerId: string, points: number) => void;
+    givePrompt: (playerId: string, promptId: string) => void;
     swapRules: (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => void;
     cloneRuleToPlayer: (authorId: string, ruleId: string, targetPlayerId: string) => void;
     shredRule: (ruleId: string) => void;
@@ -587,46 +590,58 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.givePrompt(playerId, promptId);
     };
 
-    const triggerCloneModifier = (modifierId: string, playerId: string) => {
-        socketService.triggerCloneModifier(modifierId, playerId);
-    };
+    // const triggerCloneModifier = (modifierId: string, playerId: string) => {
+    //     socketService.triggerCloneModifier(modifierId, playerId);
+    // };
 
-    const triggerSwapModifier = (modifierId: string, playerId: string) => {
-        socketService.triggerSwapModifier(modifierId, playerId);
-    };
+    // const triggerSwapModifier = (modifierId: string, playerId: string) => {
+    //     socketService.triggerSwapModifier(modifierId, playerId);
+    // };
 
-    const triggerFlipModifier = (modifierId: string, playerId: string) => {
-        socketService.triggerFlipModifier(modifierId, playerId);
-    };
+    // const triggerFlipModifier = (modifierId: string, playerId: string) => {
+    //     socketService.triggerFlipModifier(modifierId, playerId);
+    // };
 
-    const triggerUpModifier = (modifierId: string, playerId: string) => {
-        socketService.triggerUpModifier(modifierId, playerId);
-    };
+    // const triggerUpModifier = (modifierId: string, playerId: string) => {
+    //     socketService.triggerUpModifier(modifierId, playerId);
+    // };
 
-    const triggerDownModifier = (modifierId: string, playerId: string) => {
-        socketService.triggerDownModifier(modifierId, playerId);
-    };
+    // const triggerDownModifier = (modifierId: string, playerId: string) => {
+    //     socketService.triggerDownModifier(modifierId, playerId);
+    // };
 
     const synchronizedSpinWheel = (finalIndex: number, duration: number) => {
         dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: { spinningPlayerId: currentUserId || '', finalIndex, duration } });
     };
 
-    const initiateAccusation = (accusationDetails: AccusationDetails) => {
+    const initiateAccusation = (accusationDetails: ActiveAccusationDetails) => {
         if (!gameState) return;
 
         if (gameState.activeAccusationDetails) {
             throw new Error('Accusation already in progress');
         }
 
-        socketService.startAccusation(accusationDetails);
+        socketService.initiateAccusation(accusationDetails);
     };
 
-    const acceptAccusation = (accusationDetails: AccusationDetails) => {
-        socketService.acceptAccusation(accusationDetails);
+    const acceptAccusation = () => {
+        socketService.acceptAccusation();
     };
 
-    const declineAccusation = (accusationDetails: AccusationDetails) => {
-        socketService.declineAccusation(accusationDetails);
+    const endAccusation = () => {
+        socketService.endAccusation();
+    };
+
+    const acceptPrompt = () => {
+        socketService.acceptPrompt();
+    };
+
+    const endPrompt = () => {
+        socketService.endPrompt();
+    };
+
+    const shredRule = (ruleId: string) => {
+        socketService.shredRule(ruleId);
     };
 
     const updatePoints = (playerId: string, points: number) => {
@@ -667,15 +682,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.assignRule(newRule.id, targetPlayerId);
     };
 
-    const shredRule = (ruleId: string) => {
-        if (!gameState) return;
-
-        const rule = gameState.rules.find((r: Rule) => r.id === ruleId);
-        if (rule) {
-            dispatch({ type: 'UPDATE_RULE', payload: { ...rule, assignedTo: undefined, isActive: false } });
-        }
-    };
-
     const removeWheelLayer = (segmentId: string) => {
         socketService.removeWheelLayer(segmentId);
     };
@@ -710,8 +716,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             synchronizedSpinWheel,
             initiateAccusation,
             acceptAccusation,
-            declineAccusation,
+            endAccusation,
+
+            acceptPrompt,
+            endPrompt,
             updatePoints,
+            givePrompt,
             swapRules,
             cloneRuleToPlayer,
             shredRule,

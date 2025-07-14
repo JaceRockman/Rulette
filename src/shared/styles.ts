@@ -83,6 +83,13 @@ export const shared = StyleSheet.create({
         marginBottom: 15,
         textAlign: 'center',
     },
+    modalSubtitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: colors.text.primary,
+        marginBottom: 15,
+        textAlign: 'center',
+    },
     modalDescription: {
         fontSize: 14,
         color: '#6b7280',

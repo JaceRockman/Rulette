@@ -21,6 +21,7 @@ export interface Plaque {
 
 export interface Prompt extends Plaque {
     type: 'prompt';
+    isActive: boolean;
 }
 
 export interface Rule extends Plaque {
@@ -60,15 +61,8 @@ export interface GameState {
     wheelSegments: WheelSegment[];
     currentUser?: string; // The user ID of the person currently using the app
     activePlayer?: string; // The player ID of the player currently taking their turn (excludes host)
-    activePromptDetails?: {
-        selectedPrompt: Prompt;
-        selectedPlayer: Player;
-    };
-    activeAccusationDetails?: {
-        rule: Rule;
-        accuser: Player;
-        accused: Player;
-    };
+    activePromptDetails?: ActivePromptDetails;
+    activeAccusationDetails?: ActiveAccusationDetails;
     isGameStarted: boolean;
     isWheelSpinning: boolean;
     currentStack: StackItem[];
@@ -91,9 +85,15 @@ export interface LobbySettings {
     pointsPerRuleBreak: number;
 }
 
-export interface AccusationDetails {
+export interface ActiveAccusationDetails {
     rule: Rule;
     accuser: Player;
     accused: Player;
     accusationAccepted?: boolean;
+}
+
+export interface ActivePromptDetails {
+    selectedPrompt: Prompt;
+    selectedPlayer: Player;
+    isPromptAccepted?: boolean;
 }

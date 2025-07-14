@@ -7,7 +7,8 @@ export { default as PlayerSelectionModal } from './PlayerSelectionModal';
 export { default as FlipTextInputModal } from './FlipTextInputModal';
 export { default as SwapModal } from './SwapModal';
 export { default as EndGameConfirmationModal } from './EndGameConfirmationModal';
-export { default as PromptModal } from './PromptModal';
+export { default as PromptPerformanceModal } from './PromptPerformanceModal';
+export { default as PromptResolutionModal } from './PromptResolutionModal';
 
 // Workflow Modals
 export { default as CloneWorkflowModal } from './CloneWorkflowModal';

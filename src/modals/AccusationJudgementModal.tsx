@@ -1,13 +1,13 @@
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
-import { Rule, Player, AccusationDetails } from '../types/game';
+import { Rule, Player, ActiveAccusationDetails } from '../types/game';
 import Plaque from '../components/Plaque';
 import { colors } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 
 interface AccusationJudgementModalProps {
     visible: boolean;
-    accusationDetails: AccusationDetails | null;
+    ActiveAccusationDetails: ActiveAccusationDetails | null;
     currentUser: Player;
     onAccept: () => void;
     onDecline: () => void;
@@ -15,7 +15,7 @@ interface AccusationJudgementModalProps {
 
 export default function AccusationJudgementModal({
     visible,
-    accusationDetails,
+    ActiveAccusationDetails,
     currentUser,
     onAccept,
     onDecline,

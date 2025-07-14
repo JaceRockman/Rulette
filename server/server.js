@@ -412,15 +412,11 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', game);
     });
 
-    // Decline accusation
-    socket.on('decline_accusation', ({ gameId, accusationDetails }) => {
+    // End accusation
+    socket.on('end_accusation', ({ gameId }) => {
         const game = games.get(gameId);
         if (!game) return;
-
-        const rule = game.rules.find(r => r.id === accusationDetails.ruleId);
-        if (!rule) return;
-
-        game.accusationDetails.accepted = false;
+        game.activeAccusationDetails = undefined;
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -444,9 +440,11 @@ io.on('connection', (socket) => {
         const player = game.players.find(p => p.id === playerId);
         const prompt = game.prompts.find(p => p.id === promptId);
         if (player && prompt) {
+            prompt.isActive = false;
             game.activePromptDetails = {
                 selectedPrompt: prompt,
-                selectedPlayer: player
+                selectedPlayer: player,
+                isPromptAccepted: undefined
             };
             io.to(gameId).emit('game_updated', game);
         } else if (!player && !prompt) {
@@ -456,6 +454,35 @@ io.on('connection', (socket) => {
         } else if (!prompt) {
             socket.emit('error', { message: 'Prompt not found' });
         }
+    });
+
+    // Accept prompt
+    socket.on('accept_prompt', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activePromptDetails.isPromptAccepted = true;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End prompt
+    socket.on('end_prompt', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activePromptDetails = undefined;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Shred rule
+    socket.on('shred_rule', ({ gameId, ruleId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        const rule = game.rules.find(r => r.id === ruleId);
+        if (rule) {
+            rule.assignedTo = undefined;
+            rule.isActive = false;
+        }
+        game.rules = game.rules.filter(r => r.id !== ruleId);
+        io.to(gameId).emit('game_updated', game);
     });
 
     // Accusation

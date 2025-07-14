@@ -8,7 +8,6 @@ interface HostActionModalProps {
     selectedPlayerForAction: Player | null;
     onGiveRule: () => void;
     onGivePrompt: () => void;
-    onSuccessfulAccusation: () => void;
     onCloneRule: () => void;
     onFlipRule: () => void;
     onUpAction: () => void;
@@ -22,7 +21,6 @@ export default function HostActionModal({
     selectedPlayerForAction,
     onGiveRule,
     onGivePrompt,
-    onSuccessfulAccusation,
     onCloneRule,
     onFlipRule,
     onUpAction,
@@ -58,13 +56,6 @@ export default function HostActionModal({
                             onPress={onGivePrompt}
                         >
                             <Text style={styles.actionButtonText}>Give Prompt</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.actionButton, { backgroundColor: colors.gameChangerOrange }]}
-                            onPress={onSuccessfulAccusation}
-                        >
-                            <Text style={styles.actionButtonText}>Successful Accusation</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity

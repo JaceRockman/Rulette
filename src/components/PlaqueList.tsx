@@ -1,13 +1,15 @@
 import { StyleSheet, View } from "react-native";
 import Plaque from "./Plaque";
 import { Plaque as PlaqueType } from "../types/game";
+import { colors } from "../shared/styles";
 
 interface PlaqueListProps {
     plaques: PlaqueType[];
+    selectedPlaque?: PlaqueType | null;
     onPress: (plaque: PlaqueType) => void;
 }
 
-export const render2ColumnPlaqueList = ({ plaques, onPress }: PlaqueListProps) => {
+export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: PlaqueListProps) => {
     const rows = [];
     for (let i = 0; i < plaques.length; i += 2) {
         const hasSecondItem = plaques[i + 1];
@@ -17,13 +19,14 @@ export const render2ColumnPlaqueList = ({ plaques, onPress }: PlaqueListProps) =
                     text={plaques[i].text}
                     plaqueColor={plaques[i].plaqueColor || '#fff'}
                     onPress={() => onPress(plaques[i])}
-                    style={{ minHeight: 100 }}
+                    style={{ borderColor: selectedPlaque?.id === plaques[i].id ? colors.gameChangerYellow : colors.gameChangerBlack }}
                 />
                 {hasSecondItem && (
                     <Plaque
                         text={plaques[i + 1].text}
                         plaqueColor={plaques[i + 1].plaqueColor || '#fff'}
                         onPress={() => onPress(plaques[i + 1])}
+                        style={{ borderColor: selectedPlaque?.id === plaques[i + 1].id ? colors.gameChangerYellow : colors.gameChangerBlack }}
                     />
                 )}
             </View>
