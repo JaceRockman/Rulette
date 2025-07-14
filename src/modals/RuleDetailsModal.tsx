@@ -4,6 +4,7 @@ import { Rule, Player } from '../types/game';
 import { colors } from '../shared/styles';
 import { shared } from '../shared/styles';
 import Plaque from '../components/Plaque';
+import { SecondaryButton } from '../components/Buttons';
 
 interface RuleDetailsModalProps {
     visible: boolean;
@@ -23,14 +24,12 @@ export default function RuleDetailsModal({
     onClose
 }: RuleDetailsModalProps) {
     if (!visible || !rule) return null;
-
-    const getTextColor = (plaqueColor: string) => {
-        return (plaqueColor === colors.gameChangerWhite) ? colors.gameChangerBlack : colors.gameChangerWhite;
-    };
+    console.log('rule', rule);
 
     const plaqueColor = rule.plaqueColor || colors.gameChangerWhite;
 
     const playerIsViewingOwnRule = currentUser?.id === rule.assignedTo;
+    console.log('playerIsViewingOwnRule', playerIsViewingOwnRule);
 
     return (
         <Modal
@@ -40,51 +39,26 @@ export default function RuleDetailsModal({
             onRequestClose={onClose}
             statusBarTranslucent={true}
         >
-            <SafeAreaView style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>
+            <TouchableOpacity style={shared.modalOverlay} onPress={onClose}>
+                <TouchableOpacity style={shared.modalContent} onPress={() => { }} activeOpacity={1}>
+                    <Text style={shared.modalTitle}>
                         Rule Details
                     </Text>
-                    <Plaque plaqueColor={plaqueColor} text={rule.text} />
+                    <Plaque plaqueColor={plaqueColor}
+                        text={rule.text}
+                        style={{ width: '50%' }}
+                    />
 
-                    {isAccusationInProgress && !playerIsViewingOwnRule && (
-                        <TouchableOpacity
-                            style={[
-                                shared.button,
-                                {
-                                    opacity: isAccusationInProgress ? 0.5 : 1
-                                }
-                            ]}
-                            onPress={() => onAccuse}
+                    {!playerIsViewingOwnRule && (
+                        <SecondaryButton
+                            title="Accuse!"
+                            onPress={onAccuse}
                             disabled={isAccusationInProgress}
-                        >
-                            <Text style={shared.buttonText}>Accuse!</Text>
-                        </TouchableOpacity>
+                            buttonStyle={{ width: '40%', opacity: isAccusationInProgress ? 0.5 : 1 }}
+                        />
                     )}
-                </View>
-            </SafeAreaView>
+                </TouchableOpacity>
+            </TouchableOpacity>
         </Modal>
     );
 }
-
-const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalContent: {
-        backgroundColor: colors.gameChangerWhite,
-        borderRadius: 12,
-        padding: 20,
-        width: '80%',
-        maxHeight: '70%',
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-}); 

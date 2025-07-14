@@ -668,7 +668,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
 
 
-
     const swapRules = (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => {
         if (!gameState) return;
 

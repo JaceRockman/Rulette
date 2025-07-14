@@ -68,13 +68,16 @@ export const shared = StyleSheet.create({
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
+        zIndex: 0,
     },
     modalContent: {
-        width: '80%',
+        width: '90%',
         backgroundColor: colors.gameChangerWhite,
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
+        alignSelf: 'center',
+        zIndex: 1,
     },
     modalTitle: {
         fontSize: 24,

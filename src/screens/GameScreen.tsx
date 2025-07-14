@@ -95,26 +95,12 @@ export default function GameScreen() {
     };
 
     const handleRuleTap = (rule: Rule) => {
+        setShowRuleDetails(true);
         setSelectedRule(rule);
     };
 
     const handleRuleHold = (rule: Rule, holder: Player, holdee: Player) => {
         return;
-    };
-
-    const handleGiveRuleToAccused = (ruleId: string) => {
-        if (acceptedAccusationDetails) {
-            // Assign the selected rule to the accused player
-            assignRule(ruleId, acceptedAccusationDetails.accused.id);
-
-            // Close the modal and reset state
-            setShowRuleSelectionModal(false);
-            setAcceptedAccusationDetails(null);
-            setIsAccusationInProgress(false);
-
-            // Broadcast navigation to game room for all players and host
-            socketService.broadcastNavigateToScreen('Game');
-        }
     };
 
     // Host player action handlers
