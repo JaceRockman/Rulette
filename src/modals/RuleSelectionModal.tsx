@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
 import { Rule } from '../types/game';
-import Plaque from '../components/Plaque';
+import { Plaque } from '../types/game';
 
 import { colors, shared } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
+import { render2ColumnPlaqueList } from '../components/PlaqueList';
 
 interface RuleSelectionModalProps {
     visible: boolean;
@@ -25,56 +26,16 @@ export default function RuleSelectionModal({
     onClose,
     cancelButtonText = 'Cancel'
 }: RuleSelectionModalProps) {
-    // Error handler for empty content
-    if (visible && (!rules || rules.length === 0)) {
-        console.log('rules', rules);
-        Alert.alert(
-            'No Rules Available',
-            'There are no rules available for selection. This might be due to a game state error.',
-            [
-                {
-                    text: 'OK',
-                    onPress: onClose
-                }
-            ]
-        );
-    }
 
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
 
-    // Create 2-column grid layout
-    const renderRulesGrid = () => {
-        if (!rules || rules.length === 0) return null;
-
-        const rows = [];
-        for (let i = 0; i < rules.length; i += 2) {
-            const hasSecondItem = rules[i + 1];
-            const row = (
-                <View key={i} style={styles.ruleRow}>
-                    <View style={styles.ruleColumn}>
-                        <Plaque
-                            text={rules[i].text}
-                            plaqueColor={rules[i].plaqueColor || '#fff'}
-                            onPress={() => setSelectedRule(rules[i])}
-                            style={styles.rulePlaque}
-                        />
-                    </View>
-                    {hasSecondItem && (
-                        <View style={styles.ruleColumn}>
-                            <Plaque
-                                text={rules[i + 1].text}
-                                plaqueColor={rules[i + 1].plaqueColor || '#fff'}
-                                onPress={() => setSelectedRule(rules[i + 1])}
-                                style={styles.rulePlaque}
-                            />
-                        </View>
-                    )}
-                </View>
-            );
-            rows.push(row);
+    const toggleSelectedRule = (rule: Plaque) => {
+        if (selectedRule?.id === rule.id) {
+            setSelectedRule(null);
+        } else {
+            setSelectedRule(rule as Rule);
         }
-        return rows;
-    };
+    }
 
     return (
         <Modal
@@ -84,23 +45,26 @@ export default function RuleSelectionModal({
             onRequestClose={onClose}
             statusBarTranslucent={true}
         >
-            <SafeAreaView style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>{title}</Text>
-                    <Text style={styles.modalRuleText}>{description}</Text>
+            <SafeAreaView style={shared.modalOverlay}>
+                <View style={shared.modalContent}>
+                    <Text style={shared.modalTitle}>{title}</Text>
+                    <Text style={shared.modalDescription}>{description}</Text>
 
                     <ScrollView style={styles.modalRuleList} showsVerticalScrollIndicator={false}>
-                        {renderRulesGrid()}
+                        {render2ColumnPlaqueList({
+                            plaques: rules,
+                            selectedPlaque: selectedRule,
+                            onPress: (rule: Plaque) => toggleSelectedRule(rule)
+                        })}
                     </ScrollView>
+                    <View style={styles.buttonContainer}>
+                        <SecondaryButton title={cancelButtonText} onPress={onClose} />
 
-                    {selectedRule && (
-                        <PrimaryButton title="Accept" onPress={() => {
-                            visible = false;
-                            onAccept(selectedRule);
-                        }} />
-                    )}
-
-                    <SecondaryButton title={cancelButtonText} onPress={onClose} />
+                        <PrimaryButton
+                            title="Accept"
+                            onPress={() => onAccept(selectedRule as Rule)}
+                            disabled={!selectedRule} />
+                    </View>
                 </View>
             </SafeAreaView>
         </Modal>
@@ -108,69 +72,15 @@ export default function RuleSelectionModal({
 }
 
 const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: colors.background.overlay,
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    modalContent: {
-        backgroundColor: colors.background.primary,
-        borderRadius: 16,
-        padding: 24,
-        width: '90%',
-        maxHeight: '85%',
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        elevation: 8,
-    },
-    modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: colors.text.primary,
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    modalRuleText: {
-        fontSize: 16,
-        color: colors.text.secondary,
-        marginBottom: 20,
-        textAlign: 'center',
-        lineHeight: 22,
-    },
     modalRuleList: {
         maxHeight: 350,
         marginBottom: 20,
     },
-    ruleRow: {
+    buttonContainer: {
         flexDirection: 'row',
-        marginBottom: 16,
-        justifyContent: 'space-between',
-        width: '100%',
-    },
-    ruleColumn: {
-        width: '48%',
-    },
-    rulePlaque: {
-        minHeight: 80,
-    },
-    modalCancelButton: {
-        backgroundColor: colors.gameChangerRed,
-        borderRadius: 12,
-        padding: 16,
+        gap: 20,
         alignItems: 'center',
-        shadowColor: colors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-        elevation: 4,
-    },
-    modalCancelText: {
-        color: colors.text.light,
-        textAlign: 'center',
-        fontWeight: 'bold',
-        fontSize: 16,
+        justifyContent: 'center',
+        width: '100%',
     },
 }); 

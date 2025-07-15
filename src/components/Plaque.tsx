@@ -7,14 +7,18 @@ interface PlaqueProps {
     plaqueColor: string;
     style?: any;
     onPress?: () => void;
+    selected?: boolean;
 }
 
-export default function Plaque({ text, plaqueColor, style, onPress }: PlaqueProps) {
-    // Determine text color based on plaque color (same logic as wheel segments)
-    const isLightPlaque = plaqueColor === colors.gameChangerWhite;
-
+export default function Plaque({ text, plaqueColor, style, onPress, selected }: PlaqueProps) {
     const PlaqueContent = (
-        <View style={[styles.plaqueBack, { backgroundColor: plaqueColor }, style]}>
+        <View style={[
+            styles.plaqueBack,
+            onPress && styles.selectablePlaque,
+            selected && styles.selectedPlaque,
+            { backgroundColor: plaqueColor },
+            style
+        ]}>
             <Text style={styles.plaqueText} numberOfLines={3}>
                 {text}
             </Text>
@@ -33,11 +37,18 @@ export default function Plaque({ text, plaqueColor, style, onPress }: PlaqueProp
 }
 
 const styles = StyleSheet.create({
+    selectedPlaque: {
+        boxShadow: '8px 8px 8px 0 rgba(0, 0, 0, 0.5)',
+        transform: [{ translateY: -4 }],
+    },
+    selectablePlaque: {
+        boxShadow: '3px 3px 3px 0 rgba(0, 0, 0, 0.5)',
+    },
     plaqueBack: {
         minWidth: '40%',
         margin: '5%',
         borderRadius: 15,
-        borderWidth: 2,
+        borderWidth: 3,
         minHeight: 100,
         justifyContent: 'center',
         alignItems: 'center',

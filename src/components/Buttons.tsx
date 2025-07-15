@@ -12,7 +12,7 @@ interface PrimaryButtonProps {
 
 export function PrimaryButton({ title, onPress, disabled, buttonStyle, textStyle }: PrimaryButtonProps) {
     return (
-        <TouchableOpacity style={[styles.primaryButton, buttonStyle]} onPress={onPress} disabled={disabled}>
+        <TouchableOpacity style={[styles.primaryButton, buttonStyle, disabled && styles.disabledButton]} onPress={onPress} disabled={disabled}>
             <Text style={[styles.primaryButtonText, textStyle]}>{title}</Text>
         </TouchableOpacity>
     );
@@ -36,7 +36,7 @@ export function SecondaryButton({ title, onPress, disabled, buttonStyle, textSty
 
 const styles = StyleSheet.create({
     primaryButton: {
-        minWidth: 80,
+        minWidth: '40%',
         minHeight: 40,
         backgroundColor: colors.gameChangerWhite,
         borderColor: colors.border.primary,
@@ -54,10 +54,10 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     secondaryButton: {
-        minWidth: 60,
+        minWidth: '40%',
         minHeight: 30,
         backgroundColor: colors.gameChangerBlack,
-        borderColor: colors.gameChangerRed,
+        borderColor: colors.gameChangerBlack,
         borderWidth: 3,
         borderRadius: 12,
         padding: 16,
@@ -71,6 +71,9 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
     },
+    disabledButton: {
+        opacity: 0.5,
+    }
 });
 
 // Tertiary buttons

@@ -145,7 +145,7 @@ io.on('connection', (socket) => {
         if (plaque.type === 'rule') {
             const rule = {
                 ...plaque,
-                isActive: plaque.isActive || true,
+                isActive: true,
                 assignedTo: undefined
             };
             game.rules.push(rule);

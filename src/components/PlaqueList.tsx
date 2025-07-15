@@ -20,14 +20,14 @@ export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: Pl
                     text={plaques[i].text}
                     plaqueColor={plaques[i].plaqueColor || '#fff'}
                     onPress={() => onPress(plaques[i])}
-                    style={{ borderColor: selectedPlaque?.id === plaques[i].id ? colors.gameChangerYellow : colors.gameChangerBlack }}
+                    selected={selectedPlaque?.id === plaques[i].id}
                 />
                 {hasSecondItem && (
                     <Plaque
                         text={plaques[i + 1].text}
                         plaqueColor={plaques[i + 1].plaqueColor || '#fff'}
                         onPress={() => onPress(plaques[i + 1])}
-                        style={{ borderColor: selectedPlaque?.id === plaques[i + 1].id ? colors.gameChangerYellow : colors.gameChangerBlack }}
+                        selected={selectedPlaque?.id === plaques[i + 1].id}
                     />
                 )}
             </View>
