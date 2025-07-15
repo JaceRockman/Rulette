@@ -64,9 +64,11 @@ export default function GameScreen() {
 
     // Update local state to current modal based on game state
     React.useEffect(() => {
-        console.log('modalState', gameState?.players.find(player => player.id === currentUser?.id)?.currentModal);
-        setCurrentModal(gameState?.players.find(player => player.id === currentUser?.id)?.currentModal);
-    }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal]);
+        const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
+        const globalModal = gameState?.globalModal;
+        console.log('modalState', playerModal, globalModal);
+        setCurrentModal(playerModal || globalModal);
+    }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal, gameState?.globalModal]);
 
     const handleUpdatePoints = (playerId: string, currentPoints: number, change: number) => {
         const newPoints = Math.max(0, Math.min(99, currentPoints + change));
@@ -124,7 +126,7 @@ export default function GameScreen() {
 
     const handleGivePromptAction = () => {
         setShowHostActionModal(false);
-        setShowPromptSelectionModal(true);
+        if (currentUser) setPlayerModal(currentUser.id, 'GivePrompt');
     };
 
     const handlePromptRulePress = (rule: Rule) => {
@@ -865,12 +867,16 @@ export default function GameScreen() {
 
                 {/* Host Prompt Selection Modal */}
                 <PromptListModal
-                    visible={showPromptSelectionModal}
+                    visible={currentModal === 'GivePrompt'}
                     title={`Select a Prompt to Give to ${selectedPlayerForAction?.name}`}
                     description={`Select a prompt to give to ${selectedPlayerForAction?.name}:`}
                     prompts={gameState?.prompts || []}
-                    onAccept={(prompt: Prompt | null) => givePrompt(prompt?.id!, selectedPlayerForAction?.id!)}
-                    onClose={() => setShowPromptSelectionModal(false)}
+                    onAccept={(prompt: Prompt | null) => {
+                        givePrompt(prompt?.id!, selectedPlayerForAction?.id!)
+                    }}
+                    onClose={() => {
+                        if (currentUser) setPlayerModal(currentUser.id, undefined);
+                    }}
                 />
 
                 {/* Prompt Initiated Modal */}
@@ -880,11 +886,9 @@ export default function GameScreen() {
                     prompt={gameState?.activePromptDetails?.selectedPrompt || null}
                     onPressRule={handlePromptRulePress}
                     onSuccess={() => {
-                        if (currentUser) setPlayerModal(currentUser.id, 'PromptResolution');
                         acceptPrompt();
                     }}
                     onFailure={() => {
-                        if (currentUser) setPlayerModal(currentUser.id, undefined);
                         endPrompt();
                     }}
                 />
@@ -896,7 +900,9 @@ export default function GameScreen() {
                     prompt={gameState?.activePromptDetails?.selectedPrompt || null}
                     onShredRule={(ruleId: string) => {
                         shredRule(ruleId);
-                        if (currentUser) setPlayerModal(currentUser.id, undefined);
+                    }}
+                    onSkip={() => {
+                        endPrompt();
                     }}
                 />
 

@@ -50,14 +50,14 @@ export default function RuleSelectionModal({
                     <Text style={shared.modalTitle}>{title}</Text>
                     <Text style={shared.modalDescription}>{description}</Text>
 
-                    <ScrollView style={styles.modalRuleList} showsVerticalScrollIndicator={false}>
+                    <ScrollView showsVerticalScrollIndicator={false}>
                         {render2ColumnPlaqueList({
                             plaques: rules,
                             selectedPlaque: selectedRule,
                             onPress: (rule: Plaque) => toggleSelectedRule(rule)
                         })}
                     </ScrollView>
-                    <View style={styles.buttonContainer}>
+                    <View style={shared.buttonContainer}>
                         <SecondaryButton title={cancelButtonText} onPress={() => {
                             setSelectedRule(null)
                             onClose()
@@ -76,17 +76,3 @@ export default function RuleSelectionModal({
         </Modal>
     );
 }
-
-const styles = StyleSheet.create({
-    modalRuleList: {
-        maxHeight: 350,
-        marginBottom: 20,
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        gap: 20,
-        alignItems: 'center',
-        justifyContent: 'center',
-        width: '100%',
-    },
-}); 

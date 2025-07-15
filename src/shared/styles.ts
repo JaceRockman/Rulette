@@ -106,6 +106,14 @@ export const shared = StyleSheet.create({
         fontSize: 16,
         fontWeight: 'bold',
     },
+    buttonContainer: {
+        flexDirection: 'row',
+        gap: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        marginTop: 20,
+    },
     input: {
         backgroundColor: colors.background.secondary,
         borderRadius: 12,

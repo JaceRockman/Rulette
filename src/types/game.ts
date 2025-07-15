@@ -72,6 +72,7 @@ export interface GameState {
     numPrompts: number;
     gameEnded: boolean;
     winner?: Player;
+    globalModal?: string;
 }
 
 export interface StackItem {

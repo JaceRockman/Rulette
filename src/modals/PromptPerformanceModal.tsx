@@ -46,7 +46,7 @@ export default function PromptPerformanceModal({
                     <View>
                         {/* Rules Reminder Section */}
                         {promptedPlayerRules.length > 0 && (
-                            <View style={{ marginTop: 20, marginBottom: 20 }}>
+                            <View>
                                 <Text style={shared.modalDescription}>
                                     Rules assigned to {isPromptedPlayer ? 'you' : selectedPlayerForAction?.name}:
                                 </Text>

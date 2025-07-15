@@ -42,8 +42,13 @@ export default function PromptListModal({
     }, [visible, prompts, onClose]);
 
     const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
-    const performedPrompts = prompts.filter(prompt => !prompt.isActive);
-    const unperformedPrompts = prompts.filter(prompt => prompt.isActive);
+    const toggleSelectedPrompt = (prompt: Plaque) => {
+        if (selectedPrompt?.id === prompt.id) {
+            setSelectedPrompt(null);
+        } else {
+            setSelectedPrompt(prompt as Prompt);
+        }
+    }
 
     return (
         <Modal
@@ -59,28 +64,24 @@ export default function PromptListModal({
                     <Text style={shared.modalDescription}>{description}</Text>
 
                     <ScrollView showsVerticalScrollIndicator={false}>
-                        <Text style={shared.modalSubtitle}>Performed Prompts</Text>
+                        <Text style={shared.modalSubtitle}>Prompts</Text>
                         {render2ColumnPlaqueList({
-                            plaques: performedPrompts,
+                            plaques: prompts,
                             selectedPlaque: selectedPrompt,
-                            onPress: (prompt: Plaque) => setSelectedPrompt(prompt as Prompt)
-                        })}
-                        <Text style={shared.modalSubtitle}>Unperformed Prompts</Text>
-                        {render2ColumnPlaqueList({
-                            plaques: unperformedPrompts,
-                            selectedPlaque: selectedPrompt,
-                            onPress: (prompt: Plaque) => setSelectedPrompt(prompt as Prompt)
+                            onPress: (prompt: Plaque) => toggleSelectedPrompt(prompt as Prompt)
                         })}
                     </ScrollView>
 
-                    <PrimaryButton title="Accept"
-                        onPress={() => onAccept(selectedPrompt || null)}
-                        buttonStyle={{ opacity: selectedPrompt ? 1 : 0.5 }}
-                        disabled={!selectedPrompt} />
+                    <View style={shared.buttonContainer}>
+                        <PrimaryButton title="Accept"
+                            onPress={() => onAccept(selectedPrompt || null)}
+                            buttonStyle={{ opacity: selectedPrompt ? 1 : 0.3 }}
+                            disabled={!selectedPrompt} />
 
-                    <SecondaryButton title={cancelButtonText} onPress={onClose} />
+                        <SecondaryButton title={cancelButtonText} onPress={onClose} />
+                    </View>
                 </View>
             </SafeAreaView>
-        </Modal>
+        </Modal >
     );
 }
