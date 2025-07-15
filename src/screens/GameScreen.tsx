@@ -269,12 +269,13 @@ export default function GameScreen() {
     const handleGiveRuleAction = () => {
         if (selectedPlayerForAction && gameState) {
             // Check if there are unassigned rules available
-            const availableRules = gameState.rules.filter(rule => !rule.assignedTo && rule.isActive);
+
+            const availableRules = gameState?.rules.filter(rule => rule.assignedTo !== selectedPlayerForAction.id);
             if (availableRules.length > 0) {
                 setShowHostActionModal(false);
                 setShowGiveRuleModal(true);
             } else {
-                Alert.alert('No Rules Available', 'No unassigned rules available to give.');
+                Alert.alert('No Rules Available', 'Player has all rules assigned to them already.');
                 setShowHostActionModal(false);
                 setSelectedPlayerForAction(null);
             }
@@ -580,6 +581,68 @@ export default function GameScreen() {
         }
     };
 
+    const decrementPlayerPointsButton = (player: Player) => {
+        return (
+            <TouchableOpacity
+                style={{
+                    backgroundColor: '#dc3545',
+                    width: 60,
+                    height: 40,
+                    borderRadius: 8,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}
+                onPress={() => handleUpdatePoints(player.id, player.points, -1)}
+            >
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>-1</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const incrementPlayerPointsButton = (player: Player) => {
+        return (
+            <TouchableOpacity
+                style={{
+                    backgroundColor: '#28a745',
+                    width: 60,
+                    height: 40,
+                    borderRadius: 8,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                }}
+                onPress={() => handleUpdatePoints(player.id, player.points, 1)}
+            >
+                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>+1</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const playerCardComponent = (player: Player) => {
+        return (
+            <TouchableOpacity
+                key={player.id}
+                style={styles.playerCard}
+                onPress={() => handlePlayerTap(player)}
+                activeOpacity={currentUser?.isHost && player.id !== currentUser.id ? 0.7 : 1}>
+                <Text style={styles.playerName}>
+                    {player.name}
+                </Text>
+
+                {/* Points display - score controls only for host */}
+                <View style={styles.pointsRow}>
+                    {currentUser?.isHost && decrementPlayerPointsButton(player)}
+                    <View style={styles.pointsContainer}>
+                        <ScoreDisplay value={player.points} />
+                    </View>
+                    {currentUser?.isHost && incrementPlayerPointsButton(player)}
+                </View>
+
+                {/* Player's Assigned Rules */}
+                {playerRulesComponent(player)}
+            </TouchableOpacity>
+        );
+    };
+
     const playerRulesComponent = (player: Player) => {
         const playerRules = gameState?.rules.filter(rule => rule.assignedTo === player.id);
 
@@ -697,61 +760,21 @@ export default function GameScreen() {
                     {gameState.players.filter(player => !player.isHost).length > 0 && (
                         <View style={styles.section}>
                             <OutlinedText>Players</OutlinedText>
-                            {gameState.players.filter(player => !player.isHost).map((player) => (
-                                <TouchableOpacity
-                                    key={player.id}
-                                    style={styles.playerCard}
-                                    onPress={() => handlePlayerTap(player)}
-                                    activeOpacity={currentUser?.isHost && player.id !== currentUser.id ? 0.7 : 1}>
-                                    <Text style={styles.playerName}>
-                                        {player.name}
-                                    </Text>
+                            {(() => {
+                                // Get non-host players
+                                const nonHostPlayers = gameState.players.filter(player => !player.isHost);
+                                const currentUserIndex = nonHostPlayers.findIndex(p => p.id === currentUser?.id);
 
-                                    {/* Points display - score controls only for host */}
-                                    <View style={styles.pointsRow}>
-                                        {currentUser?.isHost ? (
-                                            <>
-                                                <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: '#dc3545',
-                                                        width: 60,
-                                                        height: 40,
-                                                        borderRadius: 8,
-                                                        justifyContent: 'center',
-                                                        alignItems: 'center',
-                                                    }}
-                                                    onPress={() => handleUpdatePoints(player.id, player.points, -1)}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>-1</Text>
-                                                </TouchableOpacity>
-                                                <View style={styles.pointsContainer}>
-                                                    <ScoreDisplay value={player.points} />
-                                                </View>
-                                                <TouchableOpacity
-                                                    style={{
-                                                        backgroundColor: '#28a745',
-                                                        width: 60,
-                                                        height: 40,
-                                                        borderRadius: 8,
-                                                        justifyContent: 'center',
-                                                        alignItems: 'center',
-                                                    }}
-                                                    onPress={() => handleUpdatePoints(player.id, player.points, 1)}
-                                                >
-                                                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>+1</Text>
-                                                </TouchableOpacity>
-                                            </>
-                                        ) : (
-                                            <View style={styles.pointsContainer}>
-                                                <ScoreDisplay value={player.points} />
-                                            </View>
-                                        )}
-                                    </View>
+                                const sortedPlayers = currentUser?.isHost ? nonHostPlayers : [
+                                    currentUser, // Current user first
+                                    ...nonHostPlayers.slice(currentUserIndex + 1),
+                                    ...nonHostPlayers.slice(0, currentUserIndex)
+                                ];
 
-                                    {/* Player's Assigned Rules */}
-                                    {playerRulesComponent(player)}
-                                </TouchableOpacity>
-                            ))}
+                                return sortedPlayers.map((player) => (
+                                    playerCardComponent(player)
+                                ));
+                            })()}
                         </View>
                     )}
 
@@ -832,7 +855,7 @@ export default function GameScreen() {
                     visible={showGiveRuleModal}
                     title={`Give Rule to ${selectedPlayerForAction?.name}`}
                     description={`Select a rule to give to ${selectedPlayerForAction?.name}:`}
-                    rules={gameState?.rules || []}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo !== selectedPlayerForAction?.id) || []}
                     onAccept={(rule) => handleAssignRuleToPlayer(rule.id, selectedPlayerForAction!)}
                     onClose={() => {
                         setShowGiveRuleModal(false);

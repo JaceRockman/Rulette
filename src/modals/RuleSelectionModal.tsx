@@ -58,11 +58,17 @@ export default function RuleSelectionModal({
                         })}
                     </ScrollView>
                     <View style={styles.buttonContainer}>
-                        <SecondaryButton title={cancelButtonText} onPress={onClose} />
+                        <SecondaryButton title={cancelButtonText} onPress={() => {
+                            setSelectedRule(null)
+                            onClose()
+                        }} />
 
                         <PrimaryButton
                             title="Accept"
-                            onPress={() => onAccept(selectedRule as Rule)}
+                            onPress={() => {
+                                onAccept(selectedRule as Rule)
+                                setSelectedRule(null)
+                            }}
                             disabled={!selectedRule} />
                     </View>
                 </View>

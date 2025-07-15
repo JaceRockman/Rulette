@@ -30,6 +30,9 @@ export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: Pl
                         selected={selectedPlaque?.id === plaques[i + 1].id}
                     />
                 )}
+                {!hasSecondItem && (
+                    <View style={{ width: '40%' }} />
+                )}
             </View>
         );
         rows.push(row);
@@ -39,8 +42,8 @@ export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: Pl
 
 const styles = StyleSheet.create({
     plaqueList: {
-        width: '100%',
         flexDirection: 'row',
-        justifyContent: 'flex-start',
+        justifyContent: 'space-between',
+        width: '100%',
     }
 });
