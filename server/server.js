@@ -649,6 +649,57 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', game);
     });
 
+    function navigatePlayersForSwapeeSelection(game, details) {
+        game.players.forEach(player => {
+            if (player.id === details.swapper.id) {
+                setPlayerModal(game, player.id, 'SwapActionTargetSelection');
+            } else {
+                setPlayerModal(game, player.id, "AwaitSwapTargetSelection")
+            }
+        });
+    }
+
+    function navigatePlayersForRuleSwapSelection(game, details) {
+        game.players.forEach(player => {
+            if (player.id === details.swapper.id) {
+                setPlayerModal(game, player.id, 'SwapActionRuleSelection');
+            } else {
+                setPlayerModal(game, player.id, "AwaitSwapRuleSelection")
+            }
+        });
+    }
+
+
+    // Update active swapping details
+    socket.on('update_active_swapping_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.activeSwapRuleDetails = details;
+
+        console.log('game.activeSwapRuleDetails', game.activeSwapRuleDetails);
+
+        if (details.swappee === undefined) {
+            navigatePlayersForSwapeeSelection(game, details);
+        } else if (details.swapperRule === undefined || details.swappeeRule === undefined) {
+            navigatePlayersForRuleSwapSelection(game, details);
+        } else {
+            setAllPlayerModals(game, 'SwapRuleResolution');
+            setGlobalModal(game, 'SwapRuleResolution');
+        }
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End swap rule
+    socket.on('end_swap_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeSwapRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        setGlobalModal(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
 
     // Swap rules
     socket.on('swap_rules', ({ gameId, player1Id, player1RuleId, player2Id, player2RuleId }) => {

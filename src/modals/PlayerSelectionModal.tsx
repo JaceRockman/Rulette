@@ -9,7 +9,7 @@ interface PlayerSelectionModalProps {
     description: string;
     players: Player[];
     onSelectPlayer: (player: Player) => void;
-    onClose: () => void;
+    onClose?: () => void;
     cancelButtonText?: string;
 }
 
@@ -43,7 +43,7 @@ export default function PlayerSelectionModal({
             visible={visible}
             transparent={true}
             animationType="fade"
-            onRequestClose={onClose}
+            onRequestClose={onClose || (() => { })}
             statusBarTranslucent={true}
         >
             <SafeAreaView style={shared.modalOverlay}>
@@ -63,12 +63,14 @@ export default function PlayerSelectionModal({
                         ))}
                     </ScrollView>
 
-                    <TouchableOpacity
-                        style={styles.modalCancelButton}
-                        onPress={onClose}
-                    >
-                        <Text style={styles.modalCancelText}>{cancelButtonText}</Text>
-                    </TouchableOpacity>
+                    {onClose && (
+                        <TouchableOpacity
+                            style={styles.modalCancelButton}
+                            onPress={onClose}
+                        >
+                            <Text style={styles.modalCancelText}>{cancelButtonText}</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </SafeAreaView>
         </Modal>

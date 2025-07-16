@@ -12,7 +12,9 @@ interface RuleSelectionModalProps {
     title: string;
     description: string;
     rules: Rule[];
-    onAccept: (rule: Rule) => void;
+    description2?: string;
+    rules2?: Rule[];
+    onAccept: (rule1: Rule, rule2?: Rule) => void;
     onClose: () => void;
     cancelButtonText?: string;
 }
@@ -22,6 +24,8 @@ export default function RuleSelectionModal({
     title,
     description,
     rules,
+    description2,
+    rules2,
     onAccept,
     onClose,
     cancelButtonText = 'Cancel'
@@ -36,6 +40,18 @@ export default function RuleSelectionModal({
             setSelectedRule(rule as Rule);
         }
     }
+
+    const [selectedRule2, setSelectedRule2] = useState<Rule | null>(null);
+
+    const toggleSelectedRule2 = (rule: Plaque) => {
+        if (selectedRule2?.id === rule.id) {
+            setSelectedRule2(null);
+        } else {
+            setSelectedRule2(rule as Rule);
+        }
+    }
+
+    const allChoicesSelected = selectedRule && (selectedRule2 || !rules2);
 
     return (
         <Modal
@@ -56,6 +72,16 @@ export default function RuleSelectionModal({
                             selectedPlaque: selectedRule,
                             onPress: (rule: Plaque) => toggleSelectedRule(rule)
                         })}
+                        {rules2 && (
+                            <>
+                                {description2 && <Text style={shared.modalDescription}>{description2}</Text>}
+                                {render2ColumnPlaqueList({
+                                    plaques: rules2,
+                                    selectedPlaque: selectedRule2,
+                                    onPress: (rule: Plaque) => toggleSelectedRule2(rule)
+                                })}
+                            </>
+                        )}
                     </ScrollView>
                     <View style={shared.buttonContainer}>
                         <SecondaryButton title={cancelButtonText} onPress={() => {
@@ -66,10 +92,11 @@ export default function RuleSelectionModal({
                         <PrimaryButton
                             title="Accept"
                             onPress={() => {
-                                onAccept(selectedRule as Rule)
+                                onAccept(selectedRule as Rule, selectedRule2 as Rule)
                                 setSelectedRule(null)
+                                setSelectedRule2(null)
                             }}
-                            disabled={!selectedRule} />
+                            disabled={!allChoicesSelected} />
                     </View>
                 </View>
             </SafeAreaView>

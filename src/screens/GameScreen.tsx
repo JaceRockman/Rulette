@@ -36,7 +36,7 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal, triggerCloneModifier, updateActiveCloningDetails, endCloneRule, cloneRuleToPlayer, triggerFlipModifier, flipRule, updateActiveFlippingDetails, endFlipRule, triggerSwapModifier, updateActiveSwappingDetails, endSwapRule, triggerUpDownModifier, updateRule } = useGame();
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal, triggerCloneModifier, updateActiveCloningDetails, endCloneRule, cloneRuleToPlayer, triggerFlipModifier, flipRule, updateActiveFlippingDetails, endFlipRule, triggerSwapModifier, updateActiveSwappingDetails, swapRules, endSwapRule, triggerUpDownModifier, updateRule } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
 
@@ -223,7 +223,6 @@ export default function GameScreen() {
         }
     };
 
-
     const confirmRuleForFlipping = (rule: Rule) => {
         if (!gameState) return;
         updateActiveFlippingDetails({
@@ -232,6 +231,56 @@ export default function GameScreen() {
         });
         if (currentUser) setPlayerModal(currentUser.id, 'FlipRuleTextInput');
     };
+
+    const handleInitiateSwap = () => {
+        if (selectedPlayerForAction && gameState) {
+            // Check if player has rules to swap
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            if (playerRules.length > 0) {
+                setShowHostActionModal(false);
+                triggerSwapModifier(selectedPlayerForAction);
+            } else {
+                Alert.alert('No Rules to Swap', `${selectedPlayerForAction.name} has no assigned rules to swap.`);
+                setShowHostActionModal(false);
+                setSelectedPlayerForAction(null);
+            }
+        }
+    };
+
+    const confirmTargetForSwapping = (player: Player) => {
+        if (!gameState) return;
+        updateActiveSwappingDetails({
+            ...gameState.activeSwapRuleDetails!,
+            swappee: player
+        });
+        if (currentUser) setPlayerModal(currentUser.id, 'SwapActionTargetRuleSelection');
+    };
+
+    const deselectTargetForSwapping = () => {
+        if (!gameState) return;
+        updateActiveSwappingDetails({
+            ...gameState.activeSwapRuleDetails!,
+            swappee: undefined
+        });
+    };
+
+    const confirmRulesForSwapping = (swapperRule: Rule, swappeeRule?: Rule) => {
+        if (!gameState) return;
+        updateActiveSwappingDetails({
+            ...gameState.activeSwapRuleDetails!,
+            swapperRule: swapperRule,
+            swappeeRule: swappeeRule
+        });
+        assignRule(swapperRule.id, gameState.activeSwapRuleDetails!.swappee!.id);
+        assignRule(swappeeRule!.id, gameState.activeSwapRuleDetails!.swapper!.id);
+    };
+
+    // const confirmTargetRuleForSwapping = (rule: Rule) => {
+    //     if (!gameState) return;
+    //     const swapDetails = gameState.activeSwapRuleDetails!;
+    //     swapRules(swapDetails.swapper.id, swapDetails.swapperRule!.id, swapDetails.swappee!.id, rule.id);
+    //     if (currentUser) setPlayerModal(currentUser.id, 'SwapActionResolution');
+    // };
 
 
 
@@ -752,9 +801,9 @@ export default function GameScreen() {
                     onGivePrompt={handleGivePromptAction}
                     onCloneRule={handleInitiateClone}
                     onFlipRule={handleInitiateFlip}
+                    onSwapAction={handleInitiateSwap}
                     onUpAction={handleUpAction}
                     onDownAction={handleDownAction}
-                    onSwapAction={handleSwapAction}
                     onClose={() => setShowHostActionModal(false)}
                 />
 
@@ -918,6 +967,81 @@ export default function GameScreen() {
                             />
                         </View>
                     }
+                />
+
+                {/* Swap Rule Modals */}
+                {/* Swap Action Selection Modal */}
+
+                {/* Swap Target Selection Modal */}
+                <PlayerSelectionModal
+                    visible={currentModal === 'SwapActionTargetSelection'}
+                    title={`SWAP`}
+                    description={`Choose a player to swap rules with:`}
+                    players={gameState?.players.filter(player => {
+                        return player.id !== gameState?.activeSwapRuleDetails?.swapper.id
+                            && !player.isHost
+                            && gameState?.rules.some(rule => rule.assignedTo === player.id && rule.isActive)
+                    }) || []}
+                    onSelectPlayer={confirmTargetForSwapping}
+                />
+
+                <RuleSelectionModal
+                    visible={currentModal === 'SwapActionRuleSelection'}
+                    title={`SWAP`}
+                    description={`Choose one of your rules to give to ${gameState?.activeSwapRuleDetails?.swappee?.name}:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeSwapRuleDetails?.swapper.id && rule.isActive) || []}
+                    description2={`Choose a rule to take from ${gameState?.activeSwapRuleDetails?.swappee?.name}:`}
+                    rules2={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeSwapRuleDetails?.swappee?.id && rule.isActive) || []}
+                    onAccept={confirmRulesForSwapping}
+                    onClose={deselectTargetForSwapping}
+                />
+
+                {/* Swap Target Rule Selection Modal */}
+                {/* <RuleSelectionModal
+                    visible={currentModal === 'SwapActionTargetRuleSelection'}
+                    title={`SWAP`}
+                    description={`Choose a rule to take from ${gameState?.activeSwapRuleDetails?.swappee?.name}:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeSwapRuleDetails?.swappee?.id && rule.isActive) || []}
+                    onAccept={confirmTargetRuleForSwapping}
+                    onClose={deselectTargetForSwapping}
+                    cancelButtonText="Back"
+                /> */}
+
+                {/* Await Swap Target Selection Modal */}
+                <SimpleModal
+                    visible={currentModal === 'AwaitSwapTargetSelection'}
+                    title={'SWAP'}
+                    description={`Waiting for ${gameState?.activeSwapRuleDetails?.swapper.name} to select a player to swap with...`}
+                />
+
+                {/* Await Swap Rule Selection Modal */}
+                <SimpleModal
+                    visible={currentModal === 'AwaitSwapRuleSelection'}
+                    title={'SWAP'}
+                    description={`Waiting for ${gameState?.activeSwapRuleDetails?.swapper.name} to select rules to swap...`}
+                />
+
+                {/* Swap Action Resolution Modal */}
+                <SimpleModal
+                    visible={currentModal === 'SwapRuleResolution'}
+                    title={'SWAP'}
+                    description={`${gameState?.activeSwapRuleDetails?.swapper.name} has swapped rules with ${gameState?.activeSwapRuleDetails?.swappee?.name}!`}
+                    content={
+                        <View style={{ alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+                            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{gameState?.activeSwapRuleDetails?.swapper.name} has given {gameState?.activeSwapRuleDetails?.swappee?.name}
+                            </Text>
+                            <Plaque
+                                plaque={gameState?.activeSwapRuleDetails?.swapperRule!}
+                            />
+                            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>and taken</Text>
+                            <Plaque
+                                plaque={gameState?.activeSwapRuleDetails?.swappeeRule!}
+                            />
+                        </View>
+                    }
+                    onAccept={endSwapRule}
+                    acceptButtonText="Ok"
+                    acceptButtonDisplayed={currentUser?.id === gameState?.activeSwapRuleDetails?.swappee?.id || currentUser?.isHost}
                 />
 
                 {/* Up Rule Modal */}

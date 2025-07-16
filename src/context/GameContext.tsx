@@ -60,7 +60,7 @@ interface GameContextType {
     flipRule: (rule: Rule, flippedText: string) => void;
     endFlipRule: () => void;
 
-    triggerSwapModifier: (player: Player, modifierId?: string) => void;
+    triggerSwapModifier: (player: Player, rule?: Rule, modifierId?: string) => void;
     updateActiveSwappingDetails: (details: ActiveSwapRuleDetails) => void;
     swapRules: (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => void;
     endSwapRule: () => void;
@@ -669,16 +669,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
 
 
-    const triggerSwapModifier = (player: Player, modifierId?: string) => {
+    const updateActiveSwappingDetails = (details: ActiveSwapRuleDetails) => {
+        socketService.updateActiveSwappingDetails(details);
+    };
+
+    const triggerSwapModifier = (player: Player, rule?: Rule, modifierId?: string) => {
         if (!gameState) return;
         const details: ActiveSwapRuleDetails = {
             swapper: player,
+            swapperRule: rule
         }
         updateActiveSwappingDetails(details);
-    };
-
-    const updateActiveSwappingDetails = (details: ActiveSwapRuleDetails) => {
-        socketService.updateActiveSwappingDetails(details);
     };
 
     const swapRules = (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => {

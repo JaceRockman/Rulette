@@ -42,7 +42,7 @@ class SocketService {
         });
 
         this.socket.on('game_updated', (gameState: GameState) => {
-            console.log('SocketService: Game updated:', gameState);
+            // console.log('SocketService: Game updated:', gameState);
             this.gameState = gameState;
             this.onGameUpdated?.(gameState);
         });
