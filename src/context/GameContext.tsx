@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentLayer, Modifier, Plaque, ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails } from '../types/game';
+import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentLayer, Modifier, Plaque, ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails } from '../types/game';
 import socketService from '../services/socketService';
 import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../shared/styles';
 import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState } from '../../test/data';
@@ -66,6 +66,8 @@ interface GameContextType {
     endSwapRule: () => void;
 
     triggerUpDownModifier: (direction: 'up' | 'down', player: Player, modifierId?: string) => void;
+    updateActiveUpDownDetails: (details: ActiveUpDownRuleDetails) => void;
+    endUpDownRule: () => void;
 
     endGame: () => void;
 }
@@ -690,6 +692,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.endSwapRule();
     };
 
+    const updateActiveUpDownDetails = (details: ActiveUpDownRuleDetails) => {
+        socketService.updateActiveUpDownDetails(details);
+    };
+
+    const endUpDownRule = () => {
+        socketService.endUpDownRule();
+    };
 
     const triggerUpDownModifier = (direction: 'up' | 'down') => {
         if (!gameState) return;
@@ -825,6 +834,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             endSwapRule,
 
             triggerUpDownModifier,
+            updateActiveUpDownDetails,
+            endUpDownRule,
 
             endGame,
         }}>

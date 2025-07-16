@@ -1,5 +1,5 @@
 import io, { Socket } from 'socket.io-client';
-import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails, GameState, Plaque, Player, Prompt, Rule } from '../types/game';
+import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, GameState, Plaque, Player, Prompt, Rule } from '../types/game';
 
 const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
 
@@ -384,6 +384,7 @@ class SocketService {
         });
     }
 
+
     swapRules(player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('swap_rules', {
@@ -402,12 +403,26 @@ class SocketService {
         });
     }
 
+    updateActiveUpDownDetails(details: ActiveUpDownRuleDetails) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_up_down_details', {
+            gameId: this.gameState.id,
+            details
+        });
+    }
 
     triggerUpDownModifier(direction: 'up' | 'down') {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('trigger_up_down_modifier', {
             gameId: this.gameState.id,
             direction
+        });
+    }
+
+    endUpDownRule() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_up_down_rule', {
+            gameId: this.gameState.id
         });
     }
 

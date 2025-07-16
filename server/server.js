@@ -701,6 +701,35 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', game);
     });
 
+    // Update active up/down details
+    socket.on('update_active_up_down_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.activeUpDownRuleDetails = details;
+
+        game.players.forEach(player => {
+            const playerRules = game.rules.filter(r => r.assignedTo === player.id);
+            if (details.selectedRules[player.id] !== undefined || playerRules.length === 0 || player.isHost) {
+                setPlayerModal(game, player.id, 'AwaitUpDownSelection');
+            } else {
+                setPlayerModal(game, player.id, 'UpDownRuleSelection');
+            }
+        });
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End up/down rule
+    socket.on('end_up_down_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeUpDownRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        setGlobalModal(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
+
     // Swap rules
     socket.on('swap_rules', ({ gameId, player1Id, player1RuleId, player2Id, player2RuleId }) => {
         const game = games.get(gameId);

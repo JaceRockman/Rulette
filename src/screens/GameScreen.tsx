@@ -23,7 +23,6 @@ import {
     ExitGameModal,
     PromptPerformanceModal,
     PromptResolutionModal,
-    WaitForRuleSelectionModal,
     RuleSelectionModal,
     PlayerSelectionModal,
     PromptListModal,
@@ -36,7 +35,7 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal, triggerCloneModifier, updateActiveCloningDetails, endCloneRule, cloneRuleToPlayer, triggerFlipModifier, flipRule, updateActiveFlippingDetails, endFlipRule, triggerSwapModifier, updateActiveSwappingDetails, swapRules, endSwapRule, triggerUpDownModifier, updateRule } = useGame();
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal, triggerCloneModifier, updateActiveCloningDetails, endCloneRule, cloneRuleToPlayer, triggerFlipModifier, flipRule, updateActiveFlippingDetails, endFlipRule, triggerSwapModifier, updateActiveSwappingDetails, swapRules, endSwapRule, triggerUpDownModifier, updateActiveUpDownDetails, endUpDownRule, updateRule } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
 
@@ -275,13 +274,6 @@ export default function GameScreen() {
         assignRule(swappeeRule!.id, gameState.activeSwapRuleDetails!.swapper!.id);
     };
 
-    // const confirmTargetRuleForSwapping = (rule: Rule) => {
-    //     if (!gameState) return;
-    //     const swapDetails = gameState.activeSwapRuleDetails!;
-    //     swapRules(swapDetails.swapper.id, swapDetails.swapperRule!.id, swapDetails.swappee!.id, rule.id);
-    //     if (currentUser) setPlayerModal(currentUser.id, 'SwapActionResolution');
-    // };
-
 
 
     const handleGiveRuleAction = () => {
@@ -373,58 +365,109 @@ export default function GameScreen() {
         );
     };
 
-    // Handle rule selection for Up/Down actions
-    const handleUpDownRuleSelect = (ruleId: string) => {
-        if (!gameState?.players || upDownAction === null) return;
-        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
-        if (!currentPlayer) return;
-        const rule = gameState.rules.find(r => r.id === ruleId);
-        if (!rule) return;
-        // Find the target player (above or below)
-        const playerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
-        let targetPlayerIndex: number;
-        if (upDownAction === 'up') {
-            targetPlayerIndex = playerIndex - 1;
-            while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
-                targetPlayerIndex--;
-            }
-            if (targetPlayerIndex < 0) {
-                targetPlayerIndex = gameState.players.length - 1;
-                while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
-                    targetPlayerIndex--;
-                }
-            }
-        } else {
-            targetPlayerIndex = playerIndex + 1;
-            while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
-                targetPlayerIndex++;
-            }
-            if (targetPlayerIndex >= gameState.players.length) {
-                targetPlayerIndex = 0;
-                while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
-                    targetPlayerIndex++;
-                }
-            }
-        }
-        if (targetPlayerIndex < 0 || targetPlayerIndex >= gameState.players.length) return;
-        const targetPlayer = gameState.players[targetPlayerIndex];
-        assignRule(ruleId, targetPlayer.id);
-        setTransferredRuleIds(prev => [...prev, ruleId]);
-        let nextPlayerIndex = upDownCurrentPlayerIndex + 1;
-        if (nextPlayerIndex < upDownPlayerOrder.length) {
-            setUpDownCurrentPlayerIndex(nextPlayerIndex);
-        } else {
-            const actionName = upDownAction === 'up' ? 'Up' : 'Down';
-            Alert.alert(`${actionName} Action Complete`, `All players have passed their rules ${upDownAction}.`);
-            setUpDownAction(null);
-            setUpDownCurrentPlayerIndex(0);
-            setTransferredRuleIds([]);
-            setUpDownPlayerOrder([]);
-            if (currentUser) setPlayerModal(currentUser.id, undefined);
 
-            // Broadcast navigation to game room for all players and host
-            socketService.broadcastNavigateToScreen('Game');
+    const getPlayerToPassTo = (player: Player, direction: 'up' | 'down') => {
+        if (!gameState?.players) return;
+
+        const sourceIndex = gameState.players.findIndex(p => p.id === player.id);
+        if (sourceIndex === -1) return;
+
+        let targetIndex: number;
+        if (direction === 'up') {
+            targetIndex = sourceIndex - 1;
+            while (targetIndex >= 0 && gameState.players[targetIndex].isHost) {
+                targetIndex--;
+            }
+            if (targetIndex < 0) {
+                targetIndex = gameState.players.length - 1;
+                while (targetIndex >= 0 && gameState.players[targetIndex].isHost) {
+                    targetIndex--;
+                }
+            }
+        } else {
+            targetIndex = sourceIndex + 1;
+            while (targetIndex < gameState.players.length && gameState.players[targetIndex].isHost) {
+                targetIndex++;
+            }
+            if (targetIndex >= gameState.players.length) {
+                targetIndex = 0;
+                while (targetIndex < gameState.players.length && gameState.players[targetIndex].isHost) {
+                    targetIndex++;
+                }
+            }
         }
+
+        if (targetIndex >= 0 && targetIndex < gameState.players.length) {
+            console.log('targetIndex', targetIndex);
+            return gameState.players[targetIndex];
+        }
+        return player; // fallback to self if no valid target found
+    }
+
+    // Handle Up/Down workflow using socket-based approach
+    const handleInitiateUpDown = (direction: 'up' | 'down') => {
+        if (!gameState?.players || !currentUser) return;
+
+        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+        if (nonHostPlayers.length < 2) {
+            Alert.alert('Not Enough Players', `Need at least 2 non-host players for ${direction} action.`);
+            return;
+        }
+
+        // Check if any players have rules to pass
+        const playersWithRules = nonHostPlayers.filter(player => {
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+            return playerRules.length > 0;
+        });
+
+        if (playersWithRules.length === 0) {
+            Alert.alert('No Rules to Pass', `No players have rules to pass ${direction}.`);
+            return;
+        }
+
+        // Create up/down details and trigger the workflow
+        const upDownDetails = {
+            direction,
+            playersWithRules,
+            selectedRules: {},
+            isComplete: false
+        };
+
+        updateActiveUpDownDetails(upDownDetails);
+        setShowHostActionModal(false);
+    };
+
+    // Handle rule selection for up/down workflow
+    const handleUpDownRuleSelect = (rule: Rule) => {
+        if (!gameState?.activeUpDownRuleDetails) return;
+
+        const updatedDetails = {
+            ...gameState.activeUpDownRuleDetails,
+            selectedRules: {
+                ...gameState.activeUpDownRuleDetails.selectedRules,
+                [currentUser!.id]: rule
+            }
+        };
+
+        updateActiveUpDownDetails(updatedDetails);
+    };
+
+    const handleUpDownConfirmation = () => {
+        if (!gameState?.activeUpDownRuleDetails) return;
+        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+        nonHostPlayers.forEach(player => {
+            const selectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[player.id];
+            const playerToPassTo = getPlayerToPassTo(player, gameState?.activeUpDownRuleDetails?.direction || 'up');
+            console.log('givenPlayer', player);
+            console.log('playerToPassTo', playerToPassTo);
+            if (selectedRule === undefined) {
+                Alert.alert('Not All Players Selected', `Player ${player.name} has not selected a rule to pass.`);
+                return;
+            } else {
+                assignRule(selectedRule.id, playerToPassTo?.id || player.id);
+            }
+        });
+        endUpDownRule();
     };
 
     // Handle Swap action - make selected player swap rules with another player
@@ -787,10 +830,10 @@ export default function GameScreen() {
                 />
 
                 {/* Wait For Rule Selection Modal */}
-                <WaitForRuleSelectionModal
+                <SimpleModal
                     visible={currentModal === 'WaitForRuleSelection'}
-                    accuser={gameState?.activeAccusationDetails?.accuser || null}
-                    accused={gameState?.activeAccusationDetails?.accused || null}
+                    title={`Accusation Accepted!`}
+                    description={`Waiting for ${gameState?.activeAccusationDetails?.accuser.name} to select a rule to give to ${gameState?.activeAccusationDetails?.accused.name}...`}
                 />
 
                 {/* Host Action Modals */}
@@ -802,8 +845,8 @@ export default function GameScreen() {
                     onCloneRule={handleInitiateClone}
                     onFlipRule={handleInitiateFlip}
                     onSwapAction={handleInitiateSwap}
-                    onUpAction={handleUpAction}
-                    onDownAction={handleDownAction}
+                    onUpAction={() => handleInitiateUpDown('up')}
+                    onDownAction={() => handleInitiateUpDown('down')}
                     onClose={() => setShowHostActionModal(false)}
                 />
 
@@ -1044,140 +1087,25 @@ export default function GameScreen() {
                     acceptButtonDisplayed={currentUser?.id === gameState?.activeSwapRuleDetails?.swappee?.id || currentUser?.isHost}
                 />
 
-                {/* Up Rule Modal */}
-                {/* <RuleSelectionModal
-                    visible={showUpRuleModal}
-                    title={`Which rule would you like to send to ${(() => {
-                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
-                        if (!currentPlayer) return '';
-                        const playerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
-                        let targetPlayerIndex = playerIndex - 1;
-                        while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
-                            targetPlayerIndex--;
-                        }
-                        if (targetPlayerIndex < 0) {
-                            targetPlayerIndex = gameState.players.length - 1;
-                            while (targetPlayerIndex >= 0 && gameState.players[targetPlayerIndex].isHost) {
-                                targetPlayerIndex--;
-                            }
-                        }
-                        return gameState.players[targetPlayerIndex]?.name || '';
-                    })()}?`}
-                    description={`${(() => {
-                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
-                        return currentPlayer?.name || '';
-                    })()}'s rules:`}
-                    rules={(() => {
-                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
-                        if (!currentPlayer) return [];
-                        return gameState.rules.filter(rule =>
-                            rule.assignedTo?.id === currentPlayer.id &&
-                            rule.isActive &&
-                            !transferredRuleIds.includes(rule.id)
-                        );
-                    })()}
-                    onSelectRule={handleUpDownRuleSelect}
-                    onClose={() => {
-                        setShowUpRuleModal(false);
-                        setUpDownAction(null);
-                        setUpDownCurrentPlayerIndex(0);
-                        setTransferredRuleIds([]);
-                        setUpDownPlayerOrder([]);
-                    }}
-                /> */}
+                {/* Up/Down Simultaneous Selection Modal */}
+                <RuleSelectionModal
+                    visible={currentModal === 'UpDownRuleSelection'}
+                    title={`PASS RULES`}
+                    description={`Choose a rule to pass to ${getPlayerToPassTo(currentUser!, gameState?.activeUpDownRuleDetails?.direction || 'up')?.name || 'your neighbor'}...`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === currentUser?.id) || []}
+                    onAccept={handleUpDownRuleSelect}
+                    onClose={endUpDownRule}
+                />
 
-                {/* Down Rule Modal */}
-                {/* <RuleSelectionModal
-                    visible={showDownRuleModal}
-                    title={`Which rule would you like to send to ${(() => {
-                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
-                        if (!currentPlayer) return '';
-                        const playerIndex = gameState.players.findIndex(p => p.id === currentPlayer.id);
-                        let targetPlayerIndex = playerIndex + 1;
-                        while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
-                            targetPlayerIndex++;
-                        }
-                        if (targetPlayerIndex >= gameState.players.length) {
-                            targetPlayerIndex = 0;
-                            while (targetPlayerIndex < gameState.players.length && gameState.players[targetPlayerIndex].isHost) {
-                                targetPlayerIndex++;
-                            }
-                        }
-                        return gameState.players[targetPlayerIndex]?.name || '';
-                    })()}?`}
-                    description={`${(() => {
-                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
-                        return currentPlayer?.name || '';
-                    })()}'s rules:`}
-                    rules={(() => {
-                        const currentPlayer = upDownPlayerOrder[upDownCurrentPlayerIndex];
-                        if (!currentPlayer) return [];
-                        return gameState.rules.filter(rule =>
-                            rule.assignedTo?.id === currentPlayer.id &&
-                            rule.isActive &&
-                            !transferredRuleIds.includes(rule.id)
-                        );
-                    })()}
-                    onSelectRule={handleUpDownRuleSelect}
-                    onClose={() => {
-                        setShowDownRuleModal(false);
-                        setUpDownAction(null);
-                        setUpDownCurrentPlayerIndex(0);
-                        setTransferredRuleIds([]);
-                        setUpDownPlayerOrder([]);
-                    }}
-                /> */}
-
-                {/* Swapper Rule Selection Modal */}
-                {/* <RuleSelectionModal
-                    visible={showSwapOwnRuleModal}
-                    title={`Select ${selectedPlayerForAction?.name}'s Rule to Swap`}
-                    description={`Choose one of ${selectedPlayerForAction?.name}'s rules to swap:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo?.id === selectedPlayerForAction?.id && rule.isActive) || []}
-                    onSelectRule={handleSwapOwnRuleSelect}
-                    onClose={() => {
-                        setShowSwapOwnRuleModal(false);
-                        setSwapOwnRule(null);
-                        setSelectedPlayerForAction(null);
-                    }}
-                /> */}
-
-                {/* Swapee Selection Modal */}
-                {/* <PlayerSelectionModal
-                    visible={showSwapPlayerModal}
-                    title="Select Player to Swap With"
-                    description={`Choose a player to swap rules with ${selectedPlayerForAction?.name}:`}
-                    players={gameState?.players.filter(player =>
-                        !player.isHost &&
-                        player.id !== selectedPlayerForAction?.id &&
-                        gameState.rules.filter(rule => rule.assignedTo?.id === player.id && rule.isActive).length > 0
-                    ) || []}
-                    onSelectPlayer={handleSwapPlayerSelect}
-                    onClose={() => {
-                        setShowSwapPlayerModal(false);
-                        setSwapOwnRule(null);
-                        setSelectedPlayerForAction(null);
-                    }}
-                /> */}
-
-                {/* Swapee Rule Selection Modal */}
-                {/* <RuleSelectionModal
-                    visible={showSwapTargetRuleModal}
-                    title={`Select ${swapTargetPlayer?.name}'s Rule to Swap`}
-                    description={`Choose one of ${swapTargetPlayer?.name}'s rules to swap with ${selectedPlayerForAction?.name}:`}
-                    rules={gameState?.rules.filter(rule =>
-                        rule.assignedTo?.id === swapTargetPlayer?.id &&
-                        rule.isActive &&
-                        rule.id !== swapOwnRule?.id
-                    ) || []}
-                    onSelectRule={handleSwapTargetRuleSelect}
-                    onClose={() => {
-                        setShowSwapTargetRuleModal(false);
-                        setSwapOwnRule(null);
-                        setSwapTargetPlayer(null);
-                        setSelectedPlayerForAction(null);
-                    }}
-                /> */}
+                {/* Await Up/Down Selection Modal */}
+                <SimpleModal
+                    visible={currentModal === 'AwaitUpDownSelection'}
+                    title={'PASS RULES'}
+                    description={`Waiting for all players to select their rules to pass ${gameState?.activeUpDownRuleDetails?.direction === 'up' ? 'up' : 'down'}...`}
+                    onAccept={handleUpDownConfirmation}
+                    acceptButtonDisplayed={currentUser?.isHost}
+                    acceptButtonDisabled={Object.values(gameState?.activeUpDownRuleDetails?.selectedRules || {}).length !== gameState?.players.filter(p => !p.isHost).length}
+                />
 
                 {/* Exit Game Modal */}
                 <ExitGameModal

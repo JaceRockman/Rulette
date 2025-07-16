@@ -67,6 +67,7 @@ export interface GameState {
     activeCloneRuleDetails?: ActiveCloneRuleDetails;
     activeFlipRuleDetails?: ActiveFlipRuleDetails;
     activeSwapRuleDetails?: ActiveSwapRuleDetails;
+    activeUpDownRuleDetails?: ActiveUpDownRuleDetails;
     isGameStarted: boolean;
     isWheelSpinning: boolean;
     currentStack: StackItem[];
@@ -120,4 +121,10 @@ export interface ActiveSwapRuleDetails {
     swapperRule?: Rule;
     swappee?: Player;
     swappeeRule?: Rule;
+}
+
+export interface ActiveUpDownRuleDetails {
+    direction: 'up' | 'down';
+    selectedRules: { [playerId: string]: Rule };
+    isComplete: boolean;
 }
