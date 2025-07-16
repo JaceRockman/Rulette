@@ -35,7 +35,7 @@ export default function AccusationJudgementModal({
                     <Text style={shared.modalDescription}>
                         {activeAccusationDetails.accuser.name} has accused {activeAccusationDetails.accused?.name} of breaking rule:
                     </Text>
-                    <Plaque text={activeAccusationDetails.rule.text} plaqueColor={activeAccusationDetails.rule.plaqueColor} />
+                    <Plaque plaque={activeAccusationDetails.rule} />
 
                     {currentUser?.isHost && (
                         <View style={shared.buttonContainer}>

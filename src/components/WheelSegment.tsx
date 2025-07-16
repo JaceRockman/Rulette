@@ -25,10 +25,10 @@ export default function WheelSegment({ currentPlaque, color }: WheelSegmentProps
 
     return (
         <View style={[styles.wheelSegment, { backgroundColor: color }]}>
-            <Plaque
+            {/* <Plaque
                 text={getLayerTypeText()}
                 plaqueColor={currentPlaqueColor}
-            />
+            /> */}
 
             {/* Peg at the top right */}
             <View style={styles.peg} />

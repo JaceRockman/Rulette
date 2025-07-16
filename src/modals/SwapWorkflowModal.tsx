@@ -179,8 +179,7 @@ export default function SwapWorkflowModal({
                                         onPress={() => handleOwnRuleSelect(rule)}
                                     >
                                         <Plaque
-                                            text={rule.text}
-                                            plaqueColor={rule.plaqueColor || '#fff'}
+                                            plaque={rule}
                                             style={styles.rulePlaque}
                                         />
                                     </TouchableOpacity>
@@ -218,8 +217,7 @@ export default function SwapWorkflowModal({
                                         onPress={() => handleTargetRuleSelect(rule)}
                                     >
                                         <Plaque
-                                            text={rule.text}
-                                            plaqueColor={rule.plaqueColor || '#fff'}
+                                            plaque={rule}
                                             style={styles.rulePlaque}
                                         />
                                     </TouchableOpacity>

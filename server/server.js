@@ -542,6 +542,41 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', game);
     });
 
+    // Initiate clone rule
+    socket.on('update_active_cloning_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeCloneRuleDetails = details;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Clone rule to player
+    socket.on('clone_rule_to_player', ({ gameId, ruleId, targetPlayerId, authorId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const ruleToClone = game.rules.find(r => r.id === ruleId);
+        if (!ruleToClone) return;
+
+        const clonedRule = {
+            ...ruleToClone,
+            id: Math.random().toString(36).substring(2, 15),
+            assignedTo: targetPlayerId,
+        };
+        game.rules.push(clonedRule);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End clone rule
+    socket.on('end_clone_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeCloneRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        setGlobalModal(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
+
     // Accusation
     socket.on('start_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
         const game = games.get(gameId);

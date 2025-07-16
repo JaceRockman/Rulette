@@ -1,26 +1,29 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '../shared/styles';
+import { Plaque as PlaqueType } from '../types/game';
 
 interface PlaqueProps {
-    text: string;
-    plaqueColor: string;
+    plaque?: PlaqueType;
+    concealed?: boolean;
     style?: any;
     onPress?: () => void;
     selected?: boolean;
 }
 
-export default function Plaque({ text, plaqueColor, style, onPress, selected }: PlaqueProps) {
+export default function Plaque({ plaque, concealed, style, onPress, selected }: PlaqueProps) {
+
+
     const PlaqueContent = (
         <View style={[
             styles.plaqueBack,
             onPress && styles.selectablePlaque,
             selected && styles.selectedPlaque,
-            { backgroundColor: plaqueColor },
+            { backgroundColor: plaque?.plaqueColor },
             style
         ]}>
             <Text style={styles.plaqueText} numberOfLines={3}>
-                {text}
+                {concealed ? plaque?.type.toUpperCase() : plaque?.text}
             </Text>
         </View>
     );

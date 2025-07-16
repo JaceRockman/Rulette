@@ -1,3 +1,4 @@
+export { default as SimpleModal } from './SimpleModal';
 export { default as RuleDetailsModal } from './RuleDetailsModal';
 export { default as AccusationJudgementModal } from './AccusationJudgementModal';
 export { default as HostActionModal } from './HostActionModal';
@@ -7,6 +8,7 @@ export { default as PlayerSelectionModal } from './PlayerSelectionModal';
 export { default as FlipTextInputModal } from './FlipTextInputModal';
 export { default as SwapModal } from './SwapModal';
 export { default as EndGameConfirmationModal } from './EndGameConfirmationModal';
+export { default as PromptListModal } from './PromptListModal';
 export { default as PromptPerformanceModal } from './PromptPerformanceModal';
 export { default as PromptResolutionModal } from './PromptResolutionModal';
 export { default as WaitForRuleSelectionModal } from './WaitForRuleSelectionModal';

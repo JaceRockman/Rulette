@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentLayer, Modifier, Plaque, ActiveAccusationDetails } from '../types/game';
+import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentLayer, Modifier, Plaque, ActiveAccusationDetails, ActiveCloneRuleDetails } from '../types/game';
 import socketService from '../services/socketService';
 import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../shared/styles';
 import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState } from '../../test/data';
@@ -33,10 +33,13 @@ interface GameContextType {
     endAccusation: () => void;
     acceptPrompt: () => void;
     endPrompt: () => void;
+    updateActiveCloningDetails: (details: ActiveCloneRuleDetails) => void;
+    endCloneRule: () => void;
+
     updatePoints: (playerId: string, points: number) => void;
     givePrompt: (playerId: string, promptId: string) => void;
     swapRules: (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => void;
-    cloneRuleToPlayer: (authorId: string, ruleId: string, targetPlayerId: string) => void;
+    cloneRuleToPlayer: (rule: Rule, targetPlayer: Player, authorId?: string) => void;
     shredRule: (ruleId: string) => void;
     assignRule: (ruleId: string, playerId: string) => void;
     removeWheelLayer: (segmentId: string) => void;
@@ -602,6 +605,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.givePrompt(playerId, promptId);
     };
 
+    const updateActiveCloningDetails = (details: ActiveCloneRuleDetails) => {
+        socketService.updateActiveCloningDetails(details);
+    };
+
+    const cloneRuleToPlayer = (rule: Rule, targetPlayer: Player, authorId?: string) => {
+        socketService.cloneRuleToPlayer(rule.id, targetPlayer.id, authorId);
+    };
+
     // const triggerCloneModifier = (modifierId: string, playerId: string) => {
     //     socketService.triggerCloneModifier(modifierId, playerId);
     // };
@@ -667,9 +678,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
 
 
-
-
-
+    const endCloneRule = () => {
+        socketService.endCloneRule();
+    };
 
     const swapRules = (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => {
         if (!gameState) return;
@@ -681,17 +692,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             // Send to backend via socket service
             socketService.swapRules(player1Id, player1RuleId, player2Id, player2RuleId);
         }
-    };
-
-    const cloneRuleToPlayer = (authorId: string = 'system', ruleId: string, targetPlayerId: string) => {
-        if (!gameState || !gameState.activePlayer) return;
-
-        const rule: Rule | undefined = gameState.rules.find((r: Rule) => r.id === ruleId);
-        if (!rule) return;
-
-        const newRule: Rule = { ...rule, id: Math.random().toString(36).substring(2, 15) };
-        addRule(authorId, newRule.text, newRule.plaqueColor);
-        socketService.assignRule(newRule.id, targetPlayerId);
     };
 
     const removeWheelLayer = (segmentId: string) => {
@@ -740,6 +740,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
             acceptPrompt,
             endPrompt,
+
+            updateActiveCloningDetails,
+            endCloneRule,
+
             updatePoints,
             givePrompt,
             swapRules,

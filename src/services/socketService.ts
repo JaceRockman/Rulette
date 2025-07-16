@@ -1,5 +1,5 @@
 import io, { Socket } from 'socket.io-client';
-import { ActiveAccusationDetails, GameState, Plaque, Player, Prompt, Rule } from '../types/game';
+import { ActiveAccusationDetails, ActiveCloneRuleDetails, GameState, Plaque, Player, Prompt, Rule } from '../types/game';
 
 const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
 
@@ -313,6 +313,34 @@ class SocketService {
             ruleId
         });
     }
+
+    updateActiveCloningDetails(details: ActiveCloneRuleDetails) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_cloning_details', {
+            gameId: this.gameState.id,
+            details
+        });
+    }
+
+    cloneRuleToPlayer(ruleId: string, targetPlayerId: string, authorId?: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('clone_rule_to_player', {
+            gameId: this.gameState.id,
+            ruleId,
+            targetPlayerId,
+            authorId
+        });
+    }
+
+    endCloneRule() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_clone_rule', {
+            gameId: this.gameState.id
+        });
+    }
+
+
+
 
     swapRules(player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) {
         if (!this.socket || !this.gameState) return;

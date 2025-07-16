@@ -107,8 +107,7 @@ export default function FlipWorkflowModal({
                                         onPress={() => handleRuleSelect(rule)}
                                     >
                                         <Plaque
-                                            text={rule.text}
-                                            plaqueColor={rule.plaqueColor || '#fff'}
+                                            plaque={rule}
                                             style={styles.rulePlaque}
                                         />
                                     </TouchableOpacity>

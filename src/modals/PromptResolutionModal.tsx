@@ -47,7 +47,7 @@ export default function PromptResolutionModal({
             <View style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
                     <Text style={shared.modalTitle}>Prompt Succeeded!</Text>
-                    <Plaque text={prompt?.text || ''} plaqueColor={prompt?.plaqueColor || colors.gameChangerWhite} />
+                    <Plaque plaque={prompt as PlaqueType} />
 
                     {isPromptedPlayer && (
                         <View>

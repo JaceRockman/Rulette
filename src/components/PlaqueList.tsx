@@ -17,15 +17,13 @@ export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: Pl
         const row = (
             <View key={i} style={styles.plaqueList}>
                 <Plaque
-                    text={plaques[i].text}
-                    plaqueColor={plaques[i].plaqueColor || '#fff'}
+                    plaque={plaques[i]}
                     onPress={() => onPress(plaques[i])}
                     selected={selectedPlaque?.id === plaques[i].id}
                 />
                 {hasSecondItem && (
                     <Plaque
-                        text={plaques[i + 1].text}
-                        plaqueColor={plaques[i + 1].plaqueColor || '#fff'}
+                        plaque={plaques[i + 1]}
                         onPress={() => onPress(plaques[i + 1])}
                         selected={selectedPlaque?.id === plaques[i + 1].id}
                     />

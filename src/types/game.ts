@@ -62,8 +62,11 @@ export interface GameState {
     wheelSegments: WheelSegment[];
     currentUser?: string; // The user ID of the person currently using the app
     activePlayer?: string; // The player ID of the player currently taking their turn (excludes host)
-    activePromptDetails?: ActivePromptDetails;
     activeAccusationDetails?: ActiveAccusationDetails;
+    activePromptDetails?: ActivePromptDetails;
+    activeCloneRuleDetails?: ActiveCloneRuleDetails;
+    activeFlipRuleDetails?: ActiveFlipRuleDetails;
+    activeSwapRuleDetails?: ActiveSwapRuleDetails;
     isGameStarted: boolean;
     isWheelSpinning: boolean;
     currentStack: StackItem[];
@@ -98,4 +101,23 @@ export interface ActivePromptDetails {
     selectedPrompt: Prompt;
     selectedPlayer: Player;
     isPromptAccepted?: boolean;
+}
+
+export interface ActiveCloneRuleDetails {
+    cloningPlayer: Player;
+    ruleToClone?: Rule;
+    targetPlayer?: Player;
+    cloningCompleted?: boolean;
+}
+
+export interface ActiveFlipRuleDetails {
+    flippingPlayer: Player;
+    ruleToFlip?: Rule;
+}
+
+export interface ActiveSwapRuleDetails {
+    swapper: Player;
+    swapperRule?: Rule;
+    swappee?: Player;
+    swappeeRule?: Rule;
 }

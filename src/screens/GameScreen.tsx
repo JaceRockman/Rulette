@@ -12,9 +12,10 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import { ActiveAccusationDetails, Plaque, Player, Prompt, Rule } from '../types/game';
-import { Backdrop, OutlinedText, ScoreDisplay, PrimaryButton, SecondaryButton, WheelSegment, render2ColumnPlaqueList } from '../components';
+import { ActiveAccusationDetails, Plaque as PlaqueType, Player, Prompt, Rule } from '../types/game';
+import { Backdrop, OutlinedText, ScoreDisplay, PrimaryButton, Plaque, render2ColumnPlaqueList } from '../components';
 import {
+    SimpleModal,
     RuleDetailsModal,
     AccusationJudgementModal,
     HostActionModal,
@@ -23,33 +24,27 @@ import {
     PromptPerformanceModal,
     PromptResolutionModal,
     WaitForRuleSelectionModal,
+    RuleSelectionModal,
+    PlayerSelectionModal,
+    PromptListModal,
 } from '../modals';
-import RuleSelectionModal from '../modals/RuleSelectionModal';
-import PlayerSelectionModal from '../modals/PlayerSelectionModal';
 import socketService from '../services/socketService';
 import shared from '../shared/styles';
-import PromptListModal from '../modals/PromptListModal';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, getAssignedRulesByPlayer, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal } = useGame();
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, getAssignedRulesByPlayer, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal, updateActiveCloningDetails, endCloneRule, cloneRuleToPlayer } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
 
-
-
     const [selectedPlayerForAction, setSelectedPlayerForAction] = useState<Player | null>(null);
     const [showHostActionModal, setShowHostActionModal] = useState(false);
-    const [showPromptSelectionModal, setShowPromptSelectionModal] = useState(false);
     const [showGiveRuleModal, setShowGiveRuleModal] = useState(false);
-    const [accusationTarget, setAccusationTarget] = useState<Player | null>(null);
     const [swapTargetPlayer, setSwapTargetPlayer] = useState<Player | null>(null);
     const [swapOwnRule, setSwapOwnRule] = useState<Rule | null>(null);
-    const [cloneSelectedRule, setCloneSelectedRule] = useState<Rule | null>(null);
-    const [flipSelectedRule, setFlipSelectedRule] = useState<Rule | null>(null);
     const [upDownCurrentPlayerIndex, setUpDownCurrentPlayerIndex] = useState(0);
     const [upDownAction, setUpDownAction] = useState<'up' | 'down' | null>(null);
     const [transferredRuleIds, setTransferredRuleIds] = useState<string[]>([]);
@@ -69,6 +64,34 @@ export default function GameScreen() {
         console.log('modalState', playerModal, globalModal);
         setCurrentModal(playerModal || globalModal);
     }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal, gameState?.globalModal]);
+
+    React.useEffect(() => {
+        console.log('activeCloneRuleDetails', gameState?.activeCloneRuleDetails);
+        if (!gameState) return;
+        if (gameState?.activeCloneRuleDetails === undefined || gameState?.activeCloneRuleDetails?.cloningCompleted) {
+            setCurrentModal(undefined);
+            gameState.globalModal = undefined;
+            return;
+        }
+        const currentPlayerIsCloning = gameState?.activeCloneRuleDetails?.cloningPlayer.id === currentUser?.id;
+        if (currentPlayerIsCloning) {
+            if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
+                setCurrentModal('CloneActionRuleSelection');
+            } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
+                setCurrentModal('CloneActionTargetSelection');
+            } else {
+                setCurrentModal('CloneActionResolution');
+            }
+        } else {
+            if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
+                setCurrentModal('AwaitCloneRuleSelection');
+            } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
+                setCurrentModal('AwaitCloneTargetSelection');
+            } else {
+                setCurrentModal('CloneActionResolution');
+            }
+        }
+    }, [gameState?.activeCloneRuleDetails]);
 
     const handleUpdatePoints = (playerId: string, currentPoints: number, change: number) => {
         const newPoints = Math.max(0, Math.min(99, currentPoints + change));
@@ -149,13 +172,16 @@ export default function GameScreen() {
 
 
 
-    const handleCloneAction = () => {
+    const handleInitiateClone = () => {
         if (selectedPlayerForAction && gameState) {
             // Check if player has rules to clone
             const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
             if (playerRules.length > 0) {
                 setShowHostActionModal(false);
-                if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
+                updateActiveCloningDetails({
+                    cloningPlayer: selectedPlayerForAction,
+                });
+                if (currentUser) setPlayerModal(currentUser.id, 'AwaitCloneRuleSelection');
             } else {
                 Alert.alert('No Rules to Clone', `${selectedPlayerForAction.name} has no assigned rules to clone.`);
                 setShowHostActionModal(false);
@@ -164,61 +190,31 @@ export default function GameScreen() {
         }
     };
 
-    const handleCloneRuleSelect = (ruleId: string) => {
-        if (!selectedPlayerForAction || !gameState) return;
-
-        const rule = gameState.rules.find(r => r.id === ruleId);
-        if (!rule) return;
-
-        setCloneSelectedRule(rule);
-        if (currentUser) setPlayerModal(currentUser.id, undefined);
-
-        // Show player selection modal for the target player
-        const otherPlayers = gameState.players.filter(player =>
-            player.id !== selectedPlayerForAction.id
-        );
-        if (otherPlayers.length === 0) {
-            Alert.alert('No Target Players', 'No other players available for cloning.');
-            setCloneSelectedRule(null);
-            setSelectedPlayerForAction(null);
-            return;
-        }
-
-        if (currentUser) setPlayerModal(currentUser.id, 'ClonePlayerSelection');
+    const confirmRuleForCloning = (rule: Rule) => {
+        if (!gameState) return;
+        updateActiveCloningDetails({
+            ...gameState.activeCloneRuleDetails!,
+            ruleToClone: rule
+        });
+        if (currentUser) setPlayerModal(currentUser.id, 'CloneActionTargetSelection');
     };
 
-    const handleCloneTargetSelect = (targetPlayer: Player) => {
-        if (!cloneSelectedRule || !selectedPlayerForAction) return;
-
-        // Create a new rule with the same properties but a new ID
-        const clonedRule = {
-            ...cloneSelectedRule,
-            id: Math.random().toString(36).substr(2, 9),
-            assignedTo: targetPlayer
-        };
-
-        Alert.alert('Clone Complete', `${selectedPlayerForAction.name} cloned their rule "${cloneSelectedRule.text}" to ${targetPlayer.name}`);
-
-        // Reset all clone state
-        setCloneSelectedRule(null);
-        setSelectedPlayerForAction(null);
-        if (currentUser) setPlayerModal(currentUser.id, undefined);
-
-        // Broadcast navigation to game room for all players and host
-        socketService.broadcastNavigateToScreen('Game');
+    const deselectRuleForCloning = () => {
+        if (!gameState) return;
+        updateActiveCloningDetails({
+            ...gameState.activeCloneRuleDetails!,
+            ruleToClone: undefined
+        });
     };
 
-
-
-    const handleSuccessfulAccusationAction = () => {
-        if (selectedPlayerForAction && gameState) {
-            // Give points first
-            handleUpdatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points, 1);
-
-            // Show target selection modal
-            setShowHostActionModal(false);
-            if (currentUser) setPlayerModal(currentUser.id, 'AccusationTargetSelection');
-        }
+    const confirmTargetForCloning = (player: Player) => {
+        if (!gameState) return;
+        updateActiveCloningDetails({
+            ...gameState.activeCloneRuleDetails!,
+            targetPlayer: player
+        });
+        cloneRuleToPlayer(gameState.activeCloneRuleDetails!.ruleToClone!, player);
+        if (currentUser) setPlayerModal(currentUser.id, 'CloneActionResolution');
     };
 
     const handleFlipAction = () => {
@@ -236,38 +232,6 @@ export default function GameScreen() {
         }
     };
 
-    const handleFlipRuleSelect = (ruleId: string) => {
-        if (!selectedPlayerForAction || !gameState) return;
-
-        const rule = gameState.rules.find(r => r.id === ruleId);
-        if (!rule) return;
-
-        setFlipSelectedRule(rule);
-        if (currentUser) setPlayerModal(currentUser.id, undefined);
-    };
-
-    const handleFlipTextSubmit = (flippedText: string) => {
-        if (!flipSelectedRule || !selectedPlayerForAction) {
-            Alert.alert('Error', 'No rule selected for flipping.');
-            return;
-        }
-
-        // Update the rule text with the flipped version
-        dispatch({
-            type: 'UPDATE_RULE',
-            payload: { ...flipSelectedRule, text: flippedText }
-        });
-
-        Alert.alert('Flip Complete', `Flipped rule for ${selectedPlayerForAction.name}: "${flippedText}"`);
-
-        // Reset all flip state
-        setFlipSelectedRule(null);
-        setSelectedPlayerForAction(null);
-
-        // Broadcast navigation to game room for all players and host
-        socketService.broadcastNavigateToScreen('Game');
-    };
-
     const handleGiveRuleAction = () => {
         if (selectedPlayerForAction && gameState) {
             // Check if there are unassigned rules available
@@ -281,67 +245,6 @@ export default function GameScreen() {
                 setShowHostActionModal(false);
                 setSelectedPlayerForAction(null);
             }
-        }
-    };
-
-
-
-    const handleAccusationTargetSelect = (targetPlayer: Player) => {
-        setAccusationTarget(targetPlayer);
-        if (currentUser) setPlayerModal(currentUser.id, undefined);
-
-        // Check if the accusing player has any rules to give
-        if (selectedPlayerForAction && gameState) {
-            const accuserRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-
-            if (accuserRules.length > 0) {
-                // Show rule selection modal
-                if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
-            } else {
-                // Use shared logic for completing accusation without rules
-                completeAccusationWithoutRules(selectedPlayerForAction, targetPlayer);
-                setSelectedPlayerForAction(null);
-                setAccusationTarget(null);
-            }
-        }
-    };
-
-    // Shared function to handle accusation completion when accuser has no rules
-    const completeAccusationWithoutRules = (accuser: Player, accused: Player, ruleText?: string) => {
-        // Give point to accuser
-        handleUpdatePoints(accuser.id, accuser.points, 1);
-        // Take point from accused
-        handleUpdatePoints(accused.id, accused.points, -1);
-
-        const ruleContext = ruleText ? ` of breaking the rule: "${ruleText}"` : '';
-        Alert.alert(
-            'Accusation Complete',
-            `${accuser.name} successfully accused ${accused.name}${ruleContext}!\n\n${accuser.name} has no rules to give.`
-        );
-
-        // Broadcast navigation to game room for all players and host
-        socketService.broadcastNavigateToScreen('Game');
-    };
-
-    const handleAccusationRuleSelect = (ruleId: string) => {
-        if (selectedPlayerForAction && accusationTarget && gameState) {
-            const rule = gameState.rules.find(r => r.id === ruleId);
-            if (rule) {
-                // Give point to accuser
-                handleUpdatePoints(selectedPlayerForAction.id, selectedPlayerForAction.points, 1);
-                // Take point from accused
-                handleUpdatePoints(accusationTarget.id, accusationTarget.points, -1);
-
-                // Assign the rule to the accusation target via socket service
-                assignRule(ruleId, accusationTarget.id);
-                Alert.alert('Accusation Complete', `${selectedPlayerForAction.name} successfully accused ${accusationTarget.name} and gave them the rule "${rule.text}"`);
-            }
-            if (currentUser) setPlayerModal(currentUser.id, undefined);
-            setSelectedPlayerForAction(null);
-            setAccusationTarget(null);
-
-            // Broadcast navigation to game room for all players and host
-            socketService.broadcastNavigateToScreen('Game');
         }
     };
 
@@ -653,7 +556,7 @@ export default function GameScreen() {
                 <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
                 {render2ColumnPlaqueList({
                     plaques: playerRules,
-                    onPress: (plaque: Plaque) => handleRuleTap(plaque as Rule),
+                    onPress: (plaque: PlaqueType) => handleRuleTap(plaque as Rule),
                 })}
             </View>
         ) : null;
@@ -844,7 +747,7 @@ export default function GameScreen() {
                     selectedPlayerForAction={selectedPlayerForAction}
                     onGiveRule={handleGiveRuleAction}
                     onGivePrompt={handleGivePromptAction}
-                    onCloneRule={handleCloneAction}
+                    onCloneRule={handleInitiateClone}
                     onFlipRule={handleFlipAction}
                     onUpAction={handleUpAction}
                     onDownAction={handleDownAction}
@@ -852,6 +755,7 @@ export default function GameScreen() {
                     onClose={() => setShowHostActionModal(false)}
                 />
 
+                {/* Rule Modals */}
                 {/* Host Give Rule Modal */}
                 <RuleSelectionModal
                     visible={showGiveRuleModal}
@@ -865,6 +769,7 @@ export default function GameScreen() {
                     }}
                 />
 
+                {/* Prompt Modals */}
                 {/* Host Prompt Selection Modal */}
                 <PromptListModal
                     visible={currentModal === 'GivePrompt'}
@@ -906,6 +811,68 @@ export default function GameScreen() {
                     }}
                 />
 
+                {/* Clone Rule Modals */}
+                {/* Clone Action Selection Modal */}
+                <RuleSelectionModal
+                    visible={currentModal === 'CloneActionRuleSelection'}
+                    title={`Select a Rule to Clone`}
+                    description={`Choose one of your rules to clone:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeCloneRuleDetails?.cloningPlayer.id && rule.isActive) || []}
+                    onAccept={confirmRuleForCloning}
+                    onClose={endCloneRule}
+                />
+
+                {/* Clone Target Selection Modal */}
+                <PlayerSelectionModal
+                    visible={currentModal === 'CloneActionTargetSelection'}
+                    title={`Select Recipient`}
+                    description={`Choose a player to give the copied rule to:`}
+                    players={gameState?.players.filter(player => {
+                        return player.id !== gameState?.activeCloneRuleDetails?.cloningPlayer.id
+                            && !player.isHost
+                    }) || []}
+                    onSelectPlayer={confirmTargetForCloning}
+                    onClose={deselectRuleForCloning}
+                    cancelButtonText="Back"
+                />
+
+                {/* Await Clone Rule Selection Modal */}
+                <SimpleModal
+                    visible={currentModal === 'AwaitCloneRuleSelection'}
+                    title={'Clone Rule'}
+                    description={`Waiting for ${gameState?.activeCloneRuleDetails?.cloningPlayer.name} to select a rule to clone...`}
+                />
+
+                {/* Await Clone Target Selection Modal */}
+                <SimpleModal
+                    visible={currentModal === 'AwaitCloneTargetSelection'}
+                    title={'Clone Rule'}
+                    description={`Waiting for ${gameState?.activeCloneRuleDetails?.cloningPlayer.name} to select a recipient for the copied rule...`}
+                    content={
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                            <Plaque
+                                plaque={gameState?.activeCloneRuleDetails?.ruleToClone!}
+                            />
+                        </View>
+                    }
+                />
+
+                {/* Clone Action Resolution Modal */}
+                <SimpleModal
+                    visible={currentModal === 'CloneActionResolution'}
+                    title={'Clone Rule'}
+                    description={`${gameState?.activeCloneRuleDetails?.cloningPlayer.name} has cloned the following rule and given it to ${gameState?.activeCloneRuleDetails?.targetPlayer?.name}!`}
+                    content={
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                            <Plaque
+                                plaque={gameState?.activeCloneRuleDetails?.ruleToClone!}
+                            />
+                        </View>
+                    }
+                    onAccept={endCloneRule}
+                    acceptButtonText="Ok"
+                    acceptButtonDisplayed={currentUser?.id === gameState?.activeCloneRuleDetails?.targetPlayer?.id}
+                />
 
 
 
