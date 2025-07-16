@@ -1,5 +1,5 @@
 import io, { Socket } from 'socket.io-client';
-import { ActiveAccusationDetails, ActiveCloneRuleDetails, GameState, Plaque, Player, Prompt, Rule } from '../types/game';
+import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails, GameState, Plaque, Player, Prompt, Rule } from '../types/game';
 
 const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
 
@@ -141,6 +141,8 @@ class SocketService {
         this.socket.emit('join_lobby', { lobbyCode, playerName });
     }
 
+
+
     markRulesCompletedForUser(userId: string) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('rules_completed', { gameId: this.gameState.id, playerId: userId });
@@ -186,6 +188,15 @@ class SocketService {
     startGame(settings?: { numRules?: number; numPrompts?: number; startingPoints?: number }) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('start_game', { gameId: this.gameState.id, settings });
+    }
+
+    assignRule(ruleId: string, playerId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('assign_rule', {
+            gameId: this.gameState.id,
+            ruleId,
+            playerId
+        });
     }
 
     broadcastSynchronizedWheelSpin(finalIndex: number, scrollAmount: number, duration: number) {
@@ -340,7 +351,38 @@ class SocketService {
     }
 
 
+    updateActiveFlippingDetails(details: ActiveFlipRuleDetails) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_flipping_details', {
+            gameId: this.gameState.id,
+            details
+        });
+    }
 
+    endFlipRule() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_flip_rule', {
+            gameId: this.gameState.id
+        });
+    }
+
+
+
+    triggerSwapModifier(player: Player, modifierId?: string) {
+        if (!this.socket || !this.gameState) return;
+        const details: ActiveSwapRuleDetails = {
+            swapper: player,
+        }
+        this.updateActiveSwappingDetails(details);
+    }
+
+    updateActiveSwappingDetails(details: ActiveSwapRuleDetails) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_swapping_details', {
+            gameId: this.gameState.id,
+            details
+        });
+    }
 
     swapRules(player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) {
         if (!this.socket || !this.gameState) return;
@@ -353,14 +395,24 @@ class SocketService {
         });
     }
 
-    assignRule(ruleId: string, playerId: string) {
+    endSwapRule() {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('assign_rule', {
-            gameId: this.gameState.id,
-            ruleId,
-            playerId
+        this.socket.emit('end_swap_rule', {
+            gameId: this.gameState.id
         });
     }
+
+
+    triggerUpDownModifier(direction: 'up' | 'down') {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('trigger_up_down_modifier', {
+            gameId: this.gameState.id,
+            direction
+        });
+    }
+
+
+
 
     removeWheelLayer(segmentId: string) {
         if (!this.socket || !this.gameState) return;

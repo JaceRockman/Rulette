@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentLayer, Modifier, Plaque, ActiveAccusationDetails, ActiveCloneRuleDetails } from '../types/game';
+import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, WheelSegmentLayer, Modifier, Plaque, ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails } from '../types/game';
 import socketService from '../services/socketService';
 import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../shared/styles';
 import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState } from '../../test/data';
@@ -15,38 +15,59 @@ interface GameContextType {
     currentUser: Player | null;
     activePlayer: Player | null;
     showExitGameModal: boolean;
-    setShowExitGameModal: (show: boolean) => void;
-    getBalancedColor: (plaqueType: 'rule' | 'prompt') => string;
     dispatch: React.Dispatch<GameAction>;
+
+    getNonHostPlayers: () => Player[] | null | undefined;
+    getHostPlayer: () => Player | null | undefined;
+
+    setShowExitGameModal: (show: boolean) => void;
+    setPlayerModal: (playerId: string, modalName?: string) => void;
+    getBalancedColor: (plaqueType: 'rule' | 'prompt') => string;
+
     getRulesByAuthor: (authorId: string) => Rule[];
     getPromptsByAuthor: (authorId: string) => Prompt[];
     getAssignedRulesByPlayer: (playerId: string) => Rule[];
-    getNonHostPlayers: () => Player[] | null | undefined;
-    getHostPlayer: () => Player | null | undefined;
+    markRulesCompletedForUser: (userId: string) => void;
+    markPromptsCompletedForUser: (userId: string) => void;
+
     addRule: (authorId: string, text: string, plaqueColor: string) => void;
     addPrompt: (authorId: string, text: string, plaqueColor: string) => void;
     updateRule: (id: string, text: string) => void;
     updatePrompt: (id: string, text: string) => void;
+    assignRule: (ruleId: string, playerId: string) => void;
+
     synchronizedSpinWheel: (finalIndex: number, duration: number) => void;
+    removeWheelLayer: (segmentId: string) => void;
+
+    updatePoints: (playerId: string, points: number) => void;
+
     initiateAccusation: (accusationDetails: ActiveAccusationDetails) => void;
     acceptAccusation: () => void;
     endAccusation: () => void;
+
+    givePrompt: (playerId: string, promptId: string) => void;
     acceptPrompt: () => void;
+    shredRule: (ruleId: string) => void;
     endPrompt: () => void;
+
+    triggerCloneModifier: (player: Player, rule?: Rule, modifierId?: string) => void;
     updateActiveCloningDetails: (details: ActiveCloneRuleDetails) => void;
+    cloneRuleToPlayer: (rule: Rule, targetPlayer: Player, authorId?: string) => void;
     endCloneRule: () => void;
 
-    updatePoints: (playerId: string, points: number) => void;
-    givePrompt: (playerId: string, promptId: string) => void;
+    triggerFlipModifier: (player: Player, rule?: Rule, modifierId?: string) => void;
+    updateActiveFlippingDetails: (details: ActiveFlipRuleDetails) => void;
+    flipRule: (rule: Rule, flippedText: string) => void;
+    endFlipRule: () => void;
+
+    triggerSwapModifier: (player: Player, modifierId?: string) => void;
+    updateActiveSwappingDetails: (details: ActiveSwapRuleDetails) => void;
     swapRules: (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => void;
-    cloneRuleToPlayer: (rule: Rule, targetPlayer: Player, authorId?: string) => void;
-    shredRule: (ruleId: string) => void;
-    assignRule: (ruleId: string, playerId: string) => void;
-    removeWheelLayer: (segmentId: string) => void;
+    endSwapRule: () => void;
+
+    triggerUpDownModifier: (direction: 'up' | 'down', player: Player, modifierId?: string) => void;
+
     endGame: () => void;
-    markRulesCompletedForUser: (userId: string) => void;
-    markPromptsCompletedForUser: (userId: string) => void;
-    setPlayerModal: (playerId: string, modalName?: string) => void;
 }
 
 type GameAction =
@@ -613,25 +634,66 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.cloneRuleToPlayer(rule.id, targetPlayer.id, authorId);
     };
 
-    // const triggerCloneModifier = (modifierId: string, playerId: string) => {
-    //     socketService.triggerCloneModifier(modifierId, playerId);
-    // };
+    const triggerCloneModifier = (player: Player, rule?: Rule, modifierId?: string) => {
+        if (!gameState) return;
+        const details: ActiveCloneRuleDetails = {
+            cloningPlayer: player,
+            cloningCompleted: false,
+            ruleToClone: rule
+        }
+        updateActiveCloningDetails(details);
+    };
 
-    // const triggerSwapModifier = (modifierId: string, playerId: string) => {
-    //     socketService.triggerSwapModifier(modifierId, playerId);
-    // };
 
-    // const triggerFlipModifier = (modifierId: string, playerId: string) => {
-    //     socketService.triggerFlipModifier(modifierId, playerId);
-    // };
+    const updateActiveFlippingDetails = (details: ActiveFlipRuleDetails) => {
+        socketService.updateActiveFlippingDetails(details);
+    };
 
-    // const triggerUpModifier = (modifierId: string, playerId: string) => {
-    //     socketService.triggerUpModifier(modifierId, playerId);
-    // };
+    const triggerFlipModifier = (player: Player, rule?: Rule, modifierId?: string) => {
+        if (!gameState) return;
+        const details: ActiveFlipRuleDetails = {
+            flippingPlayer: player,
+            ruleToFlip: rule
+        }
+        updateActiveFlippingDetails(details);
+    };
 
-    // const triggerDownModifier = (modifierId: string, playerId: string) => {
-    //     socketService.triggerDownModifier(modifierId, playerId);
-    // };
+    const flipRule = (rule: Rule, flippedText: string) => {
+        updateRule(rule.id, flippedText);
+        socketService.endFlipRule();
+    };
+
+    const endFlipRule = () => {
+        socketService.endFlipRule();
+    };
+
+
+
+    const triggerSwapModifier = (player: Player, modifierId?: string) => {
+        if (!gameState) return;
+        const details: ActiveSwapRuleDetails = {
+            swapper: player,
+        }
+        updateActiveSwappingDetails(details);
+    };
+
+    const updateActiveSwappingDetails = (details: ActiveSwapRuleDetails) => {
+        socketService.updateActiveSwappingDetails(details);
+    };
+
+    const swapRules = (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => {
+        socketService.swapRules(player1Id, player1RuleId, player2Id, player2RuleId);
+    };
+
+    const endSwapRule = () => {
+        socketService.endSwapRule();
+    };
+
+
+    const triggerUpDownModifier = (direction: 'up' | 'down') => {
+        if (!gameState) return;
+        socketService.triggerUpDownModifier(direction);
+    };
 
     const synchronizedSpinWheel = (finalIndex: number, duration: number) => {
         dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: { spinningPlayerId: currentUserId || '', finalIndex, duration } });
@@ -682,18 +744,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.endCloneRule();
     };
 
-    const swapRules = (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => {
-        if (!gameState) return;
-
-        const player1 = gameState.players.find((p: Player) => p.id === player1Id);
-        const player2 = gameState.players.find((p: Player) => p.id === player2Id);
-
-        if (player1 && player2) {
-            // Send to backend via socket service
-            socketService.swapRules(player1Id, player1RuleId, player2Id, player2RuleId);
-        }
-    };
-
     const removeWheelLayer = (segmentId: string) => {
         socketService.removeWheelLayer(segmentId);
     };
@@ -722,41 +772,60 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             gameState,
             currentUser,
             activePlayer,
+            showExitGameModal,
             dispatch,
+
+            getNonHostPlayers,
+            getHostPlayer,
+
+            setShowExitGameModal,
+            setPlayerModal,
             getBalancedColor,
+
             getRulesByAuthor,
             getPromptsByAuthor,
             getAssignedRulesByPlayer,
-            getNonHostPlayers,
-            getHostPlayer,
+            markRulesCompletedForUser,
+            markPromptsCompletedForUser,
+
             addRule,
             addPrompt,
             updateRule,
             updatePrompt,
+            assignRule,
+
             synchronizedSpinWheel,
+            removeWheelLayer,
+
+            updatePoints,
+
             initiateAccusation,
             acceptAccusation,
             endAccusation,
 
+            givePrompt,
             acceptPrompt,
+            shredRule,
             endPrompt,
 
+            triggerCloneModifier,
             updateActiveCloningDetails,
+            cloneRuleToPlayer,
             endCloneRule,
 
-            updatePoints,
-            givePrompt,
+            triggerFlipModifier,
+            updateActiveFlippingDetails,
+            flipRule,
+            endFlipRule,
+
+            triggerSwapModifier,
+            updateActiveSwappingDetails,
             swapRules,
-            cloneRuleToPlayer,
-            shredRule,
-            assignRule,
-            removeWheelLayer,
+            endSwapRule,
+
+            triggerUpDownModifier,
+
             endGame,
-            markRulesCompletedForUser,
-            markPromptsCompletedForUser,
-            showExitGameModal,
-            setShowExitGameModal,
-            setPlayerModal,
         }}>
             {children}
         </GameContext.Provider>

@@ -603,6 +603,53 @@ io.on('connection', (socket) => {
     });
 
 
+    // Update active flipping details
+    socket.on('update_active_flipping_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.activeFlipRuleDetails = details;
+        game.players.forEach(player => {
+            const playerType = player.isHost ? 'Host' : player.id === details.flippingPlayer.id ? 'Flipper' : 'Spectator';
+            switch (playerType) {
+                case 'Host':
+                    if (details.ruleToFlip === undefined) {
+                        setPlayerModal(game, player.id, 'AwaitFlipRuleSelection');
+                    } else {
+                        setPlayerModal(game, player.id, 'FlipRuleTextInput');
+                    }
+                    break;
+                case 'Flipper':
+                    if (details.ruleToFlip === undefined) {
+                        setPlayerModal(game, player.id, 'FlipRuleSelection');
+                    } else {
+                        setPlayerModal(game, player.id, 'AwaitFlipRuleExecution');
+                    }
+                    break;
+                case 'Spectator':
+                    if (details.ruleToFlip === undefined) {
+                        setPlayerModal(game, player.id, 'AwaitFlipRuleSelection');
+                    } else {
+                        setPlayerModal(game, player.id, 'AwaitFlipRuleExecution');
+                    }
+                    break;
+            }
+        });
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End flip rule
+    socket.on('end_flip_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeFlipRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        setGlobalModal(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
     // Swap rules
     socket.on('swap_rules', ({ gameId, player1Id, player1RuleId, player2Id, player2RuleId }) => {
         const game = games.get(gameId);

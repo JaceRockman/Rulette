@@ -36,7 +36,7 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, getAssignedRulesByPlayer, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal, updateActiveCloningDetails, endCloneRule, cloneRuleToPlayer } = useGame();
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal, triggerCloneModifier, updateActiveCloningDetails, endCloneRule, cloneRuleToPlayer, triggerFlipModifier, flipRule, updateActiveFlippingDetails, endFlipRule, triggerSwapModifier, updateActiveSwappingDetails, endSwapRule, triggerUpDownModifier, updateRule } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
 
@@ -157,31 +157,16 @@ export default function GameScreen() {
         setSelectedRule(rule);
     };
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     const handleInitiateClone = () => {
         if (selectedPlayerForAction && gameState) {
             // Check if player has rules to clone
             const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-            if (playerRules.length > 0) {
+            if (playerRules.length === 1) {
                 setShowHostActionModal(false);
-                updateActiveCloningDetails({
-                    cloningPlayer: selectedPlayerForAction,
-                });
-                if (currentUser) setPlayerModal(currentUser.id, 'AwaitCloneRuleSelection');
+                triggerCloneModifier(selectedPlayerForAction, playerRules[0]);
+            } else if (playerRules.length > 0) {
+                setShowHostActionModal(false);
+                triggerCloneModifier(selectedPlayerForAction);
             } else {
                 Alert.alert('No Rules to Clone', `${selectedPlayerForAction.name} has no assigned rules to clone.`);
                 setShowHostActionModal(false);
@@ -217,13 +202,19 @@ export default function GameScreen() {
         if (currentUser) setPlayerModal(currentUser.id, 'CloneActionResolution');
     };
 
-    const handleFlipAction = () => {
+
+
+
+    const handleInitiateFlip = () => {
         if (selectedPlayerForAction && gameState) {
             // Check if player has rules to flip
             const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-            if (playerRules.length > 0) {
+            if (playerRules.length === 1) {
                 setShowHostActionModal(false);
-                if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
+                triggerFlipModifier(selectedPlayerForAction, playerRules[0]);
+            } else if (playerRules.length > 0) {
+                setShowHostActionModal(false);
+                triggerFlipModifier(selectedPlayerForAction);
             } else {
                 Alert.alert('No Rules to Flip', `${selectedPlayerForAction.name} has no assigned rules to flip.`);
                 setShowHostActionModal(false);
@@ -231,6 +222,18 @@ export default function GameScreen() {
             }
         }
     };
+
+
+    const confirmRuleForFlipping = (rule: Rule) => {
+        if (!gameState) return;
+        updateActiveFlippingDetails({
+            ...gameState.activeFlipRuleDetails!,
+            ruleToFlip: rule
+        });
+        if (currentUser) setPlayerModal(currentUser.id, 'FlipRuleTextInput');
+    };
+
+
 
     const handleGiveRuleAction = () => {
         if (selectedPlayerForAction && gameState) {
@@ -748,7 +751,7 @@ export default function GameScreen() {
                     onGiveRule={handleGiveRuleAction}
                     onGivePrompt={handleGivePromptAction}
                     onCloneRule={handleInitiateClone}
-                    onFlipRule={handleFlipAction}
+                    onFlipRule={handleInitiateFlip}
                     onUpAction={handleUpAction}
                     onDownAction={handleDownAction}
                     onSwapAction={handleSwapAction}
@@ -815,7 +818,7 @@ export default function GameScreen() {
                 {/* Clone Action Selection Modal */}
                 <RuleSelectionModal
                     visible={currentModal === 'CloneActionRuleSelection'}
-                    title={`Select a Rule to Clone`}
+                    title={`CLONE`}
                     description={`Choose one of your rules to clone:`}
                     rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeCloneRuleDetails?.cloningPlayer.id && rule.isActive) || []}
                     onAccept={confirmRuleForCloning}
@@ -825,7 +828,7 @@ export default function GameScreen() {
                 {/* Clone Target Selection Modal */}
                 <PlayerSelectionModal
                     visible={currentModal === 'CloneActionTargetSelection'}
-                    title={`Select Recipient`}
+                    title={`CLONE`}
                     description={`Choose a player to give the copied rule to:`}
                     players={gameState?.players.filter(player => {
                         return player.id !== gameState?.activeCloneRuleDetails?.cloningPlayer.id
@@ -839,14 +842,14 @@ export default function GameScreen() {
                 {/* Await Clone Rule Selection Modal */}
                 <SimpleModal
                     visible={currentModal === 'AwaitCloneRuleSelection'}
-                    title={'Clone Rule'}
+                    title={'CLONE'}
                     description={`Waiting for ${gameState?.activeCloneRuleDetails?.cloningPlayer.name} to select a rule to clone...`}
                 />
 
                 {/* Await Clone Target Selection Modal */}
                 <SimpleModal
                     visible={currentModal === 'AwaitCloneTargetSelection'}
-                    title={'Clone Rule'}
+                    title={'CLONE'}
                     description={`Waiting for ${gameState?.activeCloneRuleDetails?.cloningPlayer.name} to select a recipient for the copied rule...`}
                     content={
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
@@ -860,7 +863,7 @@ export default function GameScreen() {
                 {/* Clone Action Resolution Modal */}
                 <SimpleModal
                     visible={currentModal === 'CloneActionResolution'}
-                    title={'Clone Rule'}
+                    title={'CLONE'}
                     description={`${gameState?.activeCloneRuleDetails?.cloningPlayer.name} has cloned the following rule and given it to ${gameState?.activeCloneRuleDetails?.targetPlayer?.name}!`}
                     content={
                         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
@@ -877,58 +880,45 @@ export default function GameScreen() {
 
 
 
-                {/* Clone Rule Modal */}
-                {/* <RuleSelectionModal
-                    visible={showCloneRuleModal}
-                    title={`Select ${selectedPlayerForAction?.name}'s Rule to Clone`}
-                    description={`Choose one of ${selectedPlayerForAction?.name}'s rules to clone:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id && rule.isActive) || []}
-                    onSelectRule={handleCloneRuleSelect}
-                    onClose={() => {
-                        setShowCloneRuleModal(false);
-                        setCloneSelectedRule(null);
-                        setSelectedPlayerForAction(null);
-                    }}
-                /> */}
 
-                {/* Clone Target Selection Modal */}
-                {/* <PlayerSelectionModal
-                    visible={showCloneTargetModal}
-                    title="Select Player to Clone Rule To"
-                    description={`Choose a player to give a copy of "${cloneSelectedRule?.text}" to:`}
-                    players={gameState?.players.filter(player => player.id !== selectedPlayerForAction?.id) || []}
-                    onSelectPlayer={handleCloneTargetSelect}
-                    onClose={() => {
-                        setShowCloneTargetModal(false);
-                        setCloneSelectedRule(null);
-                        setSelectedPlayerForAction(null);
-                    }}
-                /> */}
-
-                {/* Flip Rule Modal */}
-                {/* <RuleSelectionModal
-                    visible={showFlipRuleModal}
-                    title={`Select ${selectedPlayerForAction?.name}'s Rule to Flip`}
-                    description={`Choose one of ${selectedPlayerForAction?.name}'s rules to flip/negate:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id && rule.isActive) || []}
-                    onSelectRule={handleFlipRuleSelect}
-                    onClose={() => {
-                        setShowFlipRuleModal(false);
-                        setFlipSelectedRule(null);
-                        setSelectedPlayerForAction(null);
-                    }}
-                /> */}
+                {/* Flip Rule Modals */}
+                <RuleSelectionModal
+                    visible={currentModal === 'FlipRuleSelection'}
+                    title={`FLIP`}
+                    description={`Choose a Rule to flip:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeFlipRuleDetails?.flippingPlayer.id && rule.isActive) || []}
+                    onAccept={confirmRuleForFlipping}
+                    onClose={endFlipRule}
+                />
 
                 {/* Flip Text Input Modal */}
-                {/* <FlipTextInputModal
-                    visible={flipSelectedRule !== null}
-                    selectedRule={flipSelectedRule}
-                    onFlipRule={handleFlipTextSubmit}
-                    onClose={() => {
-                        setFlipSelectedRule(null);
-                        setSelectedPlayerForAction(null);
-                    }}
-                /> */}
+                <FlipTextInputModal
+                    visible={currentModal === 'FlipRuleTextInput'}
+                    selectedRule={gameState?.activeFlipRuleDetails?.ruleToFlip || undefined}
+                    onFlipRule={flipRule}
+                    onClose={endFlipRule}
+                />
+
+                {/* Await Flip Rule Selection Modal */}
+                <SimpleModal
+                    visible={currentModal === 'AwaitFlipRuleSelection'}
+                    title={'FLIP'}
+                    description={`Waiting for ${gameState?.activeFlipRuleDetails?.flippingPlayer.name} to select a rule to flip...`}
+                />
+
+                {/* Await Flip Rule Execution Modal */}
+                <SimpleModal
+                    visible={currentModal === 'AwaitFlipRuleExecution'}
+                    title={'FLIP'}
+                    description={`Waiting for Host to flip rule:`}
+                    content={
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                            <Plaque
+                                plaque={gameState?.activeFlipRuleDetails?.ruleToFlip!}
+                            />
+                        </View>
+                    }
+                />
 
                 {/* Up Rule Modal */}
                 {/* <RuleSelectionModal
