@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, Modifier, Plaque, ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails } from '../types/game';
+import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, Modifier, Plaque, ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, WheelSpinDetails } from '../types/game';
 import socketService from '../services/socketService';
 import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../shared/styles';
 import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState, generateModifierPlaque } from '../../test/data';
@@ -36,7 +36,6 @@ interface GameContextType {
     updatePrompt: (id: string, text: string) => void;
     assignRule: (ruleId: string, playerId: string) => void;
 
-    synchronizedSpinWheel: (finalIndex: number, duration: number) => void;
     removeWheelLayer: (segmentId: string) => void;
 
     updatePoints: (playerId: string, points: number) => void;
@@ -719,7 +718,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             updatePrompt,
             assignRule,
 
-            synchronizedSpinWheel,
             removeWheelLayer,
 
             updatePoints,

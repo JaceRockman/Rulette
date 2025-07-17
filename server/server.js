@@ -802,16 +802,11 @@ io.on('connection', (socket) => {
     });
 
     // Broadcast synchronized wheel spin
-    socket.on('broadcast_synchronized_wheel_spin', ({ gameId, spinningPlayerId, finalIndex, scrollAmount, duration }) => {
+    socket.on('update_wheel_spin_details', ({ gameId, wheelSpinDetails }) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        game.wheelSpinDetails = {
-            spinningPlayerId,
-            finalIndex,
-            scrollAmount,
-            duration
-        };
+        game.wheelSpinDetails = wheelSpinDetails;
 
         // Broadcast to all players in the game (including sender for consistency)
         io.to(gameId).emit('game_updated', game);

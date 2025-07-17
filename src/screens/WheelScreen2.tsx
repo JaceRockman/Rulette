@@ -25,7 +25,7 @@ export default function WheelScreen2() {
     const navigation = useNavigation<WheelScreenNavigationProp>();
     const { gameState, currentUser, removeWheelLayer, assignRule, initiateAccusation, acceptPrompt, endPrompt, shredRule, endGame } = useGame();
     const [isSpinning, setIsSpinning] = useState(false);
-    const [selectedIndex, setSelectedIndex] = useState<number>(0);
+    const [currentWheelIndex, setCurrentWheelIndex] = useState<number>(0);
     const flatListRef = useRef<FlatList<WheelSegmentType>>(null);
     const scrollY = useRef(new Animated.Value(0)).current;
     const currentScrollOffset = useRef(0);
@@ -52,12 +52,9 @@ export default function WheelScreen2() {
 
     // Function to animate the wheel spin
     const performSynchronizedSpin = () => {
-        setIsSpinning(true);
         if (!gameState || !gameState.wheelSpinDetails) return;
+        setIsSpinning(true);
         const { finalIndex, scrollAmount, duration } = gameState.wheelSpinDetails;
-
-        setSelectedIndex(finalIndex);
-        setHasProcessedEndSegment(false); // Reset the end segment processing flag for all players
 
         // Animate the scroll with a "spin" effect - always go top to bottom
         Animated.timing(scrollY, {
@@ -67,18 +64,27 @@ export default function WheelScreen2() {
             easing: t => 1 - Math.pow(1 - t, 3), // ease out
         }).start(() => {
             setIsSpinning(false);
+            setCurrentWheelIndex(finalIndex);
+
             // Snap to the final position, centered in the wheel
-            const centerOffset = Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT;
-            const finalScroll = (finalIndex * ITEM_HEIGHT) + centerOffset;
-            flatListRef.current?.scrollToOffset({ offset: finalScroll, animated: false });
+            // const centerOffset = Math.floor(VISIBLE_ITEMS / 2) * ITEM_HEIGHT;
+            // const finalScroll = (finalIndex * ITEM_HEIGHT) + centerOffset;
+            // flatListRef.current?.scrollToOffset({ offset: finalScroll, animated: false });
 
             // Store the selected segment for later processing
-            setSelectedSegment(segments[finalIndex]);
+            const selectedSegment = segments[finalIndex];
             const selectedPlaque = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
             const activePlayer = gameState?.players.find(player => player.id === gameState?.activePlayer);
+
+            console.log('WheelScreen2: segments', segments);
+            console.log('WheelScreen2: finalIndex', finalIndex);
+            console.log('WheelScreen2: selectedSegment', selectedSegment);
+            console.log('WheelScreen2: selectedPlaque', selectedPlaque);
+
             if (gameState && activePlayer) {
                 switch (selectedPlaque?.type) {
                     case 'rule':
+                        console.log('WheelScreen2: spun rule', selectedPlaque);
                         if (currentUser?.isHost) {
                             assignRule(selectedPlaque?.id || '', activePlayer?.id || '');
                         }
@@ -112,7 +118,7 @@ export default function WheelScreen2() {
                 }
             }
 
-            gameState.wheelSpinDetails = undefined;
+            socketService.updateWheelSpinDetails(undefined);
         });
     };
 
@@ -136,16 +142,15 @@ export default function WheelScreen2() {
             }
         });
         return () => scrollY.removeListener(id);
-    }, [scrollY, segments.length, isSpinning]);
+    }, [scrollY, isSpinning]);
 
     // Listen for synchronized wheel spin events
     useEffect(() => {
-        if (gameState?.wheelSpinDetails) {
-            setIsSpinning(true);
+        console.log('WheelScreen2: wheelSpinDetails for wheelSpin?', gameState?.wheelSpinDetails);
+        if (gameState?.wheelSpinDetails !== undefined) {
             performSynchronizedSpin();
         } else {
             setIsSpinning(false);
-
         }
     }, [gameState?.wheelSpinDetails]);
 
@@ -154,12 +159,19 @@ export default function WheelScreen2() {
         if (!segments.length || isSpinning) return;
         // Generate random final index
         const randomSpins = 40 + Math.floor(Math.random() * 11);
-        const scrollAmount = -(randomSpins * ITEM_HEIGHT); // Negative for reverse direction
-        const finalIndex = (selectedIndex + randomSpins) % segments.length;
+        const scrollAmount = (randomSpins * ITEM_HEIGHT);
+        const finalIndex = (currentWheelIndex + randomSpins) % segments.length;
         const duration = 3000 + Math.random() * 2000; // 3-5 seconds
 
+        const wheelSpinDetails: WheelSpinDetails = {
+            spinningPlayerId: gameState?.activePlayer || '',
+            finalIndex,
+            scrollAmount,
+            duration,
+        };
+
         // Broadcast the synchronized spin to all players
-        socketService.broadcastSynchronizedWheelSpin(finalIndex, scrollAmount, duration);
+        socketService.updateWheelSpinDetails(wheelSpinDetails);
     };
 
     // Only allow spin if current user is host or active player
