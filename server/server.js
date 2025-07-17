@@ -148,6 +148,8 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
+        console.log('add_plaque', plaque);
+
         if (plaque.type === 'rule') {
             const rule = {
                 ...plaque,
@@ -330,6 +332,12 @@ io.on('connection', (socket) => {
         const player = game.players.find(p => p.id === playerId);
         if (player) {
             player.promptsCompleted = true;
+            const nonHostPlayers = game.players.filter(p => !p.isHost);
+            console.log('nonHostPlayers', nonHostPlayers);
+            if (nonHostPlayers.every(p => p.promptsCompleted) && nonHostPlayers.every(p => p.rulesCompleted)) {
+                console.log('playerInputCompleted');
+                game.playerInputCompleted = true;
+            }
             io.to(gameId).emit('game_updated', game);
         }
     });

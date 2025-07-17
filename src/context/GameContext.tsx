@@ -106,6 +106,7 @@ export const initialState: GameState = {
     prompts: [],
     rules: [],
     modifiers: [],
+    playerInputCompleted: false,
     wheelSegments: [],
     isGameStarted: false,
     isWheelSpinning: false,
@@ -321,28 +322,55 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
 
-    const createWheelSegments = (state: GameState): WheelSegment[] => {
+    const addPlaquesForSegments = (state: GameState, totalSegments: number): GameState => {
+        const rulesNeededToFillSegment = totalSegments - state.rules.length;
+        const promptsNeededToFillSegment = totalSegments - state.prompts.length;
+
+        if (rulesNeededToFillSegment === 0 && promptsNeededToFillSegment === 0) {
+            return state;
+        } else {
+            for (let i = 0; i < rulesNeededToFillSegment; i++) {
+                console.log('GameContext: Adding rule', i);
+                const exampleRuleToAdd = exampleRules[i];
+                addRule(exampleRuleToAdd.authorId, exampleRuleToAdd.text, exampleRuleToAdd.plaqueColor);
+            }
+            for (let i = 0; i < promptsNeededToFillSegment; i++) {
+                console.log('GameContext: Adding prompt', i);
+                const examplePromptToAdd = examplePrompts[i];
+                addPrompt(examplePromptToAdd.authorId, examplePromptToAdd.text, examplePromptToAdd.plaqueColor);
+            }
+            for (let i = 0; i < totalSegments; i++) {
+                console.log('GameContext: Adding modifier', i);
+                const exampleModifierToAdd = generateModifierPlaque(i);
+                createPlaque('modifier', exampleModifierToAdd.authorId, exampleModifierToAdd.text, exampleModifierToAdd.plaqueColor);
+            }
+            return state;
+        }
+    };
+
+    const createWheelSegments = (gameState: GameState): WheelSegment[] => {
+        console.log('GameContext: Creating wheel segments');
         // Don't create wheel segments if there are no rules or prompts yet
-        if (!state.rules || state.rules.length === 0 || !state.prompts || state.prompts.length === 0) {
+        if (!gameState.rules || gameState.rules.length === 0 || !gameState.prompts || gameState.prompts.length === 0) {
             return [];
         }
 
         const newSegments: WheelSegment[] = [];
-        const rules = state.rules;
-        const prompts = state.prompts;
-        const modifiers = state.modifiers;
-        let totalSegments = Math.max(rules.length, prompts.length, 1);
+        let totalSegments = Math.max(gameState.rules.length, gameState.prompts.length, 1);
 
         const remainder = totalSegments % 4;
         if (remainder !== 0) {
             totalSegments += (4 - remainder);
         }
 
+        console.log('GameContext: Total segments:', totalSegments);
+        gameState = addPlaquesForSegments(gameState, totalSegments);
+
         for (let i = 0; i < totalSegments; i++) {
             const layers: Plaque[] = [];
 
-            addRuleLayer(layers, rules, i);
-            addPromptLayer(layers, prompts, i);
+            layers.push(gameState.rules[i]);
+            layers.push(gameState.prompts[i]);
             addModifierLayer(layers, i);
             addEndLayer(layers);
 
@@ -353,47 +381,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 segmentColor: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
             });
         }
-        console.log('GameContext: Created wheel segments:', newSegments);
 
         return newSegments;
-    };
-
-    const addRuleLayer = (layers: Plaque[], rules: Rule[], index: number) => {
-        let rule: Rule;
-        if (index >= rules.length) {
-            rule = exampleRules[index];
-            // Use socket service to add the rule to game state
-            socketService.addPlaque(rule);
-        } else {
-            rule = rules[index];
-        }
-
-        console.log('GameContext: Adding rule layer:', rule);
-
-        layers.push(rule as Plaque);
-    };
-
-    const addPromptLayer = (layers: Plaque[], prompts: Prompt[], index: number) => {
-        let prompt: Prompt;
-        if (index >= prompts.length) {
-            prompt = examplePrompts[index];
-            // Use socket service to add the prompt to game state
-            socketService.addPlaque(prompt);
-        } else {
-            prompt = prompts[index];
-        }
-
-        console.log('GameContext: Adding prompt layer:', prompt);
-
-        layers.push(prompt);
     };
 
     const addModifierLayer = (layers: Plaque[], index: number) => {
         const nextModifier = generateModifierPlaque(index);
         // Use socket service to add the modifier to game state
         socketService.addPlaque(nextModifier);
-
-        console.log('GameContext: Adding modifier layer:', nextModifier);
 
         layers.push(nextModifier);
     };
@@ -402,58 +397,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         layers.push(endPlaque);
     };
 
-
-    // Create wheel segments when all non-host players have completed
-    const [playersCompletedRules, setPlayersCompletedRules] = React.useState(false);
-    const [playersCompletedPrompts, setPlayersCompletedPrompts] = React.useState(false);
-
     React.useEffect(() => {
-        if (!gameState) return;
-        if (gameState.wheelSegments?.length > 0) return;
-        if (!currentUser?.isHost) return;
-
-        const nonHostPlayers = getNonHostPlayers() || [];
-        if (nonHostPlayers.length === 0) return;
-
-        const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
-            player.rulesCompleted && player.promptsCompleted
-        );
-
-        if (allNonHostPlayersCompleted && (gameState.wheelSegments?.length || 0) === 0) {
+        console.log('GameContext: playerInputCompleted', gameState.playerInputCompleted);
+        if (gameState.playerInputCompleted && currentUser?.isHost) {
             const generatedWheelSegments = createWheelSegments(gameState);
-            generatedWheelSegments.forEach(segment => {
-                segment.layers.forEach(layer => {
-                    console.log('GameContext: Segment Layer:', layer);
-                });
-            });
             console.log('GameContext: Created wheel segments:', generatedWheelSegments);
             socketService.syncWheelSegments(generatedWheelSegments);
         }
-    }, [gameState?.players, gameState?.isGameStarted, playersCompletedRules, playersCompletedPrompts]);
-
-    // Track when all non-host players have completed rules
-    React.useEffect(() => {
-        if (!gameState || !currentUser?.isHost) return;
-
-        const nonHostPlayers = getNonHostPlayers() || [];
-        if (nonHostPlayers.length === 0) return;
-
-        const allRulesCompleted = nonHostPlayers.every(player => player.rulesCompleted);
-        setPlayersCompletedRules(allRulesCompleted);
-    }, [gameState?.players, currentUser?.isHost]);
-
-    // Track when all non-host players have completed prompts
-    React.useEffect(() => {
-        if (!gameState || !currentUser?.isHost) return;
-
-        const nonHostPlayers = getNonHostPlayers() || [];
-        if (nonHostPlayers.length === 0) return;
-
-        const allPromptsCompleted = nonHostPlayers.every(player => player.promptsCompleted);
-        setPlayersCompletedPrompts(allPromptsCompleted);
-    }, [gameState?.players, currentUser?.isHost]);
-
-
+    }, [gameState?.playerInputCompleted]);
 
 
     // Helper functions used in multiple places
@@ -529,8 +480,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             plaqueColor: plaqueColor,
             isActive: type === 'rule' ? true : undefined
         };
-
-        console.log('GameContext: Creating plaque:', plaque);
 
         socketService.addPlaque(plaque);
     };

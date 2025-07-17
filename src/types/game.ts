@@ -53,6 +53,7 @@ export interface GameState {
     rules: Rule[];
     prompts: Prompt[];
     modifiers: Modifier[];
+    playerInputCompleted: boolean;
     wheelSegments: WheelSegment[];
     wheelSpinDetails?: WheelSpinDetails;
     currentUser?: string; // The user ID of the person currently using the app
