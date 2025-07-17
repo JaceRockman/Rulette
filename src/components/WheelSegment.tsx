@@ -9,6 +9,8 @@ interface WheelSegmentProps {
 }
 
 export default function WheelSegment({ plaque, color }: WheelSegmentProps) {
+    console.log('WheelSegment: Rendering plaque:', { type: plaque?.type, text: plaque?.text, concealed: true });
+
     return (
         <View style={[styles.wheelSegment, { backgroundColor: color }]}>
             <Plaque

@@ -409,7 +409,12 @@ export default function ModifierModals(
             <FlipTextInputModal
                 visible={currentModal === 'FlipRuleTextInput'}
                 selectedRule={gameState?.activeFlipRuleDetails?.ruleToFlip || undefined}
-                onFlipRule={flipRule}
+                onFlipRule={
+                    (rule, flippedText) => {
+                        flipRule(rule, flippedText);
+                        onFinishModifier();
+                    }
+                }
                 onClose={() => {
                     endFlipRule();
                     onFinishModifier();

@@ -372,6 +372,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             addModifierLayer(layers, i);
             addEndLayer(layers);
 
+            console.log(`GameContext: Segment ${i} layers:`, layers.map(l => ({ type: l.type, text: l.text })));
+
             newSegments.push({
                 id: Math.random().toString(36).substring(2, 9),
                 layers,
@@ -392,7 +394,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const addEndLayer = (layers: Plaque[]) => {
-        layers.push(endPlaque);
+        const localEndPlaque: Plaque = {
+            id: Math.random().toString(36).substring(2, 9),
+            type: 'end',
+            text: "Game Over",
+            plaqueColor: "#313131",
+            authorId: "system"
+        };
+        console.log('GameContext: Adding localEndPlaque:', localEndPlaque);
+        layers.push(localEndPlaque);
     };
 
     // Add plaques for segments when player input is completed

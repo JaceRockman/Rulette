@@ -31,6 +31,7 @@ export default function WheelScreen2() {
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [selectedSegment, setSelectedSegment] = useState<WheelSegmentType | null>(null);
+    const selectedSegmentRef = useRef<WheelSegmentType | null>(null); // Preserve selectedSegment during prompt workflow
 
     console.log("initial wheel state", { isSpinning, currentWheelIndex, scrollY, currentScrollOffset, currentModal, selectedRule, selectedSegment });
 
@@ -129,6 +130,7 @@ export default function WheelScreen2() {
             const activePlayer = gameState?.players.find(player => player.id === gameState?.activePlayer);
 
             setSelectedSegment(spunSegment);
+            selectedSegmentRef.current = spunSegment; // Store in ref to preserve during prompt workflow
 
             if (gameState && activePlayer) {
                 switch (selectedPlaque?.type) {
@@ -203,12 +205,14 @@ export default function WheelScreen2() {
         console.log('wheel state', { isSpinning, currentWheelIndex, scrollY, currentScrollOffset, currentModal, selectedRule, selectedSegment });
         console.log('WheelScreen2: completing wheel spin');
         // Use the centralized server-side approach
-        if (selectedSegment) {
-            socketService.completeWheelSpin(selectedSegment?.id);
+        if (selectedSegment || selectedSegmentRef.current) {
+            const segmentToUse = selectedSegment || selectedSegmentRef.current;
+            socketService.completeWheelSpin(segmentToUse?.id);
         }
 
         // Reset local state
         setSelectedSegment(null);
+        selectedSegmentRef.current = null;
         setCurrentWheelIndex(0);
         setCurrentModal(undefined);
     };
