@@ -322,12 +322,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
 
-    const addPlaquesForSegments = (state: GameState, totalSegments: number): GameState => {
-        const rulesNeededToFillSegment = totalSegments - state.rules.length;
-        const promptsNeededToFillSegment = totalSegments - state.prompts.length;
+    const addPlaquesForSegments = (totalSegments: number) => {
+        const rulesNeededToFillSegment = totalSegments - gameState.rules.length;
+        const promptsNeededToFillSegment = totalSegments - gameState.prompts.length;
 
         if (rulesNeededToFillSegment === 0 && promptsNeededToFillSegment === 0) {
-            return state;
+            return;
         } else {
             for (let i = 0; i < rulesNeededToFillSegment; i++) {
                 console.log('GameContext: Adding rule', i);
@@ -344,11 +344,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 const exampleModifierToAdd = generateModifierPlaque(i);
                 createPlaque('modifier', exampleModifierToAdd.authorId, exampleModifierToAdd.text, exampleModifierToAdd.plaqueColor);
             }
-            return state;
         }
     };
 
-    const createWheelSegments = (gameState: GameState): WheelSegment[] => {
+
+    const createWheelSegments = (): WheelSegment[] => {
         console.log('GameContext: Creating wheel segments');
         // Don't create wheel segments if there are no rules or prompts yet
         if (!gameState.rules || gameState.rules.length === 0 || !gameState.prompts || gameState.prompts.length === 0) {
@@ -364,7 +364,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
 
         console.log('GameContext: Total segments:', totalSegments);
-        gameState = addPlaquesForSegments(gameState, totalSegments);
+        addPlaquesForSegments(totalSegments);
 
         for (let i = 0; i < totalSegments; i++) {
             const layers: Plaque[] = [];
@@ -400,7 +400,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     React.useEffect(() => {
         console.log('GameContext: playerInputCompleted', gameState.playerInputCompleted);
         if (gameState.playerInputCompleted && currentUser?.isHost) {
-            const generatedWheelSegments = createWheelSegments(gameState);
+            const generatedWheelSegments = createWheelSegments();
             console.log('GameContext: Created wheel segments:', generatedWheelSegments);
             socketService.syncWheelSegments(generatedWheelSegments);
         }
