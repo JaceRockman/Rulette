@@ -322,7 +322,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
 
-    const addPlaquesForSegments = (totalSegments: number) => {
+    const addPlaquesForSegments = () => {
+        let totalSegments = Math.max(gameState.rules.length, gameState.prompts.length, 4);
+
         const rulesNeededToFillSegment = totalSegments - gameState.rules.length;
         const promptsNeededToFillSegment = totalSegments - gameState.prompts.length;
 
@@ -356,15 +358,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
 
         const newSegments: WheelSegment[] = [];
-        let totalSegments = Math.max(gameState.rules.length, gameState.prompts.length, 1);
 
-        const remainder = totalSegments % 4;
-        if (remainder !== 0) {
-            totalSegments += (4 - remainder);
-        }
-
+        let totalSegments = Math.max(gameState.rules.length, gameState.prompts.length, 4);
         console.log('GameContext: Total segments:', totalSegments);
-        addPlaquesForSegments(totalSegments);
 
         for (let i = 0; i < totalSegments; i++) {
             const layers: Plaque[] = [];
@@ -397,15 +393,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         layers.push(endPlaque);
     };
 
+    // Add plaques for segments when player input is completed
     React.useEffect(() => {
         console.log('GameContext: playerInputCompleted', gameState.playerInputCompleted);
         if (gameState.playerInputCompleted && currentUser?.isHost) {
-            const generatedWheelSegments = createWheelSegments();
-            console.log('GameContext: Created wheel segments:', generatedWheelSegments);
-            socketService.syncWheelSegments(generatedWheelSegments);
+            addPlaquesForSegments();
         }
     }, [gameState?.playerInputCompleted]);
 
+    // Create wheel segments once all rules and prompts are added
+    React.useEffect(() => {
+        if (gameState?.wheelSegments) {
+            return;
+        }
+        const numRules = gameState.rules.length;
+        const numPrompts = gameState.prompts.length;
+        if (numRules % 4 === 0 && numPrompts === numRules) {
+            const generatedWheelSegments = createWheelSegments();
+            socketService.syncWheelSegments(generatedWheelSegments);
+        }
+    }, [gameState.rules.length, gameState.prompts.length]);
 
     // Helper functions used in multiple places
     const getBalancedColor = (plaqueType: 'rule' | 'prompt'): string => {
