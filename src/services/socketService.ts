@@ -438,6 +438,14 @@ class SocketService {
         });
     }
 
+    completeWheelSpin(segmentId?: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('complete_wheel_spin', {
+            gameId: this.gameState.id,
+            segmentId
+        });
+    }
+
     syncWheelSegments(wheelSegments: any[]) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('sync_wheel_segments', {

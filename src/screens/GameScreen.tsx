@@ -37,7 +37,8 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal } = useGame();
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal,
+        triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
 
@@ -172,21 +173,24 @@ export default function GameScreen() {
 
     const handleInitiateClone = () => {
         if (selectedPlayerForAction && gameState) {
-            initiateClone({ gameState, cloningPlayer: selectedPlayerForAction });
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            initiateClone({ cloningPlayer: selectedPlayerForAction, playerRules, triggerCloneModifier: triggerCloneModifier });
         }
     };
 
 
     const handleInitiateFlip = () => {
         if (selectedPlayerForAction && gameState) {
-            initiateFlip({ gameState, flippingPlayer: selectedPlayerForAction });
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            initiateFlip({ flippingPlayer: selectedPlayerForAction, playerRules, triggerFlipModifier: triggerFlipModifier });
         }
     };
 
 
     const handleInitiateSwap = () => {
         if (selectedPlayerForAction && gameState) {
-            initiateSwap({ gameState, swappingPlayer: selectedPlayerForAction });
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
+            initiateSwap({ swappingPlayer: selectedPlayerForAction, playerRules, triggerSwapModifier: triggerSwapModifier });
         }
     };
 
@@ -194,8 +198,28 @@ export default function GameScreen() {
 
     // Handle Up/Down workflow using socket-based approach
     const handleInitiateUpDown = (direction: 'up' | 'down') => {
+
+        if (!gameState?.players) return;
+
+        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+        if (nonHostPlayers.length < 2) {
+            Alert.alert('Not Enough Players', `Need at least 2 non-host players for ${direction} action.`);
+            return;
+        }
+
+        // Check if any players have rules to pass
+        const playersWithRules = nonHostPlayers.filter(player => {
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+            return playerRules.length > 0;
+        });
+
+        if (playersWithRules.length === 0) {
+            Alert.alert('No Rules to Pass', `No players have rules to pass ${direction}.`);
+            return;
+        }
+
         if (selectedPlayerForAction && gameState) {
-            initiateUpDown({ gameState, direction });
+            initiateUpDown({ direction, triggerUpDownModifier: triggerUpDownModifier });
         }
     };
 
@@ -569,8 +593,10 @@ export default function GameScreen() {
                 {/* Modifier Modals */}
                 <ModifierModals
                     currentModal={currentModal || ''}
-                    gameState={gameState}
                     currentUser={currentUser}
+                    onFinishModifier={() => {
+                        if (currentUser) setPlayerModal(currentUser.id, undefined);
+                    }}
                 />
 
 

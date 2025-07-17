@@ -19,11 +19,9 @@ const VISIBLE_ITEMS = 5;
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList) as unknown as typeof FlatList<WheelSegmentType>;
 
-type WheelScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wheel'>;
-
 export default function WheelScreen2() {
-    const navigation = useNavigation<WheelScreenNavigationProp>();
-    const { gameState, currentUser, assignRule, givePrompt, initiateAccusation, acceptPrompt, shredRule, endPrompt, removeWheelLayer, endGame, endAccusation, acceptAccusation, updatePoints } = useGame();
+    const { gameState, currentUser, assignRule, givePrompt, initiateAccusation, acceptPrompt, shredRule, endPrompt, removeWheelLayer, endGame, endAccusation, acceptAccusation, updatePoints,
+        triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
     const [isSpinning, setIsSpinning] = useState(false);
     const [currentWheelIndex, setCurrentWheelIndex] = useState<number>(0);
     const flatListRef = useRef<FlatList<WheelSegmentType>>(null);
@@ -32,8 +30,26 @@ export default function WheelScreen2() {
 
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
-    const [hasProcessedEndSegment, setHasProcessedEndSegment] = useState(false);
     const [selectedSegment, setSelectedSegment] = useState<WheelSegmentType | null>(null);
+
+    console.log("initial wheel state", { isSpinning, currentWheelIndex, scrollY, currentScrollOffset, currentModal, selectedRule, selectedSegment });
+
+    const resetInitialWheelState = () => {
+        setIsSpinning(false);
+        setCurrentWheelIndex(0);
+        setCurrentModal(undefined);
+        setSelectedRule(null);
+        setSelectedSegment(null);
+    };
+
+    // Clear any leftover state when navigating to wheel screen
+    React.useEffect(() => {
+        console.log('WheelScreen2: Clearing leftover state on mount');
+        setSelectedRule(null);
+        setCurrentModal(undefined);
+        setSelectedSegment(null);
+        setCurrentWheelIndex(0);
+    }, []); // Empty dependency array means this runs once when component mounts
 
     // Wheel segments from game state
     const segments = gameState?.wheelSegments || [];
@@ -50,6 +66,43 @@ export default function WheelScreen2() {
         setCurrentModal(playerModal || globalModal);
     }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal, gameState?.globalModal]);
 
+    // Handler for scroll gesture to trigger spin
+    const handleScrollEndDrag = (event: any) => {
+        if (canSpin && !isSpinning) {
+            initiateSpin();
+        }
+    };
+
+    // Initiate a spin (only active player or host)
+    const initiateSpin = () => {
+        if (!segments.length || isSpinning || gameState?.wheelSpinDetails !== undefined) return;
+        // Generate random final index
+        const randomSpins = 40 + Math.floor(Math.random() * 11);
+        const scrollAmount = (randomSpins * ITEM_HEIGHT);
+        const finalIndex = (currentWheelIndex + randomSpins) % segments.length;
+        const duration = 3000 + Math.random() * 2000; // 3-5 seconds
+
+        const wheelSpinDetails: WheelSpinDetails = {
+            spinningPlayerId: gameState?.activePlayer || '',
+            finalIndex,
+            scrollAmount,
+            duration,
+        };
+
+        // Broadcast the synchronized spin to all players
+        socketService.updateWheelSpinDetails(wheelSpinDetails);
+    };
+
+    // Listen for synchronized wheel spin events
+    useEffect(() => {
+        console.log('WheelScreen2: wheelSpinDetails for wheelSpin?', gameState?.wheelSpinDetails);
+        if (gameState?.wheelSpinDetails !== undefined) {
+            performSynchronizedSpin();
+        } else {
+            setIsSpinning(false);
+        }
+    }, [gameState?.wheelSpinDetails]);
+
     // Function to animate the wheel spin
     const performSynchronizedSpin = () => {
         if (!gameState || !gameState.wheelSpinDetails) return;
@@ -63,7 +116,6 @@ export default function WheelScreen2() {
             useNativeDriver: true,
             easing: t => 1 - Math.pow(1 - t, 3), // ease out
         }).start(() => {
-            setIsSpinning(false);
             setCurrentWheelIndex(finalIndex);
 
             // Snap to the final position, centered in the wheel
@@ -72,11 +124,11 @@ export default function WheelScreen2() {
             // flatListRef.current?.scrollToOffset({ offset: finalScroll, animated: false });
 
             // Store the selected segment for later processing
-            const selectedSegment = segments[finalIndex];
-            const selectedPlaque = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
+            const spunSegment = segments[finalIndex];
+            const selectedPlaque = spunSegment?.layers[spunSegment?.currentLayerIndex || 0];
             const activePlayer = gameState?.players.find(player => player.id === gameState?.activePlayer);
 
-            setSelectedSegment(selectedSegment);
+            setSelectedSegment(spunSegment);
 
             if (gameState && activePlayer) {
                 switch (selectedPlaque?.type) {
@@ -87,25 +139,27 @@ export default function WheelScreen2() {
                         setCurrentModal('RuleModal');
                         break;
                     case 'prompt':
-                        givePrompt(selectedPlaque?.id || '', gameState?.activePlayer || '');
+                        if (currentUser?.isHost) {
+                            givePrompt(selectedPlaque?.id || '', gameState?.activePlayer || '');
+                        }
                         setCurrentModal('PromptPerformance');
                         break;
                     case 'modifier':
                         switch (selectedPlaque?.text) {
                             case 'Clone':
-                                initiateClone({ gameState, cloningPlayer: activePlayer });
+                                initiateClone({ cloningPlayer: activePlayer, playerRules: gameState.rules.filter(rule => rule.assignedTo === activePlayer.id), triggerCloneModifier: triggerCloneModifier });
                                 break;
                             case 'Flip':
-                                initiateFlip({ gameState, flippingPlayer: activePlayer });
+                                initiateFlip({ flippingPlayer: activePlayer, playerRules: gameState.rules.filter(rule => rule.assignedTo === activePlayer.id), triggerFlipModifier: triggerFlipModifier });
                                 break;
                             case 'Swap':
-                                initiateSwap({ gameState, swappingPlayer: activePlayer });
+                                initiateSwap({ swappingPlayer: activePlayer, playerRules: gameState.rules.filter(rule => rule.assignedTo === activePlayer.id), triggerSwapModifier: triggerSwapModifier });
                                 break;
                             case 'Up':
-                                initiateUpDown({ gameState, direction: 'up' });
+                                initiateUpDown({ direction: 'up', triggerUpDownModifier: triggerUpDownModifier });
                                 break;
                             case 'Down':
-                                initiateUpDown({ gameState, direction: 'down' });
+                                initiateUpDown({ direction: 'down', triggerUpDownModifier: triggerUpDownModifier });
                                 break;
                         }
                         break;
@@ -116,8 +170,6 @@ export default function WheelScreen2() {
             }
 
             if (currentUser?.isHost) {
-                console.log('WheelScreen2: removing wheel layer', selectedSegment?.id);
-                removeWheelLayer(selectedSegment?.id || '');
                 socketService.updateWheelSpinDetails(undefined);
             }
 
@@ -146,41 +198,35 @@ export default function WheelScreen2() {
         return () => scrollY.removeListener(id);
     }, [scrollY, isSpinning]);
 
-    // Listen for synchronized wheel spin events
-    useEffect(() => {
-        console.log('WheelScreen2: wheelSpinDetails for wheelSpin?', gameState?.wheelSpinDetails);
-        if (gameState?.wheelSpinDetails !== undefined) {
-            performSynchronizedSpin();
-        } else {
-            setIsSpinning(false);
+
+    const finishWheelSpin = () => {
+        console.log('wheel state', { isSpinning, currentWheelIndex, scrollY, currentScrollOffset, currentModal, selectedRule, selectedSegment });
+        console.log('WheelScreen2: completing wheel spin');
+        // Use the centralized server-side approach
+        if (selectedSegment) {
+            socketService.completeWheelSpin(selectedSegment?.id);
         }
-    }, [gameState?.wheelSpinDetails]);
 
-    // Initiate a spin (only active player or host)
-    const initiateSpin = () => {
-        if (!segments.length || isSpinning) return;
-        // Generate random final index
-        const randomSpins = 40 + Math.floor(Math.random() * 11);
-        const scrollAmount = (randomSpins * ITEM_HEIGHT);
-        const finalIndex = (currentWheelIndex + randomSpins) % segments.length;
-        const duration = 3000 + Math.random() * 2000; // 3-5 seconds
-
-        const wheelSpinDetails: WheelSpinDetails = {
-            spinningPlayerId: gameState?.activePlayer || '',
-            finalIndex,
-            scrollAmount,
-            duration,
-        };
-
-        // Broadcast the synchronized spin to all players
-        socketService.updateWheelSpinDetails(wheelSpinDetails);
+        // Reset local state
+        setSelectedSegment(null);
+        setCurrentWheelIndex(0);
+        setCurrentModal(undefined);
     };
+
 
     // Interrupt prompts with accusations but be able to return to the prompt performance modal
     React.useEffect(() => {
+        if (currentUser?.isHost) {
+            console.log('WheelScreen2: prompt stuff triggered');
+            console.log('WheelScreen2: selected rule', selectedRule);
+        }
         if (selectedRule) {
             setCurrentModal('RuleDetails');
             return;
+        }
+        if (currentUser?.isHost) {
+            console.log('WheelScreen2: active prompt details', gameState?.activePromptDetails);
+            console.log('WheelScreen2: active accusation details', gameState?.activeAccusationDetails);
         }
         if (gameState?.activePromptDetails !== undefined && gameState?.activeAccusationDetails === undefined) {
             if (!gameState?.activePromptDetails?.isPromptAccepted) {
@@ -191,15 +237,16 @@ export default function WheelScreen2() {
         }
     }, [gameState?.activePromptDetails, gameState?.activeAccusationDetails, selectedRule]);
 
+    useEffect(() => {
+        if (gameState?.activeAccusationDetails?.accusationAccepted) {
+            setCurrentModal('SuccessfulAccusationRuleSelection');
+        }
+    }, [gameState?.activeAccusationDetails?.accusationAccepted]);
+
     // Only allow spin if current user is host or active player
     const canSpin = currentUser && (currentUser.isHost || gameState?.activePlayer === currentUser.id);
 
-    // Handler for scroll gesture to trigger spin
-    const handleScrollEndDrag = (event: any) => {
-        if (canSpin && !isSpinning) {
-            initiateSpin();
-        }
-    };
+
 
     const handlePromptRulePress = (rule: Rule) => {
         setSelectedRule(rule);
@@ -258,7 +305,7 @@ export default function WheelScreen2() {
                     content={<Plaque
                         plaque={selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0]}
                     />}
-                    onAccept={() => socketService.broadcastNavigateToScreen('Game')}
+                    onAccept={finishWheelSpin}
                     acceptButtonDisplayed={currentUser.id === gameState.activePlayer}
                     cancelButtonDisplayed={false}
                 />
@@ -274,7 +321,10 @@ export default function WheelScreen2() {
                         acceptPrompt();
                         updatePoints(gameState?.activePlayer || '', 2);
                     }}
-                    onFailure={endPrompt}
+                    onFailure={() => {
+                        endPrompt();
+                        finishWheelSpin();
+                    }}
                 />
 
                 {/* Prompt Resolution Modal */}
@@ -285,9 +335,12 @@ export default function WheelScreen2() {
                     onShredRule={(ruleId: string) => {
                         shredRule(ruleId);
                         endPrompt();
-                        socketService.broadcastNavigateToScreen('Game');
+                        finishWheelSpin();
                     }}
-                    onSkip={endPrompt}
+                    onSkip={() => {
+                        endPrompt();
+                        finishWheelSpin();
+                    }}
                 />
 
                 {/* Rule Details Popup */}
@@ -339,8 +392,8 @@ export default function WheelScreen2() {
                 {/* Modal Popup */}
                 <ModifierModals
                     currentModal={currentModal || ''}
-                    gameState={gameState}
                     currentUser={currentUser}
+                    onFinishModifier={finishWheelSpin}
                 />
             </SafeAreaView>
         </Backdrop>

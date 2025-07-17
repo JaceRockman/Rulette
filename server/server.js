@@ -486,7 +486,7 @@ io.on('connection', (socket) => {
 
         const player = game.players.find(p => p.id === playerId);
         if (player) {
-            player.points = Math.max(0, points);
+            player.points = Math.max(0, player.points + points);
             game.selectedRule = undefined;
             io.to(gameId).emit('game_updated', game);
         }
@@ -655,6 +655,46 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', game);
     });
 
+    socket.on('trigger_up_down_modifier', ({ gameId, direction }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeUpDownRuleDetails = {
+            direction,
+            selectedRules: {},
+            isComplete: false
+        };
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Update active up/down details
+    socket.on('update_active_up_down_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.activeUpDownRuleDetails = details;
+
+        game.players.forEach(player => {
+            const playerRules = game.rules.filter(r => r.assignedTo === player.id);
+            if (details.selectedRules[player.id] !== undefined || playerRules.length === 0 || player.isHost) {
+                setPlayerModal(game, player.id, 'AwaitUpDownSelection');
+            } else {
+                setPlayerModal(game, player.id, 'UpDownRuleSelection');
+            }
+        });
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End up/down rule
+    socket.on('end_up_down_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeUpDownRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        setGlobalModal(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
+
     // End flip rule
     socket.on('end_flip_rule', ({ gameId }) => {
         const game = games.get(gameId);
@@ -712,35 +752,6 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
         game.activeSwapRuleDetails = undefined;
-        setAllPlayerModals(game, undefined);
-        setGlobalModal(game, undefined);
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    // Update active up/down details
-    socket.on('update_active_up_down_details', ({ gameId, details }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        game.activeUpDownRuleDetails = details;
-
-        game.players.forEach(player => {
-            const playerRules = game.rules.filter(r => r.assignedTo === player.id);
-            if (details.selectedRules[player.id] !== undefined || playerRules.length === 0 || player.isHost) {
-                setPlayerModal(game, player.id, 'AwaitUpDownSelection');
-            } else {
-                setPlayerModal(game, player.id, 'UpDownRuleSelection');
-            }
-        });
-
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    // End up/down rule
-    socket.on('end_up_down_rule', ({ gameId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-        game.activeUpDownRuleDetails = undefined;
         setAllPlayerModals(game, undefined);
         setGlobalModal(game, undefined);
         io.to(gameId).emit('game_updated', game);
@@ -854,48 +865,81 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('end_game_end');
     });
 
-    // Advance to next player after wheel spinning
+    // Advance to next player
     socket.on('advance_to_next_player', ({ gameId }) => {
-        console.log('Server: Received advance_to_next_player event for game:', gameId, 'at:', new Date().toISOString());
         const game = games.get(gameId);
-        if (!game) {
-            console.log('Server: Game not found for advance_to_next_player');
-            return;
+        if (!game) return;
+
+        // Find the current active player
+        const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
+        if (!currentActivePlayer) return;
+
+        // Find the index of the current active player
+        const currentIndex = game.players.findIndex(p => p.id === game.activePlayer);
+        if (currentIndex === -1) return;
+
+        // Find the next non-host player
+        let nextIndex = (currentIndex + 1) % game.players.length;
+        while (game.players[nextIndex].isHost) {
+            nextIndex = (nextIndex + 1) % game.players.length;
         }
 
-        console.log('Server: Current game state before advancement:');
-        console.log('Server: - activePlayer:', game.activePlayer);
-        console.log('Server: - players:', game.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
+        // Set the new active player
+        game.activePlayer = game.players[nextIndex].id;
 
-        // Find non-host players
-        const nonHostPlayers = game.players.filter(player => !player.isHost);
-        console.log('Server: Non-host players:', nonHostPlayers.map(p => ({ id: p.id, name: p.name })));
-
-        if (nonHostPlayers.length === 0) {
-            console.log('Server: No non-host players found for advance_to_next_player');
-            return;
-        }
-
-        // Find active player index
-        const activePlayerIndex = nonHostPlayers.findIndex(player => player.id === game.activePlayer);
-        console.log('Server: Current activePlayer:', game.activePlayer, 'at index:', activePlayerIndex);
-
-        // Check if active player is not found in non-host players
-        if (activePlayerIndex === -1) {
-            console.log('Server: Current activePlayer not found in non-host players, setting to first non-host player');
-            game.activePlayer = nonHostPlayers[0].id;
-            console.log('Server: Set activePlayer to:', game.activePlayer, '(', nonHostPlayers[0].name, ') for game:', gameId);
-            io.to(gameId).emit('game_updated', game);
-            return;
-        }
-
-        // Move to next player (or back to first if at end)
-        const nextPlayerIndex = (activePlayerIndex + 1) % nonHostPlayers.length;
-        const oldActivePlayer = game.activePlayer;
-        const newActivePlayer = nonHostPlayers[nextPlayerIndex];
-        game.activePlayer = newActivePlayer.id;
-
+        console.log('Server: Advanced to next player:', game.activePlayer, 'for game:', gameId);
         io.to(gameId).emit('game_updated', game);
+    });
+
+    // Complete wheel spin - handles all wheel completion logic centrally
+    socket.on('complete_wheel_spin', ({ gameId, segmentId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        console.log('Server: Completing wheel spin for game:', gameId);
+
+        // Remove wheel layer if segmentId is provided
+        if (segmentId && game.wheelSegments) {
+            game.wheelSegments = game.wheelSegments.map(segment => {
+                if (segment.id === segmentId) {
+                    return {
+                        ...segment,
+                        currentLayerIndex: segment.currentLayerIndex + 1
+                    };
+                }
+                return segment;
+            });
+        }
+
+        // Clear wheel spin details
+        game.wheelSpinDetails = undefined;
+
+        // Clear any active prompt or accusation details
+        game.activePromptDetails = undefined;
+        game.activeAccusationDetails = undefined;
+
+        // Advance to next player
+        const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
+        if (currentActivePlayer) {
+            const currentIndex = game.players.findIndex(p => p.id === game.activePlayer);
+            if (currentIndex !== -1) {
+                let nextIndex = (currentIndex + 1) % game.players.length;
+                while (game.players[nextIndex].isHost) {
+                    nextIndex = (nextIndex + 1) % game.players.length;
+                }
+                game.activePlayer = game.players[nextIndex].id;
+            }
+        }
+
+        // Broadcast updated game state to all players
+        io.to(gameId).emit('game_updated', game);
+
+        // Broadcast navigation to game screen for all players
+        io.to(gameId).emit('navigate_to_screen', {
+            screen: 'Game'
+        });
+
+        console.log('Server: Wheel spin completed, advanced to player:', game.activePlayer);
     });
 
     // Disconnect handling

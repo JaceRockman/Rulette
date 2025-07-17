@@ -38,6 +38,8 @@ interface GameContextType {
 
     removeWheelLayer: (segmentId: string) => void;
 
+    completeWheelSpin: (segmentId?: string) => void;
+
     updatePoints: (playerId: string, points: number) => void;
 
     initiateAccusation: (accusationDetails: ActiveAccusationDetails) => void;
@@ -677,6 +679,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.removeWheelLayer(segmentId);
     };
 
+    const completeWheelSpin = (segmentId?: string) => {
+        socketService.completeWheelSpin(segmentId);
+    };
+
     const endGame = () => {
         if (!gameState || !gameState.activePlayer) return;
 
@@ -724,6 +730,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             assignRule,
 
             removeWheelLayer,
+
+            completeWheelSpin,
 
             updatePoints,
 
