@@ -517,6 +517,13 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('update_active_prompt_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activePromptDetails = details;
+        io.to(gameId).emit('game_updated', game);
+    });
+
     // Accept prompt
     socket.on('accept_prompt', ({ gameId }) => {
         const game = games.get(gameId);
@@ -786,8 +793,10 @@ io.on('connection', (socket) => {
         if (!game || !game.wheelSegments) return;
 
         const segment = game.wheelSegments.find(s => s.id === segmentId);
+        console.log('Server: Removing wheel layer', segment);
         if (segment) {
             segment.currentLayerIndex = Math.min(segment.currentLayerIndex + 1, segment.layers.length - 1);
+            console.log('Server: Updated wheel segments', game.wheelSegments);
             io.to(gameId).emit('game_updated', game);
         }
     });
@@ -816,6 +825,9 @@ io.on('connection', (socket) => {
     socket.on('broadcast_navigate_to_screen', ({ gameId, screen, params }) => {
         const game = games.get(gameId);
         if (!game) return;
+
+        setAllPlayerModals(game, undefined);
+        setGlobalModal(game, undefined);
 
         // Broadcast to all players in the game (including sender for consistency)
         io.to(gameId).emit('navigate_to_screen', {

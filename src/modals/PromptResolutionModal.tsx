@@ -60,14 +60,14 @@ export default function PromptResolutionModal({
                                 onPress: (plaque: PlaqueType) => toggleSelectedRule(plaque as Rule)
                             })}
                             <View style={shared.buttonContainer}>
+                                <SecondaryButton title="Skip" onPress={() => onSkip()} />
+
                                 <PrimaryButton
                                     title="Shred Rule"
                                     onPress={() => onShredRule(selectedRule?.id!)}
                                     buttonStyle={{ opacity: selectedRule ? 1 : 0.3 }}
                                     disabled={!selectedRule}
                                 />
-
-                                <SecondaryButton title="Skip" onPress={() => onSkip()} />
                             </View>
                         </View>
                     )}

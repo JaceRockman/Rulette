@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, Modifier, Plaque, ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, WheelSpinDetails } from '../types/game';
+import { GameState, Player, Prompt, Rule, StackItem, WheelSegment, Modifier, Plaque, ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, WheelSpinDetails, ActivePromptDetails } from '../types/game';
 import socketService from '../services/socketService';
 import { colors, LAYER_PLAQUE_COLORS, SEGMENT_COLORS } from '../shared/styles';
 import { endPlaque, allModifiers, examplePrompts, exampleRules, testingState, generateModifierPlaque } from '../../test/data';
@@ -45,6 +45,7 @@ interface GameContextType {
     endAccusation: () => void;
 
     givePrompt: (playerId: string, promptId: string) => void;
+    updateActivePromptDetails: (details: ActivePromptDetails | undefined) => void;
     acceptPrompt: () => void;
     shredRule: (ruleId: string) => void;
     endPrompt: () => void;
@@ -542,6 +543,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.givePrompt(playerId, promptId);
     };
 
+    const updateActivePromptDetails = (details: ActivePromptDetails | undefined) => {
+        socketService.updateActivePromptDetails(details);
+    };
+
     const updateActiveCloningDetails = (details: ActiveCloneRuleDetails) => {
         socketService.updateActiveCloningDetails(details);
     };
@@ -727,6 +732,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             endAccusation,
 
             givePrompt,
+            updateActivePromptDetails,
             acceptPrompt,
             shredRule,
             endPrompt,

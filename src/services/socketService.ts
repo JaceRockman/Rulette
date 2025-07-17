@@ -1,5 +1,5 @@
 import io, { Socket } from 'socket.io-client';
-import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, GameState, Plaque, Player, Prompt, Rule, WheelSpinDetails } from '../types/game';
+import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActivePromptDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, GameState, Plaque, Player, Prompt, Rule, WheelSpinDetails } from '../types/game';
 
 const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
 
@@ -293,6 +293,14 @@ class SocketService {
             gameId: this.gameState.id,
             playerId,
             promptId
+        });
+    }
+
+    updateActivePromptDetails(details: ActivePromptDetails | undefined) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_prompt_details', {
+            gameId: this.gameState.id,
+            details
         });
     }
 

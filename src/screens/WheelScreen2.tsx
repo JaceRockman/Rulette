@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Animated, FlatList, Dimensions, SafeAreaView, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useGame } from '../context/GameContext';
@@ -12,7 +12,7 @@ import Backdrop from '../components/Backdrop';
 import { ActiveAccusationDetails, Rule, WheelSegment as WheelSegmentType, WheelSpinDetails } from '../types/game';
 import { RootStackParamList } from '../../App';
 import Plaque from '../components/Plaque';
-import { PromptPerformanceModal, PromptResolutionModal, RuleDetailsModal } from '../modals';
+import { AccusationJudgementModal, PromptPerformanceModal, PromptResolutionModal, RuleDetailsModal, RuleSelectionModal } from '../modals';
 
 const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
@@ -23,7 +23,7 @@ type WheelScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wheel'
 
 export default function WheelScreen2() {
     const navigation = useNavigation<WheelScreenNavigationProp>();
-    const { gameState, currentUser, removeWheelLayer, assignRule, initiateAccusation, acceptPrompt, endPrompt, shredRule, endGame } = useGame();
+    const { gameState, currentUser, assignRule, givePrompt, initiateAccusation, acceptPrompt, shredRule, endPrompt, removeWheelLayer, endGame, endAccusation, acceptAccusation, updatePoints } = useGame();
     const [isSpinning, setIsSpinning] = useState(false);
     const [currentWheelIndex, setCurrentWheelIndex] = useState<number>(0);
     const flatListRef = useRef<FlatList<WheelSegmentType>>(null);
@@ -76,22 +76,19 @@ export default function WheelScreen2() {
             const selectedPlaque = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
             const activePlayer = gameState?.players.find(player => player.id === gameState?.activePlayer);
 
-            console.log('WheelScreen2: segments', segments);
-            console.log('WheelScreen2: finalIndex', finalIndex);
-            console.log('WheelScreen2: selectedSegment', selectedSegment);
-            console.log('WheelScreen2: selectedPlaque', selectedPlaque);
+            setSelectedSegment(selectedSegment);
 
             if (gameState && activePlayer) {
                 switch (selectedPlaque?.type) {
                     case 'rule':
-                        console.log('WheelScreen2: spun rule', selectedPlaque);
                         if (currentUser?.isHost) {
                             assignRule(selectedPlaque?.id || '', activePlayer?.id || '');
                         }
                         setCurrentModal('RuleModal');
                         break;
                     case 'prompt':
-
+                        givePrompt(selectedPlaque?.id || '', gameState?.activePlayer || '');
+                        setCurrentModal('PromptPerformance');
                         break;
                     case 'modifier':
                         switch (selectedPlaque?.text) {
@@ -118,7 +115,12 @@ export default function WheelScreen2() {
                 }
             }
 
-            socketService.updateWheelSpinDetails(undefined);
+            if (currentUser?.isHost) {
+                console.log('WheelScreen2: removing wheel layer', selectedSegment?.id);
+                removeWheelLayer(selectedSegment?.id || '');
+                socketService.updateWheelSpinDetails(undefined);
+            }
+
         });
     };
 
@@ -174,6 +176,21 @@ export default function WheelScreen2() {
         socketService.updateWheelSpinDetails(wheelSpinDetails);
     };
 
+    // Interrupt prompts with accusations but be able to return to the prompt performance modal
+    React.useEffect(() => {
+        if (selectedRule) {
+            setCurrentModal('RuleDetails');
+            return;
+        }
+        if (gameState?.activePromptDetails !== undefined && gameState?.activeAccusationDetails === undefined) {
+            if (!gameState?.activePromptDetails?.isPromptAccepted) {
+                setCurrentModal('PromptPerformance');
+            } else {
+                setCurrentModal('PromptResolution');
+            }
+        }
+    }, [gameState?.activePromptDetails, gameState?.activeAccusationDetails, selectedRule]);
+
     // Only allow spin if current user is host or active player
     const canSpin = currentUser && (currentUser.isHost || gameState?.activePlayer === currentUser.id);
 
@@ -185,8 +202,8 @@ export default function WheelScreen2() {
     };
 
     const handlePromptRulePress = (rule: Rule) => {
-        setCurrentModal('RuleDetails');
         setSelectedRule(rule);
+        setCurrentModal('RuleDetails');
     };
 
     const handleInitiateAccusation = (accusationDetails: ActiveAccusationDetails) => {
@@ -246,6 +263,33 @@ export default function WheelScreen2() {
                     cancelButtonDisplayed={false}
                 />
 
+
+                {/* Prompt Initiated Modal */}
+                <PromptPerformanceModal
+                    visible={currentModal === 'PromptPerformance'}
+                    selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
+                    prompt={gameState?.activePromptDetails?.selectedPrompt || null}
+                    onPressRule={handlePromptRulePress}
+                    onSuccess={() => {
+                        acceptPrompt();
+                        updatePoints(gameState?.activePlayer || '', 2);
+                    }}
+                    onFailure={endPrompt}
+                />
+
+                {/* Prompt Resolution Modal */}
+                <PromptResolutionModal
+                    visible={currentModal === 'PromptResolution'}
+                    selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
+                    prompt={gameState?.activePromptDetails?.selectedPrompt || null}
+                    onShredRule={(ruleId: string) => {
+                        shredRule(ruleId);
+                        endPrompt();
+                        socketService.broadcastNavigateToScreen('Game');
+                    }}
+                    onSkip={endPrompt}
+                />
+
                 {/* Rule Details Popup */}
                 <RuleDetailsModal
                     visible={currentModal === 'RuleDetails'}
@@ -260,32 +304,37 @@ export default function WheelScreen2() {
                     }}
                 />
 
-                {/* Prompt Initiated Modal */}
-                <PromptPerformanceModal
-                    visible={currentModal === 'PromptPerformance'}
-                    selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
-                    prompt={gameState?.activePromptDetails?.selectedPrompt || null}
-                    onPressRule={handlePromptRulePress}
-                    onSuccess={() => {
-                        acceptPrompt();
+
+                {/* Accusation Judgement Popup */}
+                <AccusationJudgementModal
+                    visible={currentModal === 'AccusationJudgement'}
+                    activeAccusationDetails={gameState?.activeAccusationDetails || null}
+                    currentUser={currentUser!}
+                    onAccept={() => {
+                        acceptAccusation();
+                        setSelectedRule(null);
                     }}
-                    onFailure={() => {
-                        endPrompt();
+                    onDecline={() => {
+                        endAccusation();
+                        setSelectedRule(null);
                     }}
                 />
 
-                {/* Prompt Resolution Modal */}
-                <PromptResolutionModal
-                    visible={currentModal === 'PromptResolution'}
-                    selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
-                    prompt={gameState?.activePromptDetails?.selectedPrompt || null}
-                    onShredRule={(ruleId: string) => {
-                        shredRule(ruleId);
+                {/* Accusation Rule Passing Modal */}
+                <RuleSelectionModal
+                    visible={currentModal === 'SuccessfulAccusationRuleSelection'}
+                    title={`Accusation Accepted!`}
+                    description={`Select a rule to give to ${gameState?.activeAccusationDetails?.accused?.name}:`}
+                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeAccusationDetails?.accuser.id) || []}
+                    onAccept={(rule: Rule) => {
+                        endAccusation();
+                        assignRule(rule.id, gameState?.activeAccusationDetails?.accused.id!);
                     }}
-                    onSkip={() => {
-                        endPrompt();
-                    }}
+                    onClose={endAccusation}
+                    cancelButtonText="Skip"
                 />
+
+
 
                 {/* Modal Popup */}
                 <ModifierModals

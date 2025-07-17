@@ -463,7 +463,10 @@ export default function GameScreen() {
                     visible={currentModal === 'AccusationJudgement'}
                     activeAccusationDetails={gameState?.activeAccusationDetails || null}
                     currentUser={currentUser!}
-                    onAccept={handleAcceptAccusation}
+                    onAccept={() => {
+                        acceptAccusation();
+                        setSelectedRule(null);
+                    }}
                     onDecline={() => {
                         endAccusation();
                         if (currentUser) setPlayerModal(currentUser.id, undefined);
