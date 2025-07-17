@@ -50,6 +50,7 @@ function createGame(hostId, hostName) {
         }],
         prompts: [],
         rules: [],
+        modifiers: [],
         currentUser: hostId, // The user ID of the person currently using the app
         activePlayer: null, // The player ID of the player currently taking their turn (excludes host)
         isGameStarted: false,
@@ -797,13 +798,15 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        // Broadcast to all players in the game (including sender for consistency)
-        io.to(gameId).emit('synchronized_wheel_spin', {
+        game.wheelSpinDetails = {
             spinningPlayerId,
             finalIndex,
             scrollAmount,
             duration
-        });
+        };
+
+        // Broadcast to all players in the game (including sender for consistency)
+        io.to(gameId).emit('game_updated', game);
     });
 
     // Broadcast navigation to screen

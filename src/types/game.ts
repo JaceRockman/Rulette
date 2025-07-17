@@ -32,24 +32,18 @@ export interface Rule extends Plaque {
 
 export interface Modifier extends Plaque {
     type: 'modifier';
+    isActive: boolean;
 }
 
 export interface End extends Plaque {
     type: 'end';
 }
 
-export interface WheelSegmentLayer {
-    type: 'rule' | 'prompt' | 'modifier' | 'end';
-    content: Rule | Prompt | Modifier | End;
-    isActive: boolean;
-}
-
 export interface WheelSegment {
     id: string;
-    layers: WheelSegmentLayer[];
+    layers: Plaque[];
     currentLayerIndex: number;
-    color: string;
-    plaqueColor: string;
+    segmentColor: string;
 }
 
 export interface GameState {
@@ -60,6 +54,7 @@ export interface GameState {
     prompts: Prompt[];
     modifiers: Modifier[];
     wheelSegments: WheelSegment[];
+    wheelSpinDetails?: WheelSpinDetails;
     currentUser?: string; // The user ID of the person currently using the app
     activePlayer?: string; // The player ID of the player currently taking their turn (excludes host)
     activeAccusationDetails?: ActiveAccusationDetails;
@@ -89,6 +84,13 @@ export interface LobbySettings {
     startingPoints: number;
     pointsPerPrompt: number;
     pointsPerRuleBreak: number;
+}
+
+export interface WheelSpinDetails {
+    spinningPlayerId: string;
+    finalIndex: number;
+    scrollAmount: number;
+    duration: number;
 }
 
 export interface ActiveAccusationDetails {

@@ -6,7 +6,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import HomeScreen from './src/screens/HomeScreen';
 import LobbyScreen from './src/screens/LobbyScreen';
 import GameScreen from './src/screens/GameScreen';
-import WheelScreen from './src/screens/WheelScreen';
 import RuleWritingScreen from './src/screens/RuleWritingScreen';
 import PromptWritingScreen from './src/screens/PromptWritingScreen';
 import { GameProvider } from './src/context/GameContext';
@@ -14,6 +13,7 @@ import OutlinedText from './src/components/OutlinedText';
 import StripedBackground from './src/components/Backdrop';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { colors } from './src/shared/styles';
+import WheelScreen2 from './src/screens/WheelScreen2';
 
 export type RootStackParamList = {
     Home: undefined;
@@ -86,7 +86,7 @@ export default function App() {
                         />
                         <Stack.Screen
                             name="Wheel"
-                            component={WheelScreen}
+                            component={WheelScreen2}
                             options={{
                                 headerTitle: () => <OutlinedText>Spin the Wheel!</OutlinedText>,
                                 headerTitleAlign: 'center',

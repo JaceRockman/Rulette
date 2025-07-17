@@ -1,34 +1,20 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { WheelSegmentLayer } from '../types/game';
+import { Plaque as PlaqueType } from '../types/game';
 import Plaque from './Plaque';
 
 interface WheelSegmentProps {
-    currentPlaque: WheelSegmentLayer;
+    plaque: PlaqueType;
     color: string;
 }
 
-export default function WheelSegment({ currentPlaque, color }: WheelSegmentProps) {
-
-    const currentPlaqueColor = currentPlaque?.content?.plaqueColor || '#fff';
-
-    // Get layer type text
-    const getLayerTypeText = () => {
-        switch (currentPlaque.type) {
-            case 'rule': return 'RULE';
-            case 'prompt': return 'PROMPT';
-            case 'modifier': return 'MODIFIER';
-            case 'end': return 'END';
-            default: return '';
-        }
-    };
-
+export default function WheelSegment({ plaque, color }: WheelSegmentProps) {
     return (
         <View style={[styles.wheelSegment, { backgroundColor: color }]}>
-            {/* <Plaque
-                text={getLayerTypeText()}
-                plaqueColor={currentPlaqueColor}
-            /> */}
+            <Plaque
+                plaque={plaque}
+                concealed={true}
+            />
 
             {/* Peg at the top right */}
             <View style={styles.peg} />
@@ -38,15 +24,12 @@ export default function WheelSegment({ currentPlaque, color }: WheelSegmentProps
 
 const styles = StyleSheet.create({
     wheelSegment: {
-        height: 120,
+        height: 120, // Should match ITEM_HEIGHT
+        width: '100%',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 4,
-        borderColor: '#000',
-        marginVertical: 2,
-        paddingHorizontal: 8,
-        flexDirection: 'row',
-        position: 'relative',
+        borderColor: 'black',
     },
     peg: {
         position: 'absolute',

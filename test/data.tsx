@@ -1,3 +1,4 @@
+import { LAYER_PLAQUE_COLORS } from "../src/shared/styles";
 import { GameState, Player, Rule, Prompt, Modifier, End } from "../src/types/game";
 
 export const testingState = () => {
@@ -54,36 +55,47 @@ export const testingState = () => {
     return testingGameState;
 };
 
+
+const randomPlaqueColor = () => {
+    return LAYER_PLAQUE_COLORS[Math.floor(Math.random() * LAYER_PLAQUE_COLORS.length)];
+}
+
 export const exampleRules: Rule[] = [
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must speak in a different accent", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot use the letter 'E'", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must end every sentence with 'yo'", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must act like a robot", isActive: true, assignedTo: undefined, plaqueColor: "#fff", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot use contractions", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must speak in questions only", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must use hand gestures for everything", isActive: true, assignedTo: undefined, plaqueColor: "#ed5c5d", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot say 'yes' or 'no'", isActive: true, assignedTo: undefined, plaqueColor: "#fff", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must speak in third person", isActive: true, assignedTo: undefined, plaqueColor: "#6bb9d3", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot use past tense", isActive: true, assignedTo: undefined, plaqueColor: "#a861b3", authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must speak in a different accent", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot use the letter 'E'", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must end every sentence with 'yo'", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must act like a robot", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot use contractions", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must speak in questions only", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must use hand gestures for everything", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot say 'yes' or 'no'", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must speak in third person", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot use past tense", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
 ];
 
+
 export const examplePrompts: Prompt[] = [
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that pizza is actually a dessert", category: "Persuasion", plaqueColor: "#ed5c5d", authorId: "system", isActive: true },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain how to make a sandwich without using your hands", category: "Instruction", plaqueColor: "#fff", authorId: "system", isActive: true },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your morning routine as if you're a superhero", category: "Storytelling", plaqueColor: "#6bb9d3", authorId: "system", isActive: true },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Argue that socks are actually tiny blankets for your feet", category: "Debate", plaqueColor: "#a861b3", authorId: "system", isActive: true },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain quantum physics using only food metaphors", category: "Education", plaqueColor: "#ed5c5d", authorId: "system", isActive: true },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your ideal vacation to a planet that doesn't exist", category: "Creative", plaqueColor: "#fff", authorId: "system", isActive: true },
-    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that time travel is just really good planning", category: "Persuasion", plaqueColor: "#6bb9d3", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that pizza is actually a dessert", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain how to make a sandwich without using your hands", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your morning routine as if you're a superhero", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Argue that socks are actually tiny blankets for your feet", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain quantum physics using only food metaphors", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your ideal vacation to a planet that doesn't exist", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that time travel is just really good planning", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
 ];
 
 export const allModifiers: Modifier[] = [
-    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Clone", plaqueColor: "#7A2D3F", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Flip", plaqueColor: "#7A2D3F", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Up", plaqueColor: "#29395C", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Down", plaqueColor: "#29395C", authorId: "system" },
-    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Swap", plaqueColor: "#7A2D3F", authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Clone", plaqueColor: "#7A2D3F", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Flip", plaqueColor: "#7A2D3F", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Up", plaqueColor: "#29395C", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Down", plaqueColor: "#29395C", authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'modifier', text: "Swap", plaqueColor: "#7A2D3F", authorId: "system", isActive: true },
 ];
+
+
+export const generateModifierPlaque = (index: number) => {
+    return allModifiers[index % allModifiers.length]
+}
 
 export const endPlaque: End = {
     id: Math.random().toString(36).substring(2, 9),

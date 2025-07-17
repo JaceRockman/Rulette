@@ -29,25 +29,21 @@ import {
 } from '../modals';
 import socketService from '../services/socketService';
 import shared from '../shared/styles';
+import ModifierModals from '../modals/ModifierModals';
+import { initiateClone, initiateFlip, initiateSwap, initiateUpDown } from '../modals/ModifierModals';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal, triggerCloneModifier, updateActiveCloningDetails, endCloneRule, cloneRuleToPlayer, triggerFlipModifier, flipRule, updateActiveFlippingDetails, endFlipRule, triggerSwapModifier, updateActiveSwappingDetails, swapRules, endSwapRule, triggerUpDownModifier, updateActiveUpDownDetails, endUpDownRule, updateRule } = useGame();
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal } = useGame();
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
 
     const [selectedPlayerForAction, setSelectedPlayerForAction] = useState<Player | null>(null);
     const [showHostActionModal, setShowHostActionModal] = useState(false);
     const [showGiveRuleModal, setShowGiveRuleModal] = useState(false);
-    const [swapTargetPlayer, setSwapTargetPlayer] = useState<Player | null>(null);
-    const [swapOwnRule, setSwapOwnRule] = useState<Rule | null>(null);
-    const [upDownCurrentPlayerIndex, setUpDownCurrentPlayerIndex] = useState(0);
-    const [upDownAction, setUpDownAction] = useState<'up' | 'down' | null>(null);
-    const [transferredRuleIds, setTransferredRuleIds] = useState<string[]>([]);
-    const [upDownPlayerOrder, setUpDownPlayerOrder] = useState<Player[]>([]);
     const [showNewHostSelectionModal, setShowNewHostSelectionModal] = useState(false);
 
     // Check if all non-host players have completed both phases
@@ -60,12 +56,10 @@ export default function GameScreen() {
     React.useEffect(() => {
         const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
         const globalModal = gameState?.globalModal;
-        console.log('modalState', playerModal, globalModal);
         setCurrentModal(playerModal || globalModal);
     }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal, gameState?.globalModal]);
 
     React.useEffect(() => {
-        console.log('activeCloneRuleDetails', gameState?.activeCloneRuleDetails);
         if (!gameState) return;
         if (gameState?.activeCloneRuleDetails === undefined || gameState?.activeCloneRuleDetails?.cloningCompleted) {
             setCurrentModal(undefined);
@@ -135,8 +129,23 @@ export default function GameScreen() {
         }
     };
 
+    const handleGiveRuleAction = () => {
+        if (selectedPlayerForAction && gameState) {
+            // Check if there are unassigned rules available
+
+            const availableRules = gameState?.rules.filter(rule => rule.assignedTo !== selectedPlayerForAction.id);
+            if (availableRules.length > 0) {
+                setShowHostActionModal(false);
+                setShowGiveRuleModal(true);
+            } else {
+                Alert.alert('No Rules Available', 'Player has all rules assigned to them already.');
+                setShowHostActionModal(false);
+                setSelectedPlayerForAction(null);
+            }
+        }
+    };
+
     const handleInitiateAccusation = (accusationDetails: ActiveAccusationDetails) => {
-        console.log('accusationDetails', accusationDetails);
         initiateAccusation(accusationDetails);
         setSelectedRule(null);
     };
@@ -156,395 +165,41 @@ export default function GameScreen() {
         setSelectedRule(rule);
     };
 
+
+
+
+
+
     const handleInitiateClone = () => {
         if (selectedPlayerForAction && gameState) {
-            // Check if player has rules to clone
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-            if (playerRules.length === 1) {
-                setShowHostActionModal(false);
-                triggerCloneModifier(selectedPlayerForAction, playerRules[0]);
-            } else if (playerRules.length > 0) {
-                setShowHostActionModal(false);
-                triggerCloneModifier(selectedPlayerForAction);
-            } else {
-                Alert.alert('No Rules to Clone', `${selectedPlayerForAction.name} has no assigned rules to clone.`);
-                setShowHostActionModal(false);
-                setSelectedPlayerForAction(null);
-            }
+            initiateClone({ gameState, cloningPlayer: selectedPlayerForAction });
         }
     };
-
-    const confirmRuleForCloning = (rule: Rule) => {
-        if (!gameState) return;
-        updateActiveCloningDetails({
-            ...gameState.activeCloneRuleDetails!,
-            ruleToClone: rule
-        });
-        if (currentUser) setPlayerModal(currentUser.id, 'CloneActionTargetSelection');
-    };
-
-    const deselectRuleForCloning = () => {
-        if (!gameState) return;
-        updateActiveCloningDetails({
-            ...gameState.activeCloneRuleDetails!,
-            ruleToClone: undefined
-        });
-    };
-
-    const confirmTargetForCloning = (player: Player) => {
-        if (!gameState) return;
-        updateActiveCloningDetails({
-            ...gameState.activeCloneRuleDetails!,
-            targetPlayer: player
-        });
-        cloneRuleToPlayer(gameState.activeCloneRuleDetails!.ruleToClone!, player);
-        if (currentUser) setPlayerModal(currentUser.id, 'CloneActionResolution');
-    };
-
-
 
 
     const handleInitiateFlip = () => {
         if (selectedPlayerForAction && gameState) {
-            // Check if player has rules to flip
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-            if (playerRules.length === 1) {
-                setShowHostActionModal(false);
-                triggerFlipModifier(selectedPlayerForAction, playerRules[0]);
-            } else if (playerRules.length > 0) {
-                setShowHostActionModal(false);
-                triggerFlipModifier(selectedPlayerForAction);
-            } else {
-                Alert.alert('No Rules to Flip', `${selectedPlayerForAction.name} has no assigned rules to flip.`);
-                setShowHostActionModal(false);
-                setSelectedPlayerForAction(null);
-            }
+            initiateFlip({ gameState, flippingPlayer: selectedPlayerForAction });
         }
     };
 
-    const confirmRuleForFlipping = (rule: Rule) => {
-        if (!gameState) return;
-        updateActiveFlippingDetails({
-            ...gameState.activeFlipRuleDetails!,
-            ruleToFlip: rule
-        });
-        if (currentUser) setPlayerModal(currentUser.id, 'FlipRuleTextInput');
-    };
 
     const handleInitiateSwap = () => {
         if (selectedPlayerForAction && gameState) {
-            // Check if player has rules to swap
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-            if (playerRules.length > 0) {
-                setShowHostActionModal(false);
-                triggerSwapModifier(selectedPlayerForAction);
-            } else {
-                Alert.alert('No Rules to Swap', `${selectedPlayerForAction.name} has no assigned rules to swap.`);
-                setShowHostActionModal(false);
-                setSelectedPlayerForAction(null);
-            }
+            initiateSwap({ gameState, swappingPlayer: selectedPlayerForAction });
         }
     };
 
-    const confirmTargetForSwapping = (player: Player) => {
-        if (!gameState) return;
-        updateActiveSwappingDetails({
-            ...gameState.activeSwapRuleDetails!,
-            swappee: player
-        });
-        if (currentUser) setPlayerModal(currentUser.id, 'SwapActionTargetRuleSelection');
-    };
 
-    const deselectTargetForSwapping = () => {
-        if (!gameState) return;
-        updateActiveSwappingDetails({
-            ...gameState.activeSwapRuleDetails!,
-            swappee: undefined
-        });
-    };
-
-    const confirmRulesForSwapping = (swapperRule: Rule, swappeeRule?: Rule) => {
-        if (!gameState) return;
-        updateActiveSwappingDetails({
-            ...gameState.activeSwapRuleDetails!,
-            swapperRule: swapperRule,
-            swappeeRule: swappeeRule
-        });
-        assignRule(swapperRule.id, gameState.activeSwapRuleDetails!.swappee!.id);
-        assignRule(swappeeRule!.id, gameState.activeSwapRuleDetails!.swapper!.id);
-    };
-
-
-
-    const handleGiveRuleAction = () => {
-        if (selectedPlayerForAction && gameState) {
-            // Check if there are unassigned rules available
-
-            const availableRules = gameState?.rules.filter(rule => rule.assignedTo !== selectedPlayerForAction.id);
-            if (availableRules.length > 0) {
-                setShowHostActionModal(false);
-                setShowGiveRuleModal(true);
-            } else {
-                Alert.alert('No Rules Available', 'Player has all rules assigned to them already.');
-                setShowHostActionModal(false);
-                setSelectedPlayerForAction(null);
-            }
-        }
-    };
-
-    // Handle Up action - start the modal flow
-    const handleUpAction = () => {
-        if (!gameState?.players) return;
-
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-        if (nonHostPlayers.length < 2) {
-            Alert.alert('Not Enough Players', 'Need at least 2 non-host players for Up action.');
-            return;
-        }
-
-        // Check if any players have rules to pass
-        const playersWithRules = nonHostPlayers.filter(player => {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
-            return playerRules.length > 0;
-        });
-
-        if (playersWithRules.length === 0) {
-            Alert.alert('No Rules to Pass', 'No players have rules to pass up.');
-            setShowHostActionModal(false);
-            return;
-        }
-
-        setUpDownAction('up');
-        setUpDownCurrentPlayerIndex(0);
-        setTransferredRuleIds([]);
-        setUpDownPlayerOrder(playersWithRules);
-        setShowHostActionModal(false);
-        if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
-    };
-
-    // Handle Down action - start the modal flow
-    const handleDownAction = () => {
-        if (!gameState?.players) return;
-
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-        if (nonHostPlayers.length < 2) {
-            Alert.alert('Not Enough Players', 'Need at least 2 non-host players for Down action.');
-            return;
-        }
-
-        // Check if any players have rules to pass
-        const playersWithRules = nonHostPlayers.filter(player => {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
-            return playerRules.length > 0;
-        });
-
-        if (playersWithRules.length === 0) {
-            Alert.alert('No Rules to Pass', 'No players have rules to pass down.');
-            setShowHostActionModal(false);
-            return;
-        }
-
-        setUpDownAction('down');
-        setUpDownCurrentPlayerIndex(0);
-        setTransferredRuleIds([]);
-        setUpDownPlayerOrder(playersWithRules);
-        setShowHostActionModal(false);
-        if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
-    };
-
-    // Helper to get players with rules left to pass
-    const getRuleAssignedPlayers = () => {
-        if (!gameState?.players) return [];
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-        return nonHostPlayers.filter(player =>
-            gameState.rules.some(rule =>
-                rule.assignedTo === player.id &&
-                rule.isActive &&
-                !transferredRuleIds.includes(rule.id)
-            )
-        );
-    };
-
-
-    const getPlayerToPassTo = (player: Player, direction: 'up' | 'down') => {
-        if (!gameState?.players) return;
-
-        const sourceIndex = gameState.players.findIndex(p => p.id === player.id);
-        if (sourceIndex === -1) return;
-
-        let targetIndex: number;
-        if (direction === 'up') {
-            targetIndex = sourceIndex - 1;
-            while (targetIndex >= 0 && gameState.players[targetIndex].isHost) {
-                targetIndex--;
-            }
-            if (targetIndex < 0) {
-                targetIndex = gameState.players.length - 1;
-                while (targetIndex >= 0 && gameState.players[targetIndex].isHost) {
-                    targetIndex--;
-                }
-            }
-        } else {
-            targetIndex = sourceIndex + 1;
-            while (targetIndex < gameState.players.length && gameState.players[targetIndex].isHost) {
-                targetIndex++;
-            }
-            if (targetIndex >= gameState.players.length) {
-                targetIndex = 0;
-                while (targetIndex < gameState.players.length && gameState.players[targetIndex].isHost) {
-                    targetIndex++;
-                }
-            }
-        }
-
-        if (targetIndex >= 0 && targetIndex < gameState.players.length) {
-            console.log('targetIndex', targetIndex);
-            return gameState.players[targetIndex];
-        }
-        return player; // fallback to self if no valid target found
-    }
 
     // Handle Up/Down workflow using socket-based approach
     const handleInitiateUpDown = (direction: 'up' | 'down') => {
-        if (!gameState?.players || !currentUser) return;
-
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-        if (nonHostPlayers.length < 2) {
-            Alert.alert('Not Enough Players', `Need at least 2 non-host players for ${direction} action.`);
-            return;
+        if (selectedPlayerForAction && gameState) {
+            initiateUpDown({ gameState, direction });
         }
-
-        // Check if any players have rules to pass
-        const playersWithRules = nonHostPlayers.filter(player => {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
-            return playerRules.length > 0;
-        });
-
-        if (playersWithRules.length === 0) {
-            Alert.alert('No Rules to Pass', `No players have rules to pass ${direction}.`);
-            return;
-        }
-
-        // Create up/down details and trigger the workflow
-        const upDownDetails = {
-            direction,
-            playersWithRules,
-            selectedRules: {},
-            isComplete: false
-        };
-
-        updateActiveUpDownDetails(upDownDetails);
-        setShowHostActionModal(false);
     };
 
-    // Handle rule selection for up/down workflow
-    const handleUpDownRuleSelect = (rule: Rule) => {
-        if (!gameState?.activeUpDownRuleDetails) return;
 
-        const updatedDetails = {
-            ...gameState.activeUpDownRuleDetails,
-            selectedRules: {
-                ...gameState.activeUpDownRuleDetails.selectedRules,
-                [currentUser!.id]: rule
-            }
-        };
-
-        updateActiveUpDownDetails(updatedDetails);
-    };
-
-    const handleUpDownConfirmation = () => {
-        if (!gameState?.activeUpDownRuleDetails) return;
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-        nonHostPlayers.forEach(player => {
-            const selectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[player.id];
-            const playerToPassTo = getPlayerToPassTo(player, gameState?.activeUpDownRuleDetails?.direction || 'up');
-            console.log('givenPlayer', player);
-            console.log('playerToPassTo', playerToPassTo);
-            if (selectedRule === undefined) {
-                Alert.alert('Not All Players Selected', `Player ${player.name} has not selected a rule to pass.`);
-                return;
-            } else {
-                assignRule(selectedRule.id, playerToPassTo?.id || player.id);
-            }
-        });
-        endUpDownRule();
-    };
-
-    // Handle Swap action - make selected player swap rules with another player
-    const handleSwapAction = () => {
-        if (!selectedPlayerForAction || !gameState) return;
-
-        // Get the selected player's rules
-        const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-        if (playerRules.length === 0) {
-            Alert.alert('No Rules to Swap', `${selectedPlayerForAction.name} has no rules to swap.`);
-            setShowHostActionModal(false);
-            setSelectedPlayerForAction(null);
-            return;
-        }
-
-        // Start the swap flow by showing the player's rules
-        setShowHostActionModal(false);
-        if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
-    };
-
-    // Handler for when the first rule is selected (from the selected player)
-    const handleSwapOwnRuleSelect = (ruleId: string) => {
-        if (!selectedPlayerForAction || !gameState) return;
-
-        const rule = gameState.rules.find(r => r.id === ruleId);
-        if (!rule) return;
-
-        setSwapOwnRule(rule);
-        if (currentUser) setPlayerModal(currentUser.id, undefined);
-
-        // Show player selection modal for the target player
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost && p.id !== selectedPlayerForAction.id);
-        if (nonHostPlayers.length === 0) {
-            Alert.alert('No Target Players', 'No other non-host players available for swap.');
-            setSwapOwnRule(null);
-            setSelectedPlayerForAction(null);
-            return;
-        }
-
-        if (currentUser) setPlayerModal(currentUser.id, 'SwapPlayerSelection');
-    };
-
-    // Handler for when the target player is selected
-    const handleSwapPlayerSelect = (targetPlayer: Player) => {
-        if (!swapOwnRule || !selectedPlayerForAction) return;
-
-        setSwapTargetPlayer(targetPlayer);
-        if (currentUser) setPlayerModal(currentUser.id, undefined);
-
-        // Immediately give the first rule to the target player
-        assignRule(swapOwnRule.id, targetPlayer.id);
-
-        // Show the target player's rules for selection (excluding the rule we just gave them)
-        if (currentUser) setPlayerModal(currentUser.id, 'RuleSelection');
-    };
-
-    // Handler for when the target rule is selected
-    const handleSwapTargetRuleSelect = (ruleId: string) => {
-        if (!swapOwnRule || !swapTargetPlayer || !selectedPlayerForAction || !gameState) return;
-
-        const targetRule = gameState.rules.find(r => r.id === ruleId);
-        if (!targetRule) return;
-
-        // Immediately give the target rule to the original player
-        assignRule(targetRule.id, selectedPlayerForAction.id);
-
-        Alert.alert('Swap Complete', `${selectedPlayerForAction.name} swapped "${swapOwnRule.text}" with ${swapTargetPlayer.name}'s "${targetRule.text}"!`);
-
-        // Reset all swap state
-        setSwapOwnRule(null);
-        setSwapTargetPlayer(null);
-        setSelectedPlayerForAction(null);
-        if (currentUser) setPlayerModal(currentUser.id, undefined);
-
-        // Broadcast navigation to game room for all players and host
-        socketService.broadcastNavigateToScreen('Game');
-    };
 
     // Host action handlers
     const handleEndGame = () => {
@@ -872,7 +527,9 @@ export default function GameScreen() {
                     description={`Select a prompt to give to ${selectedPlayerForAction?.name}:`}
                     prompts={gameState?.prompts || []}
                     onAccept={(prompt: Prompt | null) => {
-                        givePrompt(prompt?.id!, selectedPlayerForAction?.id!)
+                        if (prompt && selectedPlayerForAction) {
+                            givePrompt(prompt.id, selectedPlayerForAction.id);
+                        }
                     }}
                     onClose={() => {
                         if (currentUser) setPlayerModal(currentUser.id, undefined);
@@ -906,206 +563,13 @@ export default function GameScreen() {
                     }}
                 />
 
-                {/* Clone Rule Modals */}
-                {/* Clone Action Selection Modal */}
-                <RuleSelectionModal
-                    visible={currentModal === 'CloneActionRuleSelection'}
-                    title={`CLONE`}
-                    description={`Choose one of your rules to clone:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeCloneRuleDetails?.cloningPlayer.id && rule.isActive) || []}
-                    onAccept={confirmRuleForCloning}
-                    onClose={endCloneRule}
+                {/* Modifier Modals */}
+                <ModifierModals
+                    currentModal={currentModal || ''}
+                    gameState={gameState}
+                    currentUser={currentUser}
                 />
 
-                {/* Clone Target Selection Modal */}
-                <PlayerSelectionModal
-                    visible={currentModal === 'CloneActionTargetSelection'}
-                    title={`CLONE`}
-                    description={`Choose a player to give the copied rule to:`}
-                    players={gameState?.players.filter(player => {
-                        return player.id !== gameState?.activeCloneRuleDetails?.cloningPlayer.id
-                            && !player.isHost
-                    }) || []}
-                    onSelectPlayer={confirmTargetForCloning}
-                    onClose={deselectRuleForCloning}
-                    cancelButtonText="Back"
-                />
-
-                {/* Await Clone Rule Selection Modal */}
-                <SimpleModal
-                    visible={currentModal === 'AwaitCloneRuleSelection'}
-                    title={'CLONE'}
-                    description={`Waiting for ${gameState?.activeCloneRuleDetails?.cloningPlayer.name} to select a rule to clone...`}
-                />
-
-                {/* Await Clone Target Selection Modal */}
-                <SimpleModal
-                    visible={currentModal === 'AwaitCloneTargetSelection'}
-                    title={'CLONE'}
-                    description={`Waiting for ${gameState?.activeCloneRuleDetails?.cloningPlayer.name} to select a recipient for the copied rule...`}
-                    content={
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                            <Plaque
-                                plaque={gameState?.activeCloneRuleDetails?.ruleToClone!}
-                            />
-                        </View>
-                    }
-                />
-
-                {/* Clone Action Resolution Modal */}
-                <SimpleModal
-                    visible={currentModal === 'CloneActionResolution'}
-                    title={'CLONE'}
-                    description={`${gameState?.activeCloneRuleDetails?.cloningPlayer.name} has cloned the following rule and given it to ${gameState?.activeCloneRuleDetails?.targetPlayer?.name}!`}
-                    content={
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                            <Plaque
-                                plaque={gameState?.activeCloneRuleDetails?.ruleToClone!}
-                            />
-                        </View>
-                    }
-                    onAccept={endCloneRule}
-                    acceptButtonText="Ok"
-                    acceptButtonDisplayed={currentUser?.id === gameState?.activeCloneRuleDetails?.targetPlayer?.id}
-                />
-
-
-
-
-
-                {/* Flip Rule Modals */}
-                <RuleSelectionModal
-                    visible={currentModal === 'FlipRuleSelection'}
-                    title={`FLIP`}
-                    description={`Choose a Rule to flip:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeFlipRuleDetails?.flippingPlayer.id && rule.isActive) || []}
-                    onAccept={confirmRuleForFlipping}
-                    onClose={endFlipRule}
-                />
-
-                {/* Flip Text Input Modal */}
-                <FlipTextInputModal
-                    visible={currentModal === 'FlipRuleTextInput'}
-                    selectedRule={gameState?.activeFlipRuleDetails?.ruleToFlip || undefined}
-                    onFlipRule={flipRule}
-                    onClose={endFlipRule}
-                />
-
-                {/* Await Flip Rule Selection Modal */}
-                <SimpleModal
-                    visible={currentModal === 'AwaitFlipRuleSelection'}
-                    title={'FLIP'}
-                    description={`Waiting for ${gameState?.activeFlipRuleDetails?.flippingPlayer.name} to select a rule to flip...`}
-                />
-
-                {/* Await Flip Rule Execution Modal */}
-                <SimpleModal
-                    visible={currentModal === 'AwaitFlipRuleExecution'}
-                    title={'FLIP'}
-                    description={`Waiting for Host to flip rule:`}
-                    content={
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                            <Plaque
-                                plaque={gameState?.activeFlipRuleDetails?.ruleToFlip!}
-                            />
-                        </View>
-                    }
-                />
-
-                {/* Swap Rule Modals */}
-                {/* Swap Action Selection Modal */}
-
-                {/* Swap Target Selection Modal */}
-                <PlayerSelectionModal
-                    visible={currentModal === 'SwapActionTargetSelection'}
-                    title={`SWAP`}
-                    description={`Choose a player to swap rules with:`}
-                    players={gameState?.players.filter(player => {
-                        return player.id !== gameState?.activeSwapRuleDetails?.swapper.id
-                            && !player.isHost
-                            && gameState?.rules.some(rule => rule.assignedTo === player.id && rule.isActive)
-                    }) || []}
-                    onSelectPlayer={confirmTargetForSwapping}
-                />
-
-                <RuleSelectionModal
-                    visible={currentModal === 'SwapActionRuleSelection'}
-                    title={`SWAP`}
-                    description={`Choose one of your rules to give to ${gameState?.activeSwapRuleDetails?.swappee?.name}:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeSwapRuleDetails?.swapper.id && rule.isActive) || []}
-                    description2={`Choose a rule to take from ${gameState?.activeSwapRuleDetails?.swappee?.name}:`}
-                    rules2={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeSwapRuleDetails?.swappee?.id && rule.isActive) || []}
-                    onAccept={confirmRulesForSwapping}
-                    onClose={deselectTargetForSwapping}
-                />
-
-                {/* Swap Target Rule Selection Modal */}
-                {/* <RuleSelectionModal
-                    visible={currentModal === 'SwapActionTargetRuleSelection'}
-                    title={`SWAP`}
-                    description={`Choose a rule to take from ${gameState?.activeSwapRuleDetails?.swappee?.name}:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeSwapRuleDetails?.swappee?.id && rule.isActive) || []}
-                    onAccept={confirmTargetRuleForSwapping}
-                    onClose={deselectTargetForSwapping}
-                    cancelButtonText="Back"
-                /> */}
-
-                {/* Await Swap Target Selection Modal */}
-                <SimpleModal
-                    visible={currentModal === 'AwaitSwapTargetSelection'}
-                    title={'SWAP'}
-                    description={`Waiting for ${gameState?.activeSwapRuleDetails?.swapper.name} to select a player to swap with...`}
-                />
-
-                {/* Await Swap Rule Selection Modal */}
-                <SimpleModal
-                    visible={currentModal === 'AwaitSwapRuleSelection'}
-                    title={'SWAP'}
-                    description={`Waiting for ${gameState?.activeSwapRuleDetails?.swapper.name} to select rules to swap...`}
-                />
-
-                {/* Swap Action Resolution Modal */}
-                <SimpleModal
-                    visible={currentModal === 'SwapRuleResolution'}
-                    title={'SWAP'}
-                    description={`${gameState?.activeSwapRuleDetails?.swapper.name} has swapped rules with ${gameState?.activeSwapRuleDetails?.swappee?.name}!`}
-                    content={
-                        <View style={{ alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
-                            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>{gameState?.activeSwapRuleDetails?.swapper.name} has given {gameState?.activeSwapRuleDetails?.swappee?.name}
-                            </Text>
-                            <Plaque
-                                plaque={gameState?.activeSwapRuleDetails?.swapperRule!}
-                            />
-                            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>and taken</Text>
-                            <Plaque
-                                plaque={gameState?.activeSwapRuleDetails?.swappeeRule!}
-                            />
-                        </View>
-                    }
-                    onAccept={endSwapRule}
-                    acceptButtonText="Ok"
-                    acceptButtonDisplayed={currentUser?.id === gameState?.activeSwapRuleDetails?.swappee?.id || currentUser?.isHost}
-                />
-
-                {/* Up/Down Simultaneous Selection Modal */}
-                <RuleSelectionModal
-                    visible={currentModal === 'UpDownRuleSelection'}
-                    title={`PASS RULES`}
-                    description={`Choose a rule to pass to ${getPlayerToPassTo(currentUser!, gameState?.activeUpDownRuleDetails?.direction || 'up')?.name || 'your neighbor'}...`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === currentUser?.id) || []}
-                    onAccept={handleUpDownRuleSelect}
-                    onClose={endUpDownRule}
-                />
-
-                {/* Await Up/Down Selection Modal */}
-                <SimpleModal
-                    visible={currentModal === 'AwaitUpDownSelection'}
-                    title={'PASS RULES'}
-                    description={`Waiting for all players to select their rules to pass ${gameState?.activeUpDownRuleDetails?.direction === 'up' ? 'up' : 'down'}...`}
-                    onAccept={handleUpDownConfirmation}
-                    acceptButtonDisplayed={currentUser?.isHost}
-                    acceptButtonDisabled={Object.values(gameState?.activeUpDownRuleDetails?.selectedRules || {}).length !== gameState?.players.filter(p => !p.isHost).length}
-                />
 
                 {/* Exit Game Modal */}
                 <ExitGameModal
