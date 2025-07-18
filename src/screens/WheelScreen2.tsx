@@ -33,7 +33,7 @@ export default function WheelScreen2() {
     const [selectedSegment, setSelectedSegment] = useState<WheelSegmentType | null>(null);
     const selectedSegmentRef = useRef<WheelSegmentType | null>(null); // Preserve selectedSegment during prompt workflow
 
-
+    console.log('segments', gameState?.wheelSegments);
     // Wheel segments from game state
     const segments = gameState?.wheelSegments || [];
     const paddedSegments = [
@@ -62,7 +62,7 @@ export default function WheelScreen2() {
     const initiateSpin = () => {
         if (!segments.length || isSpinning || gameState?.wheelSpinDetails !== undefined) return;
         // Generate random final index
-        const randomSpins = 40 + Math.floor(Math.random() * 11);
+        const randomSpins = 41;
         const scrollAmount = (randomSpins * ITEM_HEIGHT);
         const finalIndex = (currentWheelIndex + randomSpins) % segments.length;
         const duration = 3000 + Math.random() * 2000; // 3-5 seconds
@@ -150,7 +150,11 @@ export default function WheelScreen2() {
                         }
                         break;
                     case 'end':
-                        endGame();
+                        if (currentUser?.isHost) {
+                            setCurrentModal('EndGameDecision');
+                        } else {
+                            setCurrentModal('AwaitEndGameDecision');
+                        }
                         break;
                 }
             }
@@ -233,8 +237,6 @@ export default function WheelScreen2() {
     // Only allow spin if current user is host or active player
     const canSpin = currentUser && (currentUser.isHost || gameState?.activePlayer === currentUser.id);
 
-
-
     const handlePromptRulePress = (rule: Rule) => {
         setSelectedRule(rule);
         setCurrentModal('RuleDetails');
@@ -246,9 +248,8 @@ export default function WheelScreen2() {
     };
 
     const promptFailure = () => {
-        console.log('promptFailure');
-        socketService.completeWheelSpin(selectedSegment?.id);
         endPrompt();
+        finishWheelSpin();
     }
 
     if (!gameState || !currentUser) {
@@ -395,6 +396,32 @@ export default function WheelScreen2() {
                     currentUser={currentUser}
                     onFinishModifier={finishWheelSpin}
                 />
+
+
+
+                {/* End Game Modals */}
+                {/* End Game Decision Modal */}
+                <SimpleModal
+                    visible={currentModal === 'EndGameDecision'}
+                    title={`End Game?`}
+                    description={`Would you like to end the game?`}
+                    onAccept={() => {
+                        finishWheelSpin();
+                        endGame();
+                    }}
+                    onClose={() => {
+                        setCurrentModal(undefined);
+                    }}
+                />
+
+                {/* Await End Game Decision Modal */}
+                <SimpleModal
+                    visible={currentModal === 'AwaitEndGameDecision'}
+                    title={`Game Over`}
+                    description={`Waiting for host to end the game...`}
+                />
+
+
             </SafeAreaView>
         </Backdrop>
     );

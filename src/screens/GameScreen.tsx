@@ -87,11 +87,6 @@ export default function GameScreen() {
         }
     }, [gameState?.activeCloneRuleDetails]);
 
-    const handleUpdatePoints = (playerId: string, currentPoints: number, change: number) => {
-        const newPoints = Math.max(0, Math.min(99, currentPoints + change));
-        updatePoints(playerId, newPoints);
-    };
-
     const handleAssignRuleToPlayer = (ruleId: string, player: Player) => {
         if (player && gameState) {
             const rule = gameState.rules.find(r => r.id === ruleId);
@@ -271,7 +266,7 @@ export default function GameScreen() {
                     justifyContent: 'center',
                     alignItems: 'center',
                 }}
-                onPress={() => handleUpdatePoints(player.id, player.points, -1)}
+                onPress={() => updatePoints(player.id, -1)}
             >
                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>-1</Text>
             </TouchableOpacity>
@@ -289,7 +284,7 @@ export default function GameScreen() {
                     justifyContent: 'center',
                     alignItems: 'center',
                 }}
-                onPress={() => handleUpdatePoints(player.id, player.points, 1)}
+                onPress={() => updatePoints(player.id, 1)}
             >
                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>+1</Text>
             </TouchableOpacity>
@@ -385,7 +380,7 @@ export default function GameScreen() {
 
                     <TouchableOpacity
                         style={[shared.button, { marginTop: 30 }]}
-                        onPress={() => socketService.broadcastNavigateToScreen('HOME')}
+                        onPress={() => navigation.navigate('Home')}
                     >
                         <Text style={shared.buttonText}>Back to Home</Text>
                     </TouchableOpacity>

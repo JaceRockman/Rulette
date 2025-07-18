@@ -9,6 +9,7 @@ interface WheelSegmentProps {
 }
 
 export default function WheelSegment({ plaque, color }: WheelSegmentProps) {
+
     return (
         <View style={[styles.wheelSegment, { backgroundColor: color }]}>
             <Plaque

@@ -13,6 +13,7 @@ interface PlaqueProps {
 
 export default function Plaque({ plaque, concealed, style, onPress, selected }: PlaqueProps) {
 
+    console.log('plaque', plaque);
 
     const PlaqueContent = (
         <View style={[
@@ -22,7 +23,11 @@ export default function Plaque({ plaque, concealed, style, onPress, selected }: 
             { backgroundColor: plaque?.plaqueColor },
             style
         ]}>
-            <Text style={styles.plaqueText} numberOfLines={3}>
+            <Text style={[styles.plaqueText,
+            plaque?.type === 'modifier' && { color: colors.gameChangerWhite },
+            plaque?.type === 'end' && { color: colors.gameChangerWhite }
+            ]}
+                numberOfLines={3}>
                 {concealed ? plaque?.type.toUpperCase() : plaque?.text}
             </Text>
         </View>
@@ -62,5 +67,8 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 22,
         color: colors.gameChangerBlack,
+    },
+    endPlaqueText: {
+        color: colors.gameChangerWhite,
     },
 }); 

@@ -483,13 +483,13 @@ io.on('connection', (socket) => {
     });
 
     // Update points
-    socket.on('update_points', ({ gameId, playerId, points }) => {
+    socket.on('update_points', ({ gameId, playerId, pointChange }) => {
         const game = games.get(gameId);
         if (!game) return;
 
         const player = game.players.find(p => p.id === playerId);
         if (player) {
-            player.points = Math.max(0, player.points + points);
+            player.points = Math.max(0, player.points + pointChange);
             game.selectedRule = undefined;
             io.to(gameId).emit('game_updated', game);
         }
@@ -509,6 +509,7 @@ io.on('connection', (socket) => {
                 selectedPlayer: promptedPlayer,
                 isPromptAccepted: undefined
             };
+            setAllPlayerModals(game, 'PromptPerformance');
             io.to(gameId).emit('game_updated', game);
         } else if (!promptedPlayer && !prompt) {
             socket.emit('error', { message: 'Player and prompt not found' });
@@ -530,8 +531,10 @@ io.on('connection', (socket) => {
     socket.on('accept_prompt', ({ gameId }) => {
         const game = games.get(gameId);
         if (!game) return;
+        const promptedPlayer = game.players.find(p => p.id === game.activePromptDetails.selectedPlayer.id);
         game.activePromptDetails.isPromptAccepted = true;
-        setGlobalModal(game, 'PromptResolution');
+        promptedPlayer.points += 2;
+        setAllPlayerModals(game, 'PromptResolution');
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -847,6 +850,15 @@ io.on('connection', (socket) => {
             screen,
             params
         });
+    });
+
+    // End game
+    socket.on('end_game', ({ gameId, winner }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.gameEnded = true;
+        game.winner = winner;
+        io.to(gameId).emit('game_updated', game);
     });
 
     // Broadcast end game continue

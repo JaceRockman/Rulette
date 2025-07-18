@@ -401,6 +401,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             plaqueColor: "#313131",
             authorId: "system"
         };
+        socketService.addPlaque(localEndPlaque);
         console.log('GameContext: Adding localEndPlaque:', localEndPlaque);
         layers.push(localEndPlaque);
     };
@@ -672,10 +673,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const updatePoints = (playerId: string, points: number) => {
-        if (!gameState) return;
-        if (points < 0) throw new Error('Points must be greater than or equal to 0');
-        if (points > 99) throw new Error('Points must be less than 100');
-
         socketService.updatePoints(playerId, points);
     };
 
@@ -697,11 +694,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (!gameState || !gameState.activePlayer) return;
 
         const winner = gameState.players.find(p => p.id === gameState.activePlayer);
-        if (winner) {
-            dispatch({ type: 'END_GAME', payload: winner });
-        } else {
-            dispatch({ type: 'END_GAME', payload: gameState.players.find(p => p.isHost) || gameState.players[0] });
-        }
+        socketService.endGame(winner);
     };
 
     const setPlayerModal = (playerId: string, modalName?: string) => {

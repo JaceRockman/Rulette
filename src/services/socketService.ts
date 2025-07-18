@@ -243,6 +243,14 @@ class SocketService {
         });
     }
 
+    endGame(winner?: Player) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_game', {
+            gameId: this.gameState.id,
+            winner
+        });
+    }
+
     broadcastEndGameContinue() {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('broadcast_end_game_continue', {
@@ -278,12 +286,12 @@ class SocketService {
         });
     }
 
-    updatePoints(playerId: string, points: number) {
+    updatePoints(playerId: string, pointChange: number) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_points', {
             gameId: this.gameState.id,
             playerId,
-            points
+            pointChange
         });
     }
 
