@@ -20,7 +20,7 @@ const VISIBLE_ITEMS = 5;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList) as unknown as typeof FlatList<WheelSegmentType>;
 
 export default function WheelScreen2() {
-    const { gameState, currentUser, assignRule, givePrompt, initiateAccusation, acceptPrompt, shredRule, endPrompt, removeWheelLayer, endGame, endAccusation, acceptAccusation, updatePoints,
+    const { gameState, currentUser, assignRule, givePrompt, initiateAccusation, acceptPrompt, shredRule, endPrompt, endGame, endAccusation, acceptAccusation, updatePoints,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
     const [isSpinning, setIsSpinning] = useState(false);
     const [currentWheelIndex, setCurrentWheelIndex] = useState<number>(0);
@@ -33,24 +33,6 @@ export default function WheelScreen2() {
     const [selectedSegment, setSelectedSegment] = useState<WheelSegmentType | null>(null);
     const selectedSegmentRef = useRef<WheelSegmentType | null>(null); // Preserve selectedSegment during prompt workflow
 
-    console.log("initial wheel state", { isSpinning, currentWheelIndex, scrollY, currentScrollOffset, currentModal, selectedRule, selectedSegment });
-
-    const resetInitialWheelState = () => {
-        setIsSpinning(false);
-        setCurrentWheelIndex(0);
-        setCurrentModal(undefined);
-        setSelectedRule(null);
-        setSelectedSegment(null);
-    };
-
-    // Clear any leftover state when navigating to wheel screen
-    React.useEffect(() => {
-        console.log('WheelScreen2: Clearing leftover state on mount');
-        setSelectedRule(null);
-        setCurrentModal(undefined);
-        setSelectedSegment(null);
-        setCurrentWheelIndex(0);
-    }, []); // Empty dependency array means this runs once when component mounts
 
     // Wheel segments from game state
     const segments = gameState?.wheelSegments || [];
@@ -62,6 +44,8 @@ export default function WheelScreen2() {
 
     // Update local state to current modal based on game state
     React.useEffect(() => {
+        console.log('UseEffect: update local state', gameState)
+        console.log('currentModal', gameState?.players.find(player => player.id === currentUser?.id)?.currentModal)
         const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
         const globalModal = gameState?.globalModal;
         setCurrentModal(playerModal || globalModal);
@@ -96,7 +80,7 @@ export default function WheelScreen2() {
 
     // Listen for synchronized wheel spin events
     useEffect(() => {
-        console.log('WheelScreen2: wheelSpinDetails for wheelSpin?', gameState?.wheelSpinDetails);
+        console.log('UseEffect: wheelSpinDetails updated')
         if (gameState?.wheelSpinDetails !== undefined) {
             performSynchronizedSpin();
         } else {
@@ -180,6 +164,7 @@ export default function WheelScreen2() {
 
     // Sync the FlatList scroll position with the animation
     React.useEffect(() => {
+        console.log('UseEffect: sync scroll position')
         const id = scrollY.addListener(({ value }) => {
             currentScrollOffset.current = value;
 
@@ -202,8 +187,8 @@ export default function WheelScreen2() {
 
 
     const finishWheelSpin = () => {
+        console.log('finishWheelSpin');
         console.log('wheel state', { isSpinning, currentWheelIndex, scrollY, currentScrollOffset, currentModal, selectedRule, selectedSegment });
-        console.log('WheelScreen2: completing wheel spin');
         // Use the centralized server-side approach
         if (selectedSegment || selectedSegmentRef.current) {
             const segmentToUse = selectedSegment || selectedSegmentRef.current;
@@ -220,17 +205,10 @@ export default function WheelScreen2() {
 
     // Interrupt prompts with accusations but be able to return to the prompt performance modal
     React.useEffect(() => {
-        if (currentUser?.isHost) {
-            console.log('WheelScreen2: prompt stuff triggered');
-            console.log('WheelScreen2: selected rule', selectedRule);
-        }
+        console.log('UseEffect: prompt, accusation, or rule updated')
         if (selectedRule) {
             setCurrentModal('RuleDetails');
             return;
-        }
-        if (currentUser?.isHost) {
-            console.log('WheelScreen2: active prompt details', gameState?.activePromptDetails);
-            console.log('WheelScreen2: active accusation details', gameState?.activeAccusationDetails);
         }
         if (gameState?.activePromptDetails !== undefined && gameState?.activeAccusationDetails === undefined) {
             if (!gameState?.activePromptDetails?.isPromptAccepted) {
@@ -242,8 +220,13 @@ export default function WheelScreen2() {
     }, [gameState?.activePromptDetails, gameState?.activeAccusationDetails, selectedRule]);
 
     useEffect(() => {
+        console.log('UseEffect: accusation updated')
         if (gameState?.activeAccusationDetails?.accusationAccepted) {
-            setCurrentModal('SuccessfulAccusationRuleSelection');
+            if (gameState?.activeAccusationDetails?.accuser?.id === currentUser?.id) {
+                setCurrentModal('SuccessfulAccusationRuleSelection');
+            } else {
+                setCurrentModal('AwaitAccusationRuleSelection');
+            }
         }
     }, [gameState?.activeAccusationDetails?.accusationAccepted]);
 
@@ -261,6 +244,12 @@ export default function WheelScreen2() {
         initiateAccusation(accusationDetails);
         setSelectedRule(null);
     };
+
+    const promptFailure = () => {
+        console.log('promptFailure');
+        socketService.completeWheelSpin(selectedSegment?.id);
+        endPrompt();
+    }
 
     if (!gameState || !currentUser) {
         return (
@@ -326,8 +315,7 @@ export default function WheelScreen2() {
                         updatePoints(gameState?.activePlayer || '', 2);
                     }}
                     onFailure={() => {
-                        endPrompt();
-                        finishWheelSpin();
+                        promptFailure();
                     }}
                 />
 
@@ -342,8 +330,8 @@ export default function WheelScreen2() {
                         finishWheelSpin();
                     }}
                     onSkip={() => {
-                        endPrompt();
                         finishWheelSpin();
+                        endPrompt();
                     }}
                 />
 
@@ -374,6 +362,7 @@ export default function WheelScreen2() {
                     onDecline={() => {
                         endAccusation();
                         setSelectedRule(null);
+
                     }}
                 />
 
@@ -389,6 +378,13 @@ export default function WheelScreen2() {
                     }}
                     onClose={endAccusation}
                     cancelButtonText="Skip"
+                />
+
+                {/* Accusation Rule Passing Awaiting Modal */}
+                <SimpleModal
+                    visible={currentModal === 'AwaitAccusationRuleSelection'}
+                    title={`Rule Passing Awaiting`}
+                    description={`Waiting for ${gameState?.activeAccusationDetails?.accuser?.name} to select a rule to give to ${gameState?.activeAccusationDetails?.accused?.name}...`}
                 />
 
 

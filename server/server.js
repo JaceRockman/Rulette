@@ -66,6 +66,8 @@ function createGame(hostId, hostName) {
     games.set(lobbyCode, game);
     players.set(hostId, { gameId, socketId: null });
 
+    console.log('game', game);
+
     return game;
 }
 
@@ -134,6 +136,7 @@ io.on('connection', (socket) => {
 
     // Create lobby
     socket.on('create_lobby', ({ playerName }) => {
+        console.log('create_lobby', playerName);
         const playerId = uuidv4();
         const game = createGame(playerId, playerName);
 
@@ -506,7 +509,6 @@ io.on('connection', (socket) => {
                 selectedPlayer: promptedPlayer,
                 isPromptAccepted: undefined
             };
-            setGlobalModal(game, 'PromptPerformance');
             io.to(gameId).emit('game_updated', game);
         } else if (!promptedPlayer && !prompt) {
             socket.emit('error', { message: 'Player and prompt not found' });
