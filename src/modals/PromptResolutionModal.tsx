@@ -10,23 +10,21 @@ import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 
 interface PromptResolutionModalProps {
     visible: boolean;
-    selectedPlayerForAction: Player | null;
-    prompt: Prompt | null;
     onShredRule: (ruleId: string) => void;
     onSkip: () => void;
 }
 
 export default function PromptResolutionModal({
     visible,
-    selectedPlayerForAction,
-    prompt,
     onShredRule,
     onSkip
 }: PromptResolutionModalProps) {
     const { gameState } = useGame();
-    const promptedPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id) || [];
+    const { selectedPlayer, selectedPrompt } = gameState?.activePromptDetails || {};
+
+    const promptedPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === selectedPlayer?.id) || [];
     const currentUser = gameState?.players.find(p => p.id === socketService.getCurrentUserId());
-    const isPromptedPlayer = currentUser?.id === selectedPlayerForAction?.id;
+    const isPromptedPlayer = currentUser?.id === selectedPlayer?.id;
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
 
     const toggleSelectedRule = (rule: Rule) => {
@@ -47,7 +45,7 @@ export default function PromptResolutionModal({
             <View style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
                     <Text style={shared.modalTitle}>Prompt Succeeded!</Text>
-                    <Plaque plaque={prompt as PlaqueType} />
+                    <Plaque plaque={selectedPrompt as PlaqueType} />
 
                     {isPromptedPlayer && (
                         <View>
@@ -73,7 +71,7 @@ export default function PromptResolutionModal({
                     )}
                     {!isPromptedPlayer && (
                         <Text style={shared.modalDescription}>
-                            Waiting for {selectedPlayerForAction?.name} to shred a rule...
+                            Waiting for {selectedPlayer?.name} to shred a rule...
                         </Text>
                     )}
                 </View>

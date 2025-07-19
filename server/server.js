@@ -292,6 +292,27 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('broadcast_navigate_to_screen', { screen: 'RuleWriting' });
     });
 
+    socket.on('set_all_player_modals', ({ gameId, modal }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        setAllPlayerModals(game, modal);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_selected_rule', ({ gameId, ruleId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.selectedRule = ruleId;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_selected_player_for_action', ({ gameId, playerId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.selectedPlayerForAction = playerId;
+        io.to(gameId).emit('game_updated', game);
+    });
+
     // Update game settings
     socket.on('update_game_settings', ({ gameId, settings }) => {
         const game = games.get(gameId);
@@ -454,8 +475,6 @@ io.on('connection', (socket) => {
 
         if (accuser.isHost || game.rules.filter(r => r.assignedTo === accuser.id).length === 0) {
             game.activeAccusationDetails = undefined;
-            setAllPlayerModals(game, undefined);
-            setGlobalModal(game, undefined);
         } else {
             game.activeAccusationDetails.accusationAccepted = true;
             game.players.forEach(player => {
@@ -509,7 +528,6 @@ io.on('connection', (socket) => {
                 selectedPlayer: promptedPlayer,
                 isPromptAccepted: undefined
             };
-            setAllPlayerModals(game, 'PromptPerformance');
             io.to(gameId).emit('game_updated', game);
         } else if (!promptedPlayer && !prompt) {
             socket.emit('error', { message: 'Player and prompt not found' });
@@ -534,7 +552,17 @@ io.on('connection', (socket) => {
         const promptedPlayer = game.players.find(p => p.id === game.activePromptDetails.selectedPlayer.id);
         game.activePromptDetails.isPromptAccepted = true;
         promptedPlayer.points += 2;
-        setAllPlayerModals(game, 'PromptResolution');
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('possibly_return_to_prompt', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        if (game.activePromptDetails !== undefined) {
+            setAllPlayerModals(game, 'PromptPerformance');
+        } else {
+            setAllPlayerModals(game, undefined);
+        }
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -543,8 +571,6 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
         game.activePromptDetails = undefined;
-        setAllPlayerModals(game, undefined);
-        setGlobalModal(game, undefined);
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -558,8 +584,6 @@ io.on('connection', (socket) => {
             rule.isActive = false;
         }
         game.rules = game.rules.filter(r => r.id !== ruleId);
-        setAllPlayerModals(game, undefined);
-        setGlobalModal(game, undefined);
         io.to(gameId).emit('game_updated', game);
     });
 

@@ -25,12 +25,13 @@ import {
     PromptResolutionModal,
     RuleSelectionModal,
     PlayerSelectionModal,
-    PromptListModal,
+    PromptSelectionModal,
 } from '../modals';
 import socketService from '../services/socketService';
 import shared from '../shared/styles';
 import ModifierModals from '../modals/ModifierModals';
 import { initiateClone, initiateFlip, initiateSwap, initiateUpDown } from '../modals/ModifierModals';
+import PromptAndAccusationModals from '../modals/PromptAndAccusationModals';
 
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
@@ -59,6 +60,14 @@ export default function GameScreen() {
         const globalModal = gameState?.globalModal;
         setCurrentModal(playerModal || globalModal);
     }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal, gameState?.globalModal]);
+
+    React.useEffect(() => {
+        if (!gameState) return;
+        if (gameState?.selectedPlayerForAction) {
+            console.log('GameScreen: selectedPlayerForAction', gameState.selectedPlayerForAction);
+            setSelectedPlayerForAction(gameState.players.find(player => player.id === gameState.selectedPlayerForAction) || null);
+        }
+    }, [gameState?.selectedPlayerForAction]);
 
     React.useEffect(() => {
         if (!gameState) return;
@@ -120,22 +129,24 @@ export default function GameScreen() {
                 );
                 return;
             }
-            setSelectedPlayerForAction(player);
-            setShowHostActionModal(true);
+            console.log('handlePlayerTap', player.name);
+            socketService.setSelectedPlayerForAction(player.id);
+            setCurrentModal('HostAction');
         }
     };
 
     const handleGiveRuleAction = () => {
-        if (selectedPlayerForAction && gameState) {
+        console.log('handleGiveRuleAction', selectedPlayerForAction);
+        if (selectedPlayerForAction !== null) {
             // Check if there are unassigned rules available
 
             const availableRules = gameState?.rules.filter(rule => rule.assignedTo !== selectedPlayerForAction.id);
-            if (availableRules.length > 0) {
-                setShowHostActionModal(false);
-                setShowGiveRuleModal(true);
+            if (availableRules && availableRules.length > 0) {
+                console.log('handleGiveRuleAction', selectedPlayerForAction.name, availableRules.length);
+                setCurrentModal('GiveRule');
             } else {
                 Alert.alert('No Rules Available', 'Player has all rules assigned to them already.');
-                setShowHostActionModal(false);
+                setCurrentModal(undefined);
                 setSelectedPlayerForAction(null);
             }
         }
@@ -152,8 +163,7 @@ export default function GameScreen() {
     };
 
     const handleGivePromptAction = () => {
-        setShowHostActionModal(false);
-        if (currentUser) setPlayerModal(currentUser.id, 'GivePrompt');
+        setCurrentModal('GivePrompt');
     };
 
     const handlePromptRulePress = (rule: Rule) => {
@@ -463,59 +473,10 @@ export default function GameScreen() {
                     }
                 </ScrollView>
 
-                {/* Rule Details Popup */}
-                <RuleDetailsModal
-                    visible={currentModal === 'RuleDetails'}
-                    rule={selectedRule}
-                    viewingPlayer={currentUser}
-                    viewedPlayer={gameState?.players.find(player => player.id === selectedRule?.assignedTo) || null}
-                    isAccusationInProgress={gameState?.activeAccusationDetails !== undefined && gameState?.activeAccusationDetails?.accusationAccepted === undefined}
-                    onAccuse={handleInitiateAccusation}
-                    onClose={() => {
-                        setSelectedRule(null);
-                        if (currentUser) setPlayerModal(currentUser.id, undefined);
-                    }}
-                />
-
-                {/* Accusation Judgement Popup */}
-                <AccusationJudgementModal
-                    visible={currentModal === 'AccusationJudgement'}
-                    activeAccusationDetails={gameState?.activeAccusationDetails || null}
-                    currentUser={currentUser!}
-                    onAccept={() => {
-                        acceptAccusation();
-                        setSelectedRule(null);
-                    }}
-                    onDecline={() => {
-                        endAccusation();
-                        if (currentUser) setPlayerModal(currentUser.id, undefined);
-                    }}
-                />
-
-                {/* Accusation Rule Passing Modal */}
-                <RuleSelectionModal
-                    visible={currentModal === 'SuccessfulAccusationRuleSelection'}
-                    title={`Accusation Accepted!`}
-                    description={`Select a rule to give to ${gameState?.activeAccusationDetails?.accused?.name}:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeAccusationDetails?.accuser.id) || []}
-                    onAccept={(rule: Rule) => {
-                        endAccusation();
-                        assignRule(rule.id, gameState?.activeAccusationDetails?.accused.id!);
-                    }}
-                    onClose={endAccusation}
-                    cancelButtonText="Skip"
-                />
-
-                {/* Wait For Rule Selection Modal */}
-                <SimpleModal
-                    visible={currentModal === 'WaitForRuleSelection'}
-                    title={`Accusation Accepted!`}
-                    description={`Waiting for ${gameState?.activeAccusationDetails?.accuser.name} to select a rule to give to ${gameState?.activeAccusationDetails?.accused.name}...`}
-                />
 
                 {/* Host Action Modals */}
                 <HostActionModal
-                    visible={showHostActionModal}
+                    visible={currentModal === 'HostAction'}
                     selectedPlayerForAction={selectedPlayerForAction}
                     onGiveRule={handleGiveRuleAction}
                     onGivePrompt={handleGivePromptAction}
@@ -524,64 +485,20 @@ export default function GameScreen() {
                     onSwapAction={handleInitiateSwap}
                     onUpAction={() => handleInitiateUpDown('up')}
                     onDownAction={() => handleInitiateUpDown('down')}
-                    onClose={() => setShowHostActionModal(false)}
-                />
-
-                {/* Rule Modals */}
-                {/* Host Give Rule Modal */}
-                <RuleSelectionModal
-                    visible={showGiveRuleModal}
-                    title={`Give Rule to ${selectedPlayerForAction?.name}`}
-                    description={`Select a rule to give to ${selectedPlayerForAction?.name}:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo !== selectedPlayerForAction?.id) || []}
-                    onAccept={(rule) => handleAssignRuleToPlayer(rule.id, selectedPlayerForAction!)}
                     onClose={() => {
-                        setShowGiveRuleModal(false);
+                        setCurrentModal(undefined);
                         setSelectedPlayerForAction(null);
                     }}
                 />
 
-                {/* Prompt Modals */}
-                {/* Host Prompt Selection Modal */}
-                <PromptListModal
-                    visible={currentModal === 'GivePrompt'}
-                    title={`Select a Prompt to Give to ${selectedPlayerForAction?.name}`}
-                    description={`Select a prompt to give to ${selectedPlayerForAction?.name}:`}
-                    prompts={gameState?.prompts || []}
-                    onAccept={(prompt: Prompt | null) => {
-                        if (prompt && selectedPlayerForAction) {
-                            givePrompt(prompt.id, selectedPlayerForAction.id);
-                        }
-                    }}
-                    onClose={() => {
-                        if (currentUser) setPlayerModal(currentUser.id, undefined);
-                    }}
-                />
-
-                {/* Prompt Initiated Modal */}
-                <PromptPerformanceModal
-                    visible={currentModal === 'PromptPerformance'}
-                    selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
-                    prompt={gameState?.activePromptDetails?.selectedPrompt || null}
-                    onPressRule={handlePromptRulePress}
-                    onSuccess={() => {
-                        acceptPrompt();
-                    }}
-                    onFailure={() => {
-                        endPrompt();
-                    }}
-                />
-
-                {/* Prompt Resolution Modal */}
-                <PromptResolutionModal
-                    visible={currentModal === 'PromptResolution'}
-                    selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
-                    prompt={gameState?.activePromptDetails?.selectedPrompt || null}
-                    onShredRule={(ruleId: string) => {
-                        shredRule(ruleId);
-                    }}
-                    onSkip={() => {
-                        endPrompt();
+                {/* Prompt and Accusation Modals */}
+                <PromptAndAccusationModals
+                    setCurrentModal={setCurrentModal}
+                    currentModal={currentModal || ''}
+                    currentUser={currentUser}
+                    selectedPlayerForAction={selectedPlayerForAction}
+                    onFinishModifier={() => {
+                        setCurrentModal(undefined);
                     }}
                 />
 
@@ -590,7 +507,7 @@ export default function GameScreen() {
                     currentModal={currentModal || ''}
                     currentUser={currentUser}
                     onFinishModifier={() => {
-                        if (currentUser) setPlayerModal(currentUser.id, undefined);
+                        setCurrentModal(undefined);
                     }}
                 />
 

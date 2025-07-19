@@ -133,19 +133,6 @@ export default function ModifierModals(
         if (currentUser) setPlayerModal(currentUser.id, 'FlipRuleTextInput');
     };
 
-    const handleInitiateSwap = (swapper: Player) => {
-        if (swapper && gameState) {
-            // Check if player has rules to swap
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === swapper.id);
-            if (playerRules.length > 0) {
-                triggerSwapModifier(swapper);
-            } else {
-                Alert.alert('No Rules to Swap', `${swapper.name} has no assigned rules to swap.`);
-                return 'failed';
-            }
-        }
-    };
-
     const confirmTargetForSwapping = (player: Player) => {
         if (!gameState) return;
         updateActiveSwappingDetails({
@@ -211,38 +198,6 @@ export default function ModifierModals(
         }
         return player; // fallback to self if no valid target found
     }
-
-    // Handle Up/Down workflow using socket-based approach
-    const handleInitiateUpDown = (direction: 'up' | 'down') => {
-        if (!gameState?.players || !currentUser) return;
-
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-        if (nonHostPlayers.length < 2) {
-            Alert.alert('Not Enough Players', `Need at least 2 non-host players for ${direction} action.`);
-            return;
-        }
-
-        // Check if any players have rules to pass
-        const playersWithRules = nonHostPlayers.filter(player => {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
-            return playerRules.length > 0;
-        });
-
-        if (playersWithRules.length === 0) {
-            Alert.alert('No Rules to Pass', `No players have rules to pass ${direction}.`);
-            return;
-        }
-
-        // Create up/down details and trigger the workflow
-        const upDownDetails = {
-            direction,
-            playersWithRules,
-            selectedRules: {},
-            isComplete: false
-        };
-
-        updateActiveUpDownDetails(upDownDetails);
-    };
 
     // Handle rule selection for up/down workflow
     const handleUpDownRuleSelect = (rule: Rule) => {

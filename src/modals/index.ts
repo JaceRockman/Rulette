@@ -7,6 +7,6 @@ export { default as RuleSelectionModal } from './RuleSelectionModal';
 export { default as PlayerSelectionModal } from './PlayerSelectionModal';
 export { default as FlipTextInputModal } from './FlipTextInputModal';
 export { default as EndGameConfirmationModal } from './EndGameConfirmationModal';
-export { default as PromptListModal } from './PromptListModal';
+export { default as PromptSelectionModal } from './PromptSelectionModal';
 export { default as PromptPerformanceModal } from './PromptPerformanceModal';
 export { default as PromptResolutionModal } from './PromptResolutionModal';

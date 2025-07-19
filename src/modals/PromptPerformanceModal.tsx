@@ -10,8 +10,6 @@ import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 
 interface PromptPerformanceModalProps {
     visible: boolean;
-    selectedPlayerForAction: Player | null;
-    prompt: Prompt | null;
     onPressRule: (rule: Rule) => void;
     onSuccess: () => void;
     onFailure: () => void;
@@ -19,16 +17,16 @@ interface PromptPerformanceModalProps {
 
 export default function PromptPerformanceModal({
     visible,
-    selectedPlayerForAction,
-    prompt,
     onPressRule,
     onSuccess,
     onFailure
 }: PromptPerformanceModalProps) {
     const { gameState } = useGame();
-    const promptedPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === selectedPlayerForAction?.id) || [];
+    const { selectedPlayer, selectedPrompt } = gameState?.activePromptDetails || {};
+
+    const promptedPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === selectedPlayer?.id) || [];
     const currentUser = gameState?.players.find(p => p.id === socketService.getCurrentUserId());
-    const isPromptedPlayer = currentUser?.id === selectedPlayerForAction?.id;
+    const isPromptedPlayer = currentUser?.id === selectedPlayer?.id;
     const isHost = currentUser?.isHost;
 
     return (
@@ -40,15 +38,15 @@ export default function PromptPerformanceModal({
         >
             <View style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
-                    <Text style={shared.modalTitle}>Prompt for {selectedPlayerForAction?.name}</Text>
-                    <Plaque plaque={prompt as PlaqueType} />
+                    <Text style={shared.modalTitle}>Prompt for {selectedPlayer?.name}</Text>
+                    <Plaque plaque={selectedPrompt as PlaqueType} />
 
                     <View>
                         {/* Rules Reminder Section */}
                         {promptedPlayerRules.length > 0 && (
                             <View>
                                 <Text style={shared.modalDescription}>
-                                    Rules assigned to {isPromptedPlayer ? 'you' : selectedPlayerForAction?.name}:
+                                    Rules assigned to {isPromptedPlayer ? 'you' : selectedPlayer?.name}:
                                 </Text>
                                 {render2ColumnPlaqueList({
                                     plaques: promptedPlayerRules,

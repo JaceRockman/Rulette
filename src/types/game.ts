@@ -58,6 +58,8 @@ export interface GameState {
     wheelSpinDetails?: WheelSpinDetails;
     currentUser?: string; // The user ID of the person currently using the app
     activePlayer?: string; // The player ID of the player currently taking their turn (excludes host)
+    selectedRule?: string; // The rule ID of the rule currently being selected
+    selectedPlayerForAction?: string; // The player ID of the player currently being acted upon
     activeAccusationDetails?: ActiveAccusationDetails;
     activePromptDetails?: ActivePromptDetails;
     activeCloneRuleDetails?: ActiveCloneRuleDetails;

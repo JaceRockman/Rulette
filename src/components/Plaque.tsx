@@ -13,8 +13,6 @@ interface PlaqueProps {
 
 export default function Plaque({ plaque, concealed, style, onPress, selected }: PlaqueProps) {
 
-    console.log('plaque', plaque);
-
     const PlaqueContent = (
         <View style={[
             styles.plaqueBack,

@@ -51,6 +51,7 @@ interface GameContextType {
     acceptPrompt: () => void;
     shredRule: (ruleId: string) => void;
     endPrompt: () => void;
+    possiblyReturnToPrompt: () => void;
 
     triggerCloneModifier: (player: Player, rule?: Rule, modifierId?: string) => void;
     updateActiveCloningDetails: (details: ActiveCloneRuleDetails) => void;
@@ -660,6 +661,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.endAccusation();
     };
 
+
+    const possiblyReturnToPrompt = () => {
+        socketService.possiblyReturnToPrompt();
+    }
     const acceptPrompt = () => {
         socketService.acceptPrompt();
     };
@@ -747,6 +752,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             acceptPrompt,
             shredRule,
             endPrompt,
+            possiblyReturnToPrompt,
 
             triggerCloneModifier,
             updateActiveCloningDetails,

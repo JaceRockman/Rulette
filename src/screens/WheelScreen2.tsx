@@ -9,10 +9,11 @@ import SimpleModal from '../modals/SimpleModal';
 import shared from '../shared/styles';
 import ModifierModals, { initiateClone, initiateFlip, initiateSwap, initiateUpDown } from '../modals/ModifierModals';
 import Backdrop from '../components/Backdrop';
-import { ActiveAccusationDetails, Rule, WheelSegment as WheelSegmentType, WheelSpinDetails } from '../types/game';
+import { ActiveAccusationDetails, Player, Rule, WheelSegment as WheelSegmentType, WheelSpinDetails } from '../types/game';
 import { RootStackParamList } from '../../App';
 import Plaque from '../components/Plaque';
 import { AccusationJudgementModal, PromptPerformanceModal, PromptResolutionModal, RuleDetailsModal, RuleSelectionModal } from '../modals';
+import PromptAndAccusationModals from '../modals/PromptAndAccusationModals';
 
 const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
@@ -44,8 +45,6 @@ export default function WheelScreen2() {
 
     // Update local state to current modal based on game state
     React.useEffect(() => {
-        console.log('UseEffect: update local state', gameState)
-        console.log('currentModal', gameState?.players.find(player => player.id === currentUser?.id)?.currentModal)
         const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
         const globalModal = gameState?.globalModal;
         setCurrentModal(playerModal || globalModal);
@@ -292,7 +291,7 @@ export default function WheelScreen2() {
                     {/* No spin button! */}
                 </View>
 
-                <SimpleModal
+                {/* <SimpleModal
                     visible={currentModal === 'RuleModal'}
                     title={'RULE'}
                     description={`${gameState.players.find(player => player.id === gameState.activePlayer)?.name || ''} has received the following rule:`}
@@ -302,11 +301,11 @@ export default function WheelScreen2() {
                     onAccept={finishWheelSpin}
                     acceptButtonDisplayed={currentUser.id === gameState.activePlayer}
                     cancelButtonDisplayed={false}
-                />
+                /> */}
 
 
                 {/* Prompt Initiated Modal */}
-                <PromptPerformanceModal
+                {/* <PromptPerformanceModal
                     visible={currentModal === 'PromptPerformance'}
                     selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
                     prompt={gameState?.activePromptDetails?.selectedPrompt || null}
@@ -318,10 +317,10 @@ export default function WheelScreen2() {
                     onFailure={() => {
                         promptFailure();
                     }}
-                />
+                /> */}
 
                 {/* Prompt Resolution Modal */}
-                <PromptResolutionModal
+                {/* <PromptResolutionModal
                     visible={currentModal === 'PromptResolution'}
                     selectedPlayerForAction={gameState?.activePromptDetails?.selectedPlayer || null}
                     prompt={gameState?.activePromptDetails?.selectedPrompt || null}
@@ -334,10 +333,10 @@ export default function WheelScreen2() {
                         finishWheelSpin();
                         endPrompt();
                     }}
-                />
+                /> */}
 
                 {/* Rule Details Popup */}
-                <RuleDetailsModal
+                {/* <RuleDetailsModal
                     visible={currentModal === 'RuleDetails'}
                     rule={selectedRule}
                     viewingPlayer={currentUser}
@@ -348,11 +347,11 @@ export default function WheelScreen2() {
                         setSelectedRule(null);
                         setCurrentModal(undefined);
                     }}
-                />
+                /> */}
 
 
                 {/* Accusation Judgement Popup */}
-                <AccusationJudgementModal
+                {/* <AccusationJudgementModal
                     visible={currentModal === 'AccusationJudgement'}
                     activeAccusationDetails={gameState?.activeAccusationDetails || null}
                     currentUser={currentUser!}
@@ -365,10 +364,10 @@ export default function WheelScreen2() {
                         setSelectedRule(null);
 
                     }}
-                />
+                /> */}
 
                 {/* Accusation Rule Passing Modal */}
-                <RuleSelectionModal
+                {/* <RuleSelectionModal
                     visible={currentModal === 'SuccessfulAccusationRuleSelection'}
                     title={`Accusation Accepted!`}
                     description={`Select a rule to give to ${gameState?.activeAccusationDetails?.accused?.name}:`}
@@ -379,16 +378,23 @@ export default function WheelScreen2() {
                     }}
                     onClose={endAccusation}
                     cancelButtonText="Skip"
-                />
+                /> */}
 
                 {/* Accusation Rule Passing Awaiting Modal */}
-                <SimpleModal
+                {/* <SimpleModal
                     visible={currentModal === 'AwaitAccusationRuleSelection'}
                     title={`Rule Passing Awaiting`}
                     description={`Waiting for ${gameState?.activeAccusationDetails?.accuser?.name} to select a rule to give to ${gameState?.activeAccusationDetails?.accused?.name}...`}
+                /> */}
+
+                {/* Prompt and Accusation Modals */}
+                <PromptAndAccusationModals
+                    setCurrentModal={setCurrentModal}
+                    currentModal={currentModal || ''}
+                    currentUser={currentUser}
+                    selectedPlayerForAction={gameState?.players.find(player => player.id === gameState?.activePlayer) || null}
+                    onFinishModifier={finishWheelSpin}
                 />
-
-
 
                 {/* Modal Popup */}
                 <ModifierModals
@@ -396,7 +402,6 @@ export default function WheelScreen2() {
                     currentUser={currentUser}
                     onFinishModifier={finishWheelSpin}
                 />
-
 
 
                 {/* End Game Modals */}

@@ -6,7 +6,7 @@ import { render2ColumnPlaqueList } from '../components/PlaqueList';
 import { colors, shared } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 
-interface PromptListModalProps {
+interface PromptSelectionModalProps {
     visible: boolean;
     title: string;
     description: string;
@@ -16,7 +16,7 @@ interface PromptListModalProps {
     cancelButtonText?: string;
 }
 
-export default function PromptListModal({
+export default function PromptSelectionModal({
     visible,
     title,
     description,
@@ -24,7 +24,7 @@ export default function PromptListModal({
     onAccept,
     onClose,
     cancelButtonText = 'Cancel'
-}: PromptListModalProps) {
+}: PromptSelectionModalProps) {
     // Error handler for empty content
     useEffect(() => {
         if (visible && (!prompts || prompts.length === 0)) {
@@ -78,7 +78,10 @@ export default function PromptListModal({
                             buttonStyle={{ opacity: selectedPrompt ? 1 : 0.3 }}
                             disabled={!selectedPrompt} />
 
-                        <SecondaryButton title={cancelButtonText} onPress={onClose} />
+                        <SecondaryButton title={cancelButtonText} onPress={() => {
+                            setSelectedPrompt(null);
+                            onClose();
+                        }} />
                     </View>
                 </View>
             </SafeAreaView>

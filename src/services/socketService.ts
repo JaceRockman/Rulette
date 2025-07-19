@@ -190,6 +190,30 @@ class SocketService {
         this.socket.emit('start_game', { gameId: this.gameState.id, settings });
     }
 
+    setAllPlayerModals(gameId: string, modal: string | undefined) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('set_all_player_modals', {
+            gameId,
+            modal
+        });
+    }
+
+    setSelectedRule(ruleId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('set_selected_rule', {
+            gameId: this.gameState.id,
+            ruleId
+        });
+    }
+
+    setSelectedPlayerForAction(playerId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('set_selected_player_for_action', {
+            gameId: this.gameState.id,
+            playerId
+        });
+    }
+
     assignRule(ruleId: string, playerId: string) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('assign_rule', {
@@ -315,6 +339,13 @@ class SocketService {
     acceptPrompt() {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('accept_prompt', {
+            gameId: this.gameState.id
+        });
+    }
+
+    possiblyReturnToPrompt() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('possibly_return_to_prompt', {
             gameId: this.gameState.id
         });
     }
