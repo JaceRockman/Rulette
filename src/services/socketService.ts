@@ -190,6 +190,15 @@ class SocketService {
         this.socket.emit('start_game', { gameId: this.gameState.id, settings });
     }
 
+    setPlayerModal(playerId: string, modal: string | undefined) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('set_player_modal', {
+            gameId: this.gameState.id,
+            playerId,
+            modal
+        });
+    }
+
     setAllPlayerModals(gameId: string, modal: string | undefined) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('set_all_player_modals', {
@@ -198,7 +207,7 @@ class SocketService {
         });
     }
 
-    setSelectedRule(ruleId: string) {
+    setSelectedRule(ruleId: string | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('set_selected_rule', {
             gameId: this.gameState.id,
@@ -443,7 +452,7 @@ class SocketService {
         });
     }
 
-    updateActiveUpDownDetails(details: ActiveUpDownRuleDetails) {
+    updateActiveUpDownDetails(details: ActiveUpDownRuleDetails | undefined) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_active_up_down_details', {
             gameId: this.gameState.id,

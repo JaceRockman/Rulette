@@ -39,24 +39,27 @@ export const handleInitiateAccusation = ({ accusedPlayer, accusedRule, initiateA
 interface PromptAndAccusationModalsProps {
     setCurrentModal: (modal: string | undefined) => void;
     currentModal: string;
+    setSelectedRule: (rule: Rule | null) => void;
+    selectedRule: Rule | null;
     currentUser: Player;
     selectedPlayerForAction: Player | null;
     onFinishModifier: () => void;
 }
 
 export default function PromptAndAccusationModals(
-    { setCurrentModal, currentModal, currentUser, selectedPlayerForAction, onFinishModifier }: PromptAndAccusationModalsProps) {
+    { setCurrentModal, currentModal, setSelectedRule, selectedRule, currentUser, selectedPlayerForAction, onFinishModifier }: PromptAndAccusationModalsProps) {
 
     const { gameState } = useGame();
 
-    const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
-
     // Sync local state with the gameState's currentModal
-    React.useEffect(() => {
-        if (!gameState) return;
-        setCurrentModal(gameState?.players.find(player => player.id === currentUser?.id)?.currentModal);
-        console.log('PromptAndAccusationModals: currentModal', currentUser?.name, currentModal);
-    }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal]);
+    // REMOVED: This useEffect was overwriting the currentModal prop with server state
+    // React.useEffect(() => {
+    //     if (!gameState) return;
+    //     const gameStateModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
+    //     console.log('PromptAndAccusationModals: currentModal', currentModal);
+    //     console.log('PromptAndAccusationModals: gameStateModal', gameStateModal);
+    //     setCurrentModal(gameStateModal);
+    // }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal]);
 
     // Sync local state when server updates selectedRule
     React.useEffect(() => {
@@ -134,12 +137,11 @@ export default function PromptAndAccusationModals(
                 onAccept={() => {
                     // accpetAccusation navigates players to the appropriate modals
                     socketService.acceptAccusation();
-                    socketService.setSelectedRule('');
+                    socketService.setSelectedRule(null);
                 }}
                 onDecline={() => {
                     socketService.endAccusation();
                     socketService.setAllPlayerModals(gameState?.id!, undefined);
-                    console.log('PromptAndAccusationModals: possiblyReturnToPrompt', gameState?.activePromptDetails);
                     socketService.possiblyReturnToPrompt();
                 }}
             />
@@ -199,7 +201,14 @@ export default function PromptAndAccusationModals(
                 }}
                 onSuccess={() => {
                     socketService.acceptPrompt();
-                    socketService.setAllPlayerModals(gameState?.id!, 'PromptResolution');
+                    const playerHasRules = gameState?.rules.some(rule => rule.assignedTo === selectedPlayerForAction?.id);
+
+                    if (playerHasRules) {
+                        socketService.setAllPlayerModals(gameState?.id!, 'PromptResolution');
+                    } else {
+                        socketService.endPrompt();
+                        socketService.setAllPlayerModals(gameState?.id!, undefined);
+                    }
                 }}
                 onFailure={() => {
                     socketService.endPrompt();
@@ -212,6 +221,7 @@ export default function PromptAndAccusationModals(
                 visible={currentModal === 'PromptResolution'}
                 onShredRule={(ruleId: string) => {
                     socketService.shredRule(ruleId);
+                    socketService.endPrompt();
                     socketService.setAllPlayerModals(gameState?.id!, undefined);
                 }}
                 onSkip={() => {

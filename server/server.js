@@ -292,6 +292,13 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('broadcast_navigate_to_screen', { screen: 'RuleWriting' });
     });
 
+    socket.on('set_player_modal', ({ gameId, playerId, modal }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        setPlayerModal(game, playerId, modal);
+        io.to(gameId).emit('game_updated', game);
+    });
+
     socket.on('set_all_player_modals', ({ gameId, modal }) => {
         const game = games.get(gameId);
         if (!game) return;
@@ -475,6 +482,11 @@ io.on('connection', (socket) => {
 
         if (accuser.isHost || game.rules.filter(r => r.assignedTo === accuser.id).length === 0) {
             game.activeAccusationDetails = undefined;
+            if (game.activePromptDetails !== undefined) {
+                setAllPlayerModals(game, 'PromptPerformance');
+            } else {
+                setAllPlayerModals(game, undefined);
+            }
         } else {
             game.activeAccusationDetails.accusationAccepted = true;
             game.players.forEach(player => {

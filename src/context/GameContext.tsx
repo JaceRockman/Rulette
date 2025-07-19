@@ -625,7 +625,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.endSwapRule();
     };
 
-    const updateActiveUpDownDetails = (details: ActiveUpDownRuleDetails) => {
+    const updateActiveUpDownDetails = (details: ActiveUpDownRuleDetails | undefined) => {
         socketService.updateActiveUpDownDetails(details);
     };
 

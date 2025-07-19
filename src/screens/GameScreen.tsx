@@ -38,14 +38,23 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, initiateAccusation, acceptAccusation, endAccusation, givePrompt, acceptPrompt, endPrompt, shredRule, setPlayerModal,
+        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, setPlayerModal,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
-    const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
-    const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
+
+    const [selectedRule, doSetSelectedRule] = useState<Rule | null>(null);
+    const [currentModal, doSetCurrentModal] = useState<string | undefined>(undefined);
+
+    const setCurrentModal = (modal: string | undefined) => {
+        console.log("settinging current modal", modal)
+        doSetCurrentModal(modal)
+    }
+
+    const setSelectedRule = (rule: Rule | null) => {
+        console.log("settinging selected rule", rule)
+        doSetSelectedRule(rule)
+    }
 
     const [selectedPlayerForAction, setSelectedPlayerForAction] = useState<Player | null>(null);
-    const [showHostActionModal, setShowHostActionModal] = useState(false);
-    const [showGiveRuleModal, setShowGiveRuleModal] = useState(false);
     const [showNewHostSelectionModal, setShowNewHostSelectionModal] = useState(false);
 
     // Check if all non-host players have completed both phases
@@ -56,15 +65,14 @@ export default function GameScreen() {
 
     // Update local state to current modal based on game state
     React.useEffect(() => {
-        const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
-        const globalModal = gameState?.globalModal;
-        setCurrentModal(playerModal || globalModal);
-    }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal, gameState?.globalModal]);
+        if (!gameState) return;
+        const gameStateModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
+        setCurrentModal(gameStateModal);
+    }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal]);
 
     React.useEffect(() => {
         if (!gameState) return;
         if (gameState?.selectedPlayerForAction) {
-            console.log('GameScreen: selectedPlayerForAction', gameState.selectedPlayerForAction);
             setSelectedPlayerForAction(gameState.players.find(player => player.id === gameState.selectedPlayerForAction) || null);
         }
     }, [gameState?.selectedPlayerForAction]);
@@ -96,21 +104,9 @@ export default function GameScreen() {
         }
     }, [gameState?.activeCloneRuleDetails]);
 
-    const handleAssignRuleToPlayer = (ruleId: string, player: Player) => {
-        if (player && gameState) {
-            const rule = gameState.rules.find(r => r.id === ruleId);
-            if (rule) {
-                assignRule(ruleId, player.id);
-            } else {
-                Alert.alert('Rule Not Found', `Rule with ID ${ruleId} not found.`);
-            }
-            setShowGiveRuleModal(false);
-        }
-    };
-
     const handleRuleTap = (rule: Rule) => {
-        if (currentUser) setPlayerModal(currentUser.id, 'RuleDetails');
-        setSelectedRule(rule);
+        doSetSelectedRule(rule);
+        doSetCurrentModal('RuleDetails');
     };
 
     const handleRuleHold = (rule: Rule, holder: Player, holdee: Player) => {
@@ -129,20 +125,17 @@ export default function GameScreen() {
                 );
                 return;
             }
-            console.log('handlePlayerTap', player.name);
             socketService.setSelectedPlayerForAction(player.id);
             setCurrentModal('HostAction');
         }
     };
 
     const handleGiveRuleAction = () => {
-        console.log('handleGiveRuleAction', selectedPlayerForAction);
         if (selectedPlayerForAction !== null) {
             // Check if there are unassigned rules available
 
             const availableRules = gameState?.rules.filter(rule => rule.assignedTo !== selectedPlayerForAction.id);
             if (availableRules && availableRules.length > 0) {
-                console.log('handleGiveRuleAction', selectedPlayerForAction.name, availableRules.length);
                 setCurrentModal('GiveRule');
             } else {
                 Alert.alert('No Rules Available', 'Player has all rules assigned to them already.');
@@ -152,23 +145,8 @@ export default function GameScreen() {
         }
     };
 
-    const handleInitiateAccusation = (accusationDetails: ActiveAccusationDetails) => {
-        initiateAccusation(accusationDetails);
-        setSelectedRule(null);
-    };
-
-    const handleAcceptAccusation = () => {
-        acceptAccusation();
-        setSelectedRule(null);
-    };
-
     const handleGivePromptAction = () => {
         setCurrentModal('GivePrompt');
-    };
-
-    const handlePromptRulePress = (rule: Rule) => {
-        if (currentUser) setPlayerModal(currentUser.id, 'RuleDetails');
-        setSelectedRule(rule);
     };
 
 
@@ -195,7 +173,12 @@ export default function GameScreen() {
     const handleInitiateSwap = () => {
         if (selectedPlayerForAction && gameState) {
             const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-            initiateSwap({ swappingPlayer: selectedPlayerForAction, playerRules, triggerSwapModifier: triggerSwapModifier });
+            const otherPlayersWithRules = gameState.players.filter(player => player.id !== selectedPlayerForAction.id && gameState.rules.some(rule => rule.assignedTo === player.id));
+            if (otherPlayersWithRules.length > 0) {
+                initiateSwap({ swappingPlayer: selectedPlayerForAction, playerRules, triggerSwapModifier: triggerSwapModifier });
+            } else {
+                Alert.alert('No Other Players With Rules', `No other players have rules to swap with ${selectedPlayerForAction.name}.`);
+            }
         }
     };
 
@@ -214,7 +197,7 @@ export default function GameScreen() {
 
         // Check if any players have rules to pass
         const playersWithRules = nonHostPlayers.filter(player => {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id && rule.isActive);
+            const playerRules = gameState.rules.filter(rule => rule.assignedTo === player.id);
             return playerRules.length > 0;
         });
 
@@ -482,9 +465,9 @@ export default function GameScreen() {
                     onGivePrompt={handleGivePromptAction}
                     onCloneRule={handleInitiateClone}
                     onFlipRule={handleInitiateFlip}
-                    onSwapAction={handleInitiateSwap}
                     onUpAction={() => handleInitiateUpDown('up')}
                     onDownAction={() => handleInitiateUpDown('down')}
+                    onSwapAction={handleInitiateSwap}
                     onClose={() => {
                         setCurrentModal(undefined);
                         setSelectedPlayerForAction(null);
@@ -495,6 +478,8 @@ export default function GameScreen() {
                 <PromptAndAccusationModals
                     setCurrentModal={setCurrentModal}
                     currentModal={currentModal || ''}
+                    setSelectedRule={setSelectedRule}
+                    selectedRule={selectedRule}
                     currentUser={currentUser}
                     selectedPlayerForAction={selectedPlayerForAction}
                     onFinishModifier={() => {
@@ -504,6 +489,7 @@ export default function GameScreen() {
 
                 {/* Modifier Modals */}
                 <ModifierModals
+                    setCurrentModal={setCurrentModal}
                     currentModal={currentModal || ''}
                     currentUser={currentUser}
                     onFinishModifier={() => {

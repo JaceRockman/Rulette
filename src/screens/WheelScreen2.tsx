@@ -391,6 +391,8 @@ export default function WheelScreen2() {
                 <PromptAndAccusationModals
                     setCurrentModal={setCurrentModal}
                     currentModal={currentModal || ''}
+                    setSelectedRule={setSelectedRule}
+                    selectedRule={selectedRule}
                     currentUser={currentUser}
                     selectedPlayerForAction={gameState?.players.find(player => player.id === gameState?.activePlayer) || null}
                     onFinishModifier={finishWheelSpin}
@@ -398,6 +400,7 @@ export default function WheelScreen2() {
 
                 {/* Modal Popup */}
                 <ModifierModals
+                    setCurrentModal={setCurrentModal}
                     currentModal={currentModal || ''}
                     currentUser={currentUser}
                     onFinishModifier={finishWheelSpin}

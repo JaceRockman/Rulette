@@ -60,15 +60,8 @@ export default function PromptPerformanceModal({
                         <View style={isHost ? styles.buttonContainerHost : styles.buttonContainer}>
                             {isHost ? (
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 10 }}>
-                                    <PrimaryButton title="Success!" onPress={() => {
-                                        console.log('success pressed');
-                                        onSuccess();
-                                    }} />
-                                    <SecondaryButton title="Failure" onPress={() => {
-                                        console.log('failure pressed');
-                                        console.log('onFailure', onFailure);
-                                        onFailure();
-                                    }} />
+                                    <PrimaryButton title="Success!" onPress={onSuccess} />
+                                    <SecondaryButton title="Failure" onPress={onFailure} />
                                 </View>
                             ) : (
                                 <Text style={shared.modalDescription}>

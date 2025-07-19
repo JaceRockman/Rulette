@@ -11,6 +11,7 @@ import { ActiveUpDownRuleDetails } from "../types/game";
 
 
 interface ModifierModalsProps {
+    setCurrentModal: (modal: string | undefined) => void;
     currentModal: string;
     currentUser: Player;
     onFinishModifier: () => void;
@@ -75,7 +76,7 @@ export const initiateUpDown = ({ direction, triggerUpDownModifier }: InitiateUpD
 };
 
 export default function ModifierModals(
-    { currentModal, currentUser, onFinishModifier }: ModifierModalsProps) {
+    { setCurrentModal, currentModal, currentUser, onFinishModifier }: ModifierModalsProps) {
 
     const { gameState, updateActiveCloningDetails, updateActiveFlippingDetails, updateActiveSwappingDetails, updateActiveUpDownDetails, setPlayerModal, cloneRuleToPlayer, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier, assignRule, endUpDownRule, endCloneRule, endFlipRule, endSwapRule, flipRule } = useGame();
 
@@ -218,11 +219,15 @@ export default function ModifierModals(
         if (!gameState?.activeUpDownRuleDetails) return;
         const nonHostPlayers = gameState.players.filter(p => !p.isHost);
         nonHostPlayers.forEach(player => {
+            const playerHasRules = gameState?.rules.some(rule => rule.assignedTo === player.id);
             const selectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[player.id];
             const playerToPassTo = getPlayerToPassTo(player, gameState?.activeUpDownRuleDetails?.direction || 'up');
             if (selectedRule === undefined) {
-                Alert.alert('Not All Players Selected', `Player ${player.name} has not selected a rule to pass.`);
-                return;
+                if (playerHasRules) {
+                    Alert.alert('Not All Players Selected', `Player ${player.name} has not selected a rule to pass.`);
+                } else {
+                    return;
+                }
             } else {
                 assignRule(selectedRule.id, playerToPassTo?.id || player.id);
             }
@@ -257,22 +262,28 @@ export default function ModifierModals(
     }, [gameState?.activeCloneRuleDetails]);
 
     React.useEffect(() => {
-        console.log('ModifierModals: up down stuff', gameState?.activeUpDownRuleDetails);
         if (!gameState) return;
 
         const currentPlayerHasSelectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[currentUser?.id];
-
-        console.log('ModifierModals: up down stuff', gameState?.activeUpDownRuleDetails);
+        const currentPlayerHasRules = gameState?.rules.filter(rule => rule.assignedTo === currentUser?.id).length > 0;
 
         if (gameState?.activeUpDownRuleDetails === undefined || gameState?.activeUpDownRuleDetails?.isComplete) {
             onFinishModifier();
             return;
-        } else if (currentUser?.isHost || currentPlayerHasSelectedRule) {
-            if (currentUser) setPlayerModal(currentUser.id, 'AwaitUpDownSelection');
+        } else if (currentUser?.isHost || currentPlayerHasSelectedRule || !currentPlayerHasRules) {
+            setCurrentModal('AwaitUpDownSelection');
         } else {
-            if (currentUser) setPlayerModal(currentUser.id, 'UpDownRuleSelection');
+            setCurrentModal('UpDownRuleSelection');
         }
     }, [gameState?.activeUpDownRuleDetails]);
+
+    const allPlayersHaveSelectedRules = () => {
+        const nonHostPlayers = gameState?.players.filter(p => !p.isHost) || [];
+        const playersWithRulesToPass = nonHostPlayers.filter(player => {
+            return gameState?.rules.some(rule => rule.assignedTo === player.id)
+        }) || [];
+        return Object.values(gameState?.activeUpDownRuleDetails?.selectedRules || {}).length !== playersWithRulesToPass.length;
+    }
 
     return (
         <>
@@ -494,7 +505,7 @@ export default function ModifierModals(
                 description={`Waiting for all players to select their rules to pass ${gameState?.activeUpDownRuleDetails?.direction === 'up' ? 'up' : 'down'}...`}
                 onAccept={handleUpDownConfirmation}
                 acceptButtonDisplayed={currentUser?.isHost}
-                acceptButtonDisabled={Object.values(gameState?.activeUpDownRuleDetails?.selectedRules || {}).length !== gameState?.players.filter(p => !p.isHost).length}
+                acceptButtonDisabled={allPlayersHaveSelectedRules()}
             />
         </>
     );

@@ -42,6 +42,7 @@ export default function PromptSelectionModal({
     }, [visible, prompts, onClose]);
 
     const [selectedPrompt, setSelectedPrompt] = useState<Prompt | null>(null);
+
     const toggleSelectedPrompt = (prompt: Plaque) => {
         if (selectedPrompt?.id === prompt.id) {
             setSelectedPrompt(null);
@@ -74,7 +75,10 @@ export default function PromptSelectionModal({
 
                     <View style={shared.buttonContainer}>
                         <PrimaryButton title="Accept"
-                            onPress={() => onAccept(selectedPrompt || null)}
+                            onPress={() => {
+                                onAccept(selectedPrompt || null);
+                                setSelectedPrompt(null);
+                            }}
                             buttonStyle={{ opacity: selectedPrompt ? 1 : 0.3 }}
                             disabled={!selectedPrompt} />
 
