@@ -19,11 +19,11 @@ interface ModifierModalsProps {
 
 interface InitiateCloneProps {
     cloningPlayer: Player;
-    playerRules: Rule[];
+    playerRules: Rule[] | undefined;
     triggerCloneModifier: (cloningPlayer: Player, rule?: Rule) => void;
 }
 
-export const initiateClone = ({ cloningPlayer, playerRules, triggerCloneModifier }: InitiateCloneProps) => {
+export const initiateClone = ({ cloningPlayer, playerRules = [], triggerCloneModifier }: InitiateCloneProps) => {
     // Check if player has rules to clone
     if (playerRules.length === 1) {
         triggerCloneModifier(cloningPlayer, playerRules[0]);
@@ -31,16 +31,17 @@ export const initiateClone = ({ cloningPlayer, playerRules, triggerCloneModifier
         triggerCloneModifier(cloningPlayer);
     } else {
         Alert.alert('No Rules to Clone', `${cloningPlayer.name} has no assigned rules to clone.`);
+        return 'failed';
     }
 };
 
 interface InitiateFlipProps {
     flippingPlayer: Player;
-    playerRules: Rule[];
+    playerRules: Rule[] | undefined;
     triggerFlipModifier: (flippingPlayer: Player, rule?: Rule) => void;
 }
 
-export const initiateFlip = ({ flippingPlayer, playerRules, triggerFlipModifier }: InitiateFlipProps) => {
+export const initiateFlip = ({ flippingPlayer, playerRules = [], triggerFlipModifier }: InitiateFlipProps) => {
     // Check if player has rules to flip
     if (playerRules.length === 1) {
         triggerFlipModifier(flippingPlayer, playerRules[0]);
@@ -48,21 +49,24 @@ export const initiateFlip = ({ flippingPlayer, playerRules, triggerFlipModifier 
         triggerFlipModifier(flippingPlayer);
     } else {
         Alert.alert('No Rules to Flip', `${flippingPlayer.name} has no assigned rules to flip.`);
+        return 'failed';
     }
+    return 'success';
 };
 
 interface InitiateSwapProps {
     swappingPlayer: Player;
-    playerRules: Rule[];
+    playerRules: Rule[] | undefined;
     triggerSwapModifier: (swappingPlayer: Player) => void;
 }
 
-export const initiateSwap = ({ swappingPlayer, playerRules, triggerSwapModifier }: InitiateSwapProps) => {
+export const initiateSwap = ({ swappingPlayer, playerRules = [], triggerSwapModifier }: InitiateSwapProps) => {
     // Check if player has rules to swap
     if (playerRules.length > 0) {
         triggerSwapModifier(swappingPlayer);
     } else {
         Alert.alert('No Rules to Swap', `${swappingPlayer.name} has no assigned rules to swap.`);
+        return 'failed';
     }
 };
 

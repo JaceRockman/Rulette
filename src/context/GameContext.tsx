@@ -109,14 +109,20 @@ export const initialState: GameState = {
     prompts: [],
     rules: [],
     modifiers: [],
+    ends: [],
     playerInputCompleted: false,
     wheelSegments: [],
     isGameStarted: false,
     isWheelSpinning: false,
     currentStack: [],
     roundNumber: 0,
-    numRules: 3,
-    numPrompts: 3,
+    settings: {
+        numRules: 3,
+        numRulesPerPlayer: 0,
+        numPrompts: 3,
+        numPromptsPerPlayer: 0,
+        startingPoints: 20,
+    },
     gameEnded: false,
 };
 
@@ -212,9 +218,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             return initialState;
 
         case 'SET_NUM_RULES':
-            return { ...state, numRules: action.payload };
+            return { ...state, settings: { ...state.settings, numRules: action.payload } };
         case 'SET_NUM_PROMPTS':
-            return { ...state, numPrompts: action.payload };
+            return { ...state, settings: { ...state.settings, numPrompts: action.payload } };
 
         case 'REMOVE_WHEEL_LAYER':
             const updatedSegments = (state.wheelSegments || []).map((segment: WheelSegment) => {
@@ -319,6 +325,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 navigation.navigate(data.screen as keyof RootStackParamList, data.params);
             }
         });
+        socketService.setOnNavigatePlayerToScreen((data: { screen: string; playerId: string; params?: any }) => {
+            console.log('GameContext: Navigating to screen:', data);
+            if (currentUser?.id !== data.playerId) {
+                if (data.screen && navigation) {
+                    navigation.navigate(data.screen as keyof RootStackParamList, data.params);
+                }
+            }
+        });
         return () => {
             socketService.disconnect();
         };
@@ -349,16 +363,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 const exampleModifierToAdd = generateModifierPlaque(i);
                 createPlaque('modifier', exampleModifierToAdd.authorId, exampleModifierToAdd.text, exampleModifierToAdd.plaqueColor);
             }
+            for (let i = 0; i < totalSegments; i++) {
+                console.log('GameContext: Adding end', i);
+                const exampleEndToAdd: Plaque = {
+                    id: ('end' + i.toString()),
+                    type: 'end',
+                    text: "Game Over",
+                    plaqueColor: "#313131",
+                    authorId: "system"
+                };
+                socketService.addPlaque(exampleEndToAdd);
+            }
         }
     };
 
 
     const createWheelSegments = (): WheelSegment[] => {
         console.log('GameContext: Creating wheel segments');
-        // Don't create wheel segments if there are no rules or prompts yet
-        if (!gameState.rules || gameState.rules.length === 0 || !gameState.prompts || gameState.prompts.length === 0) {
-            return [];
-        }
+        console.log('GameContext: gameState.rules', gameState.rules);
+        console.log('GameContext: gameState.prompts', gameState.prompts);
 
         const newSegments: WheelSegment[] = [];
 
@@ -370,8 +393,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
             layers.push(gameState.rules[i]);
             layers.push(gameState.prompts[i]);
-            addModifierLayer(layers, i);
-            addEndLayer(layers);
+            layers.push(gameState.modifiers[i]);
+            layers.push(gameState.ends[i]);
 
             console.log(`GameContext: Segment ${i} layers:`, layers.map(l => ({ type: l.type, text: l.text })));
 
@@ -383,28 +406,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             });
         }
 
+        console.log('GameContext: newSegments', newSegments);
+
         return newSegments;
-    };
-
-    const addModifierLayer = (layers: Plaque[], index: number) => {
-        const nextModifier = generateModifierPlaque(index);
-        // Use socket service to add the modifier to game state
-        socketService.addPlaque(nextModifier);
-
-        layers.push(nextModifier);
-    };
-
-    const addEndLayer = (layers: Plaque[]) => {
-        const localEndPlaque: Plaque = {
-            id: Math.random().toString(36).substring(2, 9),
-            type: 'end',
-            text: "Game Over",
-            plaqueColor: "#313131",
-            authorId: "system"
-        };
-        socketService.addPlaque(localEndPlaque);
-        console.log('GameContext: Adding localEndPlaque:', localEndPlaque);
-        layers.push(localEndPlaque);
     };
 
     // Add plaques for segments when player input is completed
@@ -420,9 +424,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (gameState?.wheelSegments) {
             return;
         }
-        const numRules = gameState.rules.length;
-        const numPrompts = gameState.prompts.length;
-        if (numRules % 4 === 0 && numPrompts === numRules) {
+        const currentNumRules = gameState.rules.length;
+        const currentNumPrompts = gameState.prompts.length;
+        if (currentNumRules % 4 === 0 && currentNumPrompts === currentNumRules) {
             const generatedWheelSegments = createWheelSegments();
             socketService.syncWheelSegments(generatedWheelSegments);
         }

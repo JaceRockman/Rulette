@@ -41,17 +41,17 @@ export default function GameScreen() {
         setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, setPlayerModal,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
 
-    const [selectedRule, doSetSelectedRule] = useState<Rule | null>(null);
-    const [currentModal, doSetCurrentModal] = useState<string | undefined>(undefined);
+    const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
+    const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
 
-    const setCurrentModal = (modal: string | undefined) => {
+    const logSetCurrentModal = (modal: string | undefined) => {
         console.log("settinging current modal", modal)
-        doSetCurrentModal(modal)
+        setCurrentModal(modal)
     }
 
-    const setSelectedRule = (rule: Rule | null) => {
+    const logSetSelectedRule = (rule: Rule | null) => {
         console.log("settinging selected rule", rule)
-        doSetSelectedRule(rule)
+        setSelectedRule(rule)
     }
 
     const [selectedPlayerForAction, setSelectedPlayerForAction] = useState<Player | null>(null);
@@ -105,8 +105,8 @@ export default function GameScreen() {
     }, [gameState?.activeCloneRuleDetails]);
 
     const handleRuleTap = (rule: Rule) => {
-        doSetSelectedRule(rule);
-        doSetCurrentModal('RuleDetails');
+        logSetSelectedRule(rule);
+        logSetCurrentModal('RuleDetails');
     };
 
     const handleRuleHold = (rule: Rule, holder: Player, holdee: Player) => {

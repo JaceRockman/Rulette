@@ -50,9 +50,11 @@ export interface GameState {
     id: string;
     lobbyCode: string;
     players: Player[];
+    settings: GameSettings;
     rules: Rule[];
     prompts: Prompt[];
     modifiers: Modifier[];
+    ends: End[];
     playerInputCompleted: boolean;
     wheelSegments: WheelSegment[];
     wheelSpinDetails?: WheelSpinDetails;
@@ -70,11 +72,18 @@ export interface GameState {
     isWheelSpinning: boolean;
     currentStack: StackItem[];
     roundNumber: number;
-    numRules: number;
-    numPrompts: number;
+
     gameEnded: boolean;
     winner?: Player;
     globalModal?: string;
+}
+
+export interface GameSettings {
+    numRules: number;
+    numRulesPerPlayer: number;
+    numPrompts: number;
+    numPromptsPerPlayer: number;
+    startingPoints: number;
 }
 
 export interface StackItem {

@@ -208,11 +208,13 @@ export default function PromptAndAccusationModals(
                     } else {
                         socketService.endPrompt();
                         socketService.setAllPlayerModals(gameState?.id!, undefined);
+                        onFinishModifier();
                     }
                 }}
                 onFailure={() => {
                     socketService.endPrompt();
                     socketService.setAllPlayerModals(gameState?.id!, undefined);
+                    onFinishModifier();
                 }}
             />
 
@@ -223,10 +225,12 @@ export default function PromptAndAccusationModals(
                     socketService.shredRule(ruleId);
                     socketService.endPrompt();
                     socketService.setAllPlayerModals(gameState?.id!, undefined);
+                    onFinishModifier();
                 }}
                 onSkip={() => {
                     socketService.endPrompt();
                     socketService.setAllPlayerModals(gameState?.id!, undefined);
+                    onFinishModifier();
                 }}
             />
         </>

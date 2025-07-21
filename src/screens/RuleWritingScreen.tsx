@@ -22,7 +22,7 @@ export default function RuleWritingScreen() {
     const [editingPlaqueColor, setEditingPlaqueColor] = useState('#fff');
 
     const isHost = currentUser?.isHost;
-    const numRules = Number(gameState?.numRules) || 3;
+    const numRulesPerPlayer = Number(gameState?.settings?.numRulesPerPlayer) || 3;
 
     const closeRuleWritingPopup = () => {
         setInputValue('');
@@ -75,8 +75,8 @@ export default function RuleWritingScreen() {
 
     // Determine if player can add more rules
     const visibleRuleCount = getRulesByAuthor(currentUser?.id ?? 'system').length;
-    const canAddRule = currentUser?.isHost || visibleRuleCount < numRules;
-    const canContinue = currentUser?.isHost || visibleRuleCount === numRules;
+    const canAddRule = currentUser?.isHost || visibleRuleCount < numRulesPerPlayer;
+    const canContinue = currentUser?.isHost || visibleRuleCount === numRulesPerPlayer;
 
     const rulesToDisplay = isHost ? gameState?.rules : getRulesByAuthor(currentUser?.id ?? 'system');
 
@@ -88,7 +88,7 @@ export default function RuleWritingScreen() {
                     contentContainerStyle={{ paddingTop: 120, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
                     showsVerticalScrollIndicator={false}>
                     <PrimaryButton
-                        title={canAddRule ? "Add Rule" : `Max Rules (${numRules})`}
+                        title={canAddRule ? "Add Rule" : `Max Rules (${numRulesPerPlayer})`}
                         onPress={handleWriteRule}
                         disabled={!canAddRule}
                         buttonStyle={{ width: '40%', height: "10%", opacity: canAddRule ? 1 : 0.5 }}

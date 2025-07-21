@@ -22,7 +22,7 @@ export default function PromptWritingScreen() {
     const [editingPlaqueColor, setEditingPlaqueColor] = useState('#fff');
 
     const isHost = currentUser?.isHost;
-    const numPrompts = Number(gameState?.numPrompts) || 3;
+    const numPromptsPerPlayer = Number(gameState?.settings?.numPromptsPerPlayer) || 3;
 
     const closePromptWritingPopup = () => {
         setInputValue('');
@@ -78,8 +78,8 @@ export default function PromptWritingScreen() {
 
     // Determine if player can add more prompts
     const visiblePromptCount = getPromptsByAuthor(currentUser?.id ?? 'system').length;
-    const canAddPrompt = currentUser?.isHost || visiblePromptCount < numPrompts;
-    const canContinue = currentUser?.isHost || visiblePromptCount === numPrompts;
+    const canAddPrompt = currentUser?.isHost || visiblePromptCount < numPromptsPerPlayer;
+    const canContinue = currentUser?.isHost || visiblePromptCount === numPromptsPerPlayer;
 
     const promptsToDisplay = isHost ? gameState?.prompts : getPromptsByAuthor(currentUser?.id ?? 'system');
 
@@ -91,7 +91,7 @@ export default function PromptWritingScreen() {
                     contentContainerStyle={{ paddingTop: 120, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
                     showsVerticalScrollIndicator={false}>
                     <PrimaryButton
-                        title={canAddPrompt ? "Add Prompt" : `Max Prompts (${numPrompts})`}
+                        title={canAddPrompt ? "Add Prompt" : `Max Prompts (${numPromptsPerPlayer})`}
                         onPress={handleAddPrompt}
                         disabled={!canAddPrompt}
                         buttonStyle={{ width: '40%', height: "10%", opacity: canAddPrompt ? 1 : 0.5 }}

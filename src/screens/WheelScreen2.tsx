@@ -9,7 +9,7 @@ import SimpleModal from '../modals/SimpleModal';
 import shared from '../shared/styles';
 import ModifierModals, { initiateClone, initiateFlip, initiateSwap, initiateUpDown } from '../modals/ModifierModals';
 import Backdrop from '../components/Backdrop';
-import { ActiveAccusationDetails, Player, Rule, WheelSegment as WheelSegmentType, WheelSpinDetails } from '../types/game';
+import { ActiveAccusationDetails, Modifier, Player, Prompt, Rule, WheelSegment as WheelSegmentType, WheelSpinDetails } from '../types/game';
 import { RootStackParamList } from '../../App';
 import Plaque from '../components/Plaque';
 import { AccusationJudgementModal, PromptPerformanceModal, PromptResolutionModal, RuleDetailsModal, RuleSelectionModal } from '../modals';
@@ -34,7 +34,16 @@ export default function WheelScreen2() {
     const [selectedSegment, setSelectedSegment] = useState<WheelSegmentType | null>(null);
     const selectedSegmentRef = useRef<WheelSegmentType | null>(null); // Preserve selectedSegment during prompt workflow
 
-    console.log('segments', gameState?.wheelSegments);
+    const logSetCurrentModal = (modal: string | undefined) => {
+        console.log('WheelScreen2: currentModal', modal);
+        setCurrentModal(modal);
+    }
+    const logSetSelectedRule = (rule: Rule | null) => {
+        console.log('WheelScreen2: selectedRule', rule);
+        setSelectedRule(rule);
+    }
+
+
     // Wheel segments from game state
     const segments = gameState?.wheelSegments || [];
     const paddedSegments = [
@@ -47,7 +56,7 @@ export default function WheelScreen2() {
     React.useEffect(() => {
         const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
         const globalModal = gameState?.globalModal;
-        setCurrentModal(playerModal || globalModal);
+        logSetCurrentModal(playerModal || globalModal);
     }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal, gameState?.globalModal]);
 
     // Handler for scroll gesture to trigger spin
@@ -61,7 +70,7 @@ export default function WheelScreen2() {
     const initiateSpin = () => {
         if (!segments.length || isSpinning || gameState?.wheelSpinDetails !== undefined) return;
         // Generate random final index
-        const randomSpins = 41;
+        const randomSpins = 40 + Math.floor(Math.random() * 10);
         const scrollAmount = (randomSpins * ITEM_HEIGHT);
         const finalIndex = (currentWheelIndex + randomSpins) % segments.length;
         const duration = 3000 + Math.random() * 2000; // 3-5 seconds
@@ -86,6 +95,63 @@ export default function WheelScreen2() {
             setIsSpinning(false);
         }
     }, [gameState?.wheelSpinDetails]);
+
+    const handleRuleSpun = (rule: Rule) => {
+        console.log('handleRuleSpun', rule);
+        if (currentUser?.isHost) {
+            assignRule(rule?.id || '', gameState?.activePlayer || '');
+        }
+        // logSetSelectedRule(rule);
+        logSetCurrentModal('RuleModal');
+    }
+
+    const handlePromptSpun = (prompt: Prompt) => {
+        console.log('handlePromptSpun', prompt);
+        if (currentUser?.isHost) {
+            givePrompt(prompt?.id || '', gameState?.activePlayer || '');
+        }
+        logSetCurrentModal('PromptPerformance');
+    }
+
+    const handleModifierSpun = (modifier: Modifier) => {
+        console.log('handleModifierSpun', modifier);
+        const activePlayer = gameState?.players.find(player => player.id === gameState?.activePlayer);
+        const playerRules = gameState?.rules.filter(rule => rule.assignedTo === activePlayer?.id);
+        if (!activePlayer) return;
+        if (!gameState) return;
+        switch (modifier?.text) {
+            case 'Clone':
+                if (initiateClone({ cloningPlayer: activePlayer, playerRules, triggerCloneModifier: triggerCloneModifier }) === 'failed') {
+                    finishWheelSpin();
+                }
+                break;
+            case 'Flip':
+                if (initiateFlip({ flippingPlayer: activePlayer, playerRules, triggerFlipModifier: triggerFlipModifier }) === 'failed') {
+                    finishWheelSpin();
+                }
+                break;
+            case 'Swap':
+                if (initiateSwap({ swappingPlayer: activePlayer, playerRules, triggerSwapModifier: triggerSwapModifier }) === 'failed') {
+                    finishWheelSpin();
+                }
+                break;
+            case 'Up':
+                initiateUpDown({ direction: 'up', triggerUpDownModifier: triggerUpDownModifier });
+                break;
+            case 'Down':
+                initiateUpDown({ direction: 'down', triggerUpDownModifier: triggerUpDownModifier });
+                break;
+        }
+    }
+
+    const handleEndSpun = () => {
+        console.log('handleEndSpun');
+        if (currentUser?.isHost) {
+            setCurrentModal('EndGameDecision');
+        } else {
+            setCurrentModal('AwaitEndGameDecision');
+        }
+    }
 
     // Function to animate the wheel spin
     const performSynchronizedSpin = () => {
@@ -112,48 +178,23 @@ export default function WheelScreen2() {
             const selectedPlaque = spunSegment?.layers[spunSegment?.currentLayerIndex || 0];
             const activePlayer = gameState?.players.find(player => player.id === gameState?.activePlayer);
 
+            console.log('spunSegment', spunSegment);
             setSelectedSegment(spunSegment);
             selectedSegmentRef.current = spunSegment; // Store in ref to preserve during prompt workflow
 
             if (gameState && activePlayer) {
                 switch (selectedPlaque?.type) {
                     case 'rule':
-                        if (currentUser?.isHost) {
-                            assignRule(selectedPlaque?.id || '', activePlayer?.id || '');
-                        }
-                        setCurrentModal('RuleModal');
+                        handleRuleSpun(selectedPlaque as Rule);
                         break;
                     case 'prompt':
-                        if (currentUser?.isHost) {
-                            givePrompt(selectedPlaque?.id || '', gameState?.activePlayer || '');
-                        }
-                        setCurrentModal('PromptPerformance');
+                        handlePromptSpun(selectedPlaque as Prompt);
                         break;
                     case 'modifier':
-                        switch (selectedPlaque?.text) {
-                            case 'Clone':
-                                initiateClone({ cloningPlayer: activePlayer, playerRules: gameState.rules.filter(rule => rule.assignedTo === activePlayer.id), triggerCloneModifier: triggerCloneModifier });
-                                break;
-                            case 'Flip':
-                                initiateFlip({ flippingPlayer: activePlayer, playerRules: gameState.rules.filter(rule => rule.assignedTo === activePlayer.id), triggerFlipModifier: triggerFlipModifier });
-                                break;
-                            case 'Swap':
-                                initiateSwap({ swappingPlayer: activePlayer, playerRules: gameState.rules.filter(rule => rule.assignedTo === activePlayer.id), triggerSwapModifier: triggerSwapModifier });
-                                break;
-                            case 'Up':
-                                initiateUpDown({ direction: 'up', triggerUpDownModifier: triggerUpDownModifier });
-                                break;
-                            case 'Down':
-                                initiateUpDown({ direction: 'down', triggerUpDownModifier: triggerUpDownModifier });
-                                break;
-                        }
+                        handleModifierSpun(selectedPlaque as Modifier);
                         break;
                     case 'end':
-                        if (currentUser?.isHost) {
-                            setCurrentModal('EndGameDecision');
-                        } else {
-                            setCurrentModal('AwaitEndGameDecision');
-                        }
+                        handleEndSpun();
                         break;
                 }
             }
@@ -208,7 +249,7 @@ export default function WheelScreen2() {
 
     // Interrupt prompts with accusations but be able to return to the prompt performance modal
     React.useEffect(() => {
-        console.log('UseEffect: prompt, accusation, or rule updated')
+        console.log('UseEffect: prompt, accusation, or rule updated', gameState?.activePromptDetails)
         if (selectedRule) {
             setCurrentModal('RuleDetails');
             return;
@@ -291,7 +332,7 @@ export default function WheelScreen2() {
                     {/* No spin button! */}
                 </View>
 
-                {/* <SimpleModal
+                <SimpleModal
                     visible={currentModal === 'RuleModal'}
                     title={'RULE'}
                     description={`${gameState.players.find(player => player.id === gameState.activePlayer)?.name || ''} has received the following rule:`}
@@ -301,7 +342,7 @@ export default function WheelScreen2() {
                     onAccept={finishWheelSpin}
                     acceptButtonDisplayed={currentUser.id === gameState.activePlayer}
                     cancelButtonDisplayed={false}
-                /> */}
+                />
 
 
                 {/* Prompt Initiated Modal */}

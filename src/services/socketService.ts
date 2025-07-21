@@ -29,6 +29,7 @@ class SocketService {
     private onWheelSpun: ((stack: any[]) => void) | null = null;
     private onSynchronizedWheelSpin: ((data: { spinningPlayerId: string; finalIndex: number; scrollAmount: number; duration: number }) => void) | null = null;
     private onNavigateToScreen: ((data: { screen: string; params?: any }) => void) | null = null;
+    private onNavigatePlayerToScreen: ((data: { screen: string; playerId: string; params?: any }) => void) | null = null;
     private onEndGameContinue: (() => void) | null = null;
     private onEndGameEnd: (() => void) | null = null;
 
@@ -80,6 +81,10 @@ class SocketService {
             this.onNavigateToScreen?.(data);
         });
 
+        this.socket.on('navigate_player_to_screen', (data: { screen: string; playerId: string; params?: any }) => {
+            this.onNavigatePlayerToScreen?.(data);
+        });
+
         this.socket.on('end_game_continue', () => {
             this.onEndGameContinue?.();
         });
@@ -120,6 +125,10 @@ class SocketService {
 
     setOnNavigateToScreen(callback: ((data: { screen: string; params?: any }) => void) | null) {
         this.onNavigateToScreen = callback;
+    }
+
+    setOnNavigatePlayerToScreen(callback: ((data: { screen: string; playerId: string; params?: any }) => void) | null) {
+        this.onNavigatePlayerToScreen = callback;
     }
 
     setOnEndGameContinue(callback: (() => void) | null) {

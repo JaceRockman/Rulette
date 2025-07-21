@@ -48,17 +48,23 @@ function createGame(hostId, hostName) {
             rulesCompleted: false,
             promptsCompleted: false
         }],
+        settings: {
+            numRules: 3, // Default number of rules per player
+            numPrompts: 3, // Default number of prompts per player
+            numRulesPerPlayer: 3,
+            numPromptsPerPlayer: 3,
+            startingPoints: 20
+        },
         prompts: [],
         rules: [],
         modifiers: [],
+        ends: [],
         currentUser: hostId, // The user ID of the person currently using the app
         activePlayer: null, // The player ID of the player currently taking their turn (excludes host)
         isGameStarted: false,
         isWheelSpinning: false,
         currentStack: [],
         roundNumber: 0,
-        numRules: 3, // Default number of rules per player
-        numPrompts: 3, // Default number of prompts per player
         createdAt: Date.now()
     };
 
@@ -170,6 +176,11 @@ io.on('connection', (socket) => {
                 ...plaque
             };
             game.modifiers.push(modifier);
+        } else if (plaque.type === 'end') {
+            const end = {
+                ...plaque
+            };
+            game.ends.push(end);
         }
 
         io.to(gameId).emit('game_updated', game);
@@ -270,9 +281,7 @@ io.on('connection', (socket) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        game.numRules = settings.numRules || 3;
-        game.numPrompts = settings.numPrompts || 3;
-        game.startingPoints = settings.startingPoints || 20;
+        game.settings = settings;
 
         game.players.forEach(player => {
             player.points = settings.startingPoints;
@@ -289,7 +298,25 @@ io.on('connection', (socket) => {
         }
 
         io.to(gameId).emit('game_updated', game);
-        io.to(gameId).emit('broadcast_navigate_to_screen', { screen: 'RuleWriting' });
+
+        game.players.forEach(player => {
+            let destinationScreen = 'Game';
+            if (player.isHost) {
+                destinationScreen = 'RuleWriting';
+            } else if (game.settings.numRulesPerPlayer > 0) {
+                destinationScreen = 'RuleWriting';
+            } else if (game.settings.numPromptsPerPlayer > 0) {
+                destinationScreen = 'PromptWriting';
+            } else {
+                player.rulesCompleted = true;
+                player.promptsCompleted = true;
+                game.playerInputCompleted = true;
+                io.to(gameId).emit('game_updated', game);
+                destinationScreen = 'Game';
+            }
+            console.log('destinationScreen', destinationScreen);
+            io.to(gameId).emit('navigate_player_to_screen', { screen: destinationScreen, playerId: player.id });
+        })
     });
 
     socket.on('set_player_modal', ({ gameId, playerId, modal }) => {
