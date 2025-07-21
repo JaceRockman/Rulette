@@ -72,16 +72,14 @@ export interface GameState {
     isWheelSpinning: boolean;
     currentStack: StackItem[];
     roundNumber: number;
-
     gameEnded: boolean;
     winner?: Player;
     globalModal?: string;
 }
 
 export interface GameSettings {
-    numRules: number;
+    numSegments: number;
     numRulesPerPlayer: number;
-    numPrompts: number;
     numPromptsPerPlayer: number;
     startingPoints: number;
 }
@@ -103,6 +101,8 @@ export interface WheelSpinDetails {
     finalIndex: number;
     scrollAmount: number;
     duration: number;
+    spunSegmentId?: string;
+    spinCompleted?: boolean;
 }
 
 export interface ActiveAccusationDetails {

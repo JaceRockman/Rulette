@@ -43,23 +43,13 @@ interface PromptAndAccusationModalsProps {
     selectedRule: Rule | null;
     currentUser: Player;
     selectedPlayerForAction: Player | null;
-    onFinishModifier: () => void;
+    onFinishPrompt: () => void;
 }
 
 export default function PromptAndAccusationModals(
-    { setCurrentModal, currentModal, setSelectedRule, selectedRule, currentUser, selectedPlayerForAction, onFinishModifier }: PromptAndAccusationModalsProps) {
+    { setCurrentModal, currentModal, setSelectedRule, selectedRule, currentUser, selectedPlayerForAction, onFinishPrompt }: PromptAndAccusationModalsProps) {
 
     const { gameState } = useGame();
-
-    // Sync local state with the gameState's currentModal
-    // REMOVED: This useEffect was overwriting the currentModal prop with server state
-    // React.useEffect(() => {
-    //     if (!gameState) return;
-    //     const gameStateModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
-    //     console.log('PromptAndAccusationModals: currentModal', currentModal);
-    //     console.log('PromptAndAccusationModals: gameStateModal', gameStateModal);
-    //     setCurrentModal(gameStateModal);
-    // }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal]);
 
     // Sync local state when server updates selectedRule
     React.useEffect(() => {
@@ -67,10 +57,8 @@ export default function PromptAndAccusationModals(
         setSelectedRule(gameState.rules.find(rule => rule.id === gameState.selectedRule) || null);
     }, [gameState?.selectedRule]);
 
-
     return (
         <>
-
             {/* Rule Modals */}
             {/* Host Give Rule Modal */}
             <RuleSelectionModal
@@ -208,13 +196,13 @@ export default function PromptAndAccusationModals(
                     } else {
                         socketService.endPrompt();
                         socketService.setAllPlayerModals(gameState?.id!, undefined);
-                        onFinishModifier();
+                        onFinishPrompt();
                     }
                 }}
                 onFailure={() => {
                     socketService.endPrompt();
                     socketService.setAllPlayerModals(gameState?.id!, undefined);
-                    onFinishModifier();
+                    onFinishPrompt();
                 }}
             />
 
@@ -225,12 +213,12 @@ export default function PromptAndAccusationModals(
                     socketService.shredRule(ruleId);
                     socketService.endPrompt();
                     socketService.setAllPlayerModals(gameState?.id!, undefined);
-                    onFinishModifier();
+                    onFinishPrompt();
                 }}
                 onSkip={() => {
                     socketService.endPrompt();
                     socketService.setAllPlayerModals(gameState?.id!, undefined);
-                    onFinishModifier();
+                    onFinishPrompt();
                 }}
             />
         </>

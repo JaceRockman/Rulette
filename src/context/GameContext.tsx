@@ -117,9 +117,8 @@ export const initialState: GameState = {
     currentStack: [],
     roundNumber: 0,
     settings: {
-        numRules: 3,
+        numSegments: 4,
         numRulesPerPlayer: 0,
-        numPrompts: 3,
         numPromptsPerPlayer: 0,
         startingPoints: 20,
     },
@@ -218,9 +217,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             return initialState;
 
         case 'SET_NUM_RULES':
-            return { ...state, settings: { ...state.settings, numRules: action.payload } };
+            return { ...state, settings: { ...state.settings, numSegments: action.payload } };
         case 'SET_NUM_PROMPTS':
-            return { ...state, settings: { ...state.settings, numPrompts: action.payload } };
+            return { ...state, settings: { ...state.settings, numSegments: action.payload } };
 
         case 'REMOVE_WHEEL_LAYER':
             const updatedSegments = (state.wheelSegments || []).map((segment: WheelSegment) => {
@@ -339,54 +338,78 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
 
+
+    // Add plaques for segments when player input is completed
+    React.useEffect(() => {
+        if (gameState.playerInputCompleted && currentUser?.isHost) {
+            addPlaquesForSegments();
+        }
+    }, [gameState?.playerInputCompleted]);
+
     const addPlaquesForSegments = () => {
-        let totalSegments = Math.max(gameState.rules.length, gameState.prompts.length, 4);
+        let totalSegments = Math.max(gameState.settings.numSegments, 4);
 
-        const rulesNeededToFillSegment = totalSegments - gameState.rules.length;
-        const promptsNeededToFillSegment = totalSegments - gameState.prompts.length;
+        const currentNumRules = gameState.rules.length;
+        const currentNumPrompts = gameState.prompts.length;
+        const currentNumModifiers = gameState.modifiers.length;
+        const currentNumEnds = gameState.ends.length;
 
-        if (rulesNeededToFillSegment === 0 && promptsNeededToFillSegment === 0) {
-            return;
-        } else {
-            for (let i = 0; i < rulesNeededToFillSegment; i++) {
-                console.log('GameContext: Adding rule', i);
-                const exampleRuleToAdd = exampleRules[i];
-                addRule(exampleRuleToAdd.authorId, exampleRuleToAdd.text, exampleRuleToAdd.plaqueColor);
-            }
-            for (let i = 0; i < promptsNeededToFillSegment; i++) {
-                console.log('GameContext: Adding prompt', i);
-                const examplePromptToAdd = examplePrompts[i];
-                addPrompt(examplePromptToAdd.authorId, examplePromptToAdd.text, examplePromptToAdd.plaqueColor);
-            }
-            for (let i = 0; i < totalSegments; i++) {
-                console.log('GameContext: Adding modifier', i);
-                const exampleModifierToAdd = generateModifierPlaque(i);
-                createPlaque('modifier', exampleModifierToAdd.authorId, exampleModifierToAdd.text, exampleModifierToAdd.plaqueColor);
-            }
-            for (let i = 0; i < totalSegments; i++) {
-                console.log('GameContext: Adding end', i);
-                const exampleEndToAdd: Plaque = {
-                    id: ('end' + i.toString()),
-                    type: 'end',
-                    text: "Game Over",
-                    plaqueColor: "#313131",
-                    authorId: "system"
-                };
-                socketService.addPlaque(exampleEndToAdd);
-            }
+        const rulesNeededToFillSegment = totalSegments - currentNumRules;
+        const promptsNeededToFillSegment = totalSegments - currentNumPrompts;
+        const modifiersNeededToFillSegment = totalSegments - currentNumModifiers;
+        const endsNeededToFillSegment = totalSegments - currentNumEnds;
+
+        for (let i = 0; i < rulesNeededToFillSegment; i++) {
+            console.log('GameContext: Adding rule', i);
+            const exampleRuleToAdd = exampleRules[i];
+            addRule(exampleRuleToAdd.authorId, exampleRuleToAdd.text, exampleRuleToAdd.plaqueColor);
+        }
+        for (let i = 0; i < promptsNeededToFillSegment; i++) {
+            console.log('GameContext: Adding prompt', i);
+            const examplePromptToAdd = examplePrompts[i];
+            addPrompt(examplePromptToAdd.authorId, examplePromptToAdd.text, examplePromptToAdd.plaqueColor);
+        }
+        for (let i = 0; i < modifiersNeededToFillSegment; i++) {
+            console.log('GameContext: Adding modifier', i);
+            const exampleModifierToAdd = generateModifierPlaque(i);
+            createPlaque('modifier', exampleModifierToAdd.authorId, exampleModifierToAdd.text, exampleModifierToAdd.plaqueColor);
+        }
+        for (let i = 0; i < endsNeededToFillSegment; i++) {
+            console.log('GameContext: Adding end', i);
+            const exampleEndToAdd: Plaque = {
+                id: ('end' + i.toString()),
+                type: 'end',
+                text: "Game Over",
+                plaqueColor: "#313131",
+                authorId: "system"
+            };
+            socketService.addPlaque(exampleEndToAdd);
         }
     };
 
 
+    const allPlaquesAdded = () => {
+        return gameState?.rules.length === gameState.settings.numSegments &&
+            gameState?.prompts.length === gameState.settings.numSegments &&
+            gameState?.modifiers.length === gameState.settings.numSegments &&
+            gameState?.ends.length === gameState.settings.numSegments;
+    }
+
+    // Create wheel segments once all rules and prompts are added
+    React.useEffect(() => {
+        console.log('GameContext: allPlaquesAdded', allPlaquesAdded());
+        if (!allPlaquesAdded()) {
+            return;
+        }
+        const generatedWheelSegments = createWheelSegments();
+        socketService.syncWheelSegments(generatedWheelSegments);
+    }, [gameState.rules.length, gameState.prompts.length]);
+
     const createWheelSegments = (): WheelSegment[] => {
-        console.log('GameContext: Creating wheel segments');
-        console.log('GameContext: gameState.rules', gameState.rules);
-        console.log('GameContext: gameState.prompts', gameState.prompts);
 
         const newSegments: WheelSegment[] = [];
 
         let totalSegments = Math.max(gameState.rules.length, gameState.prompts.length, 4);
-        console.log('GameContext: Total segments:', totalSegments);
 
         for (let i = 0; i < totalSegments; i++) {
             const layers: Plaque[] = [];
@@ -410,27 +433,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         return newSegments;
     };
-
-    // Add plaques for segments when player input is completed
-    React.useEffect(() => {
-        console.log('GameContext: playerInputCompleted', gameState.playerInputCompleted);
-        if (gameState.playerInputCompleted && currentUser?.isHost) {
-            addPlaquesForSegments();
-        }
-    }, [gameState?.playerInputCompleted]);
-
-    // Create wheel segments once all rules and prompts are added
-    React.useEffect(() => {
-        if (gameState?.wheelSegments) {
-            return;
-        }
-        const currentNumRules = gameState.rules.length;
-        const currentNumPrompts = gameState.prompts.length;
-        if (currentNumRules % 4 === 0 && currentNumPrompts === currentNumRules) {
-            const generatedWheelSegments = createWheelSegments();
-            socketService.syncWheelSegments(generatedWheelSegments);
-        }
-    }, [gameState.rules.length, gameState.prompts.length]);
 
     // Helper functions used in multiple places
     const getBalancedColor = (plaqueType: 'rule' | 'prompt'): string => {

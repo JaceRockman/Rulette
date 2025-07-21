@@ -21,8 +21,7 @@ export default function LobbyScreen() {
     const { gameState, currentUser, getHostPlayer, getNonHostPlayers } = useGame();
 
     const [startingPoints, setStartingPoints] = useState('20');
-    const [numRules, setNumRules] = useState('3');
-    const [numPrompts, setNumPrompts] = useState('3');
+    const [numSegments, setNumSegments] = useState('4');
 
     const host = getHostPlayer();
     const nonHostPlayers = getNonHostPlayers();
@@ -42,8 +41,7 @@ export default function LobbyScreen() {
 
         // Get the game settings from the UI
         const settings = {
-            numRules: parseInt(numRules) || 3,
-            numPrompts: parseInt(numPrompts) || 3,
+            numSegments: parseInt(numSegments) || 4,
             startingPoints: parseInt(startingPoints) || 20
         };
 
@@ -115,24 +113,12 @@ export default function LobbyScreen() {
                             </View>
 
                             <View style={styles.settingContainer}>
-                                <OutlinedText style={styles.settingLabel}>Number of Rules</OutlinedText>
+                                <OutlinedText style={styles.settingLabel}>Number of Wheel Segments</OutlinedText>
                                 <TextInput
                                     style={styles.settingInput}
                                     keyboardType="numeric"
-                                    value={numRules}
-                                    onChangeText={setNumRules}
-                                    placeholder="3"
-                                    placeholderTextColor="#9ca3af"
-                                />
-                            </View>
-
-                            <View style={styles.settingContainer}>
-                                <OutlinedText style={styles.settingLabel}>Number of Prompts</OutlinedText>
-                                <TextInput
-                                    style={styles.settingInput}
-                                    value={numPrompts}
-                                    onChangeText={setNumPrompts}
-                                    keyboardType="numeric"
+                                    value={numSegments}
+                                    onChangeText={setNumSegments}
                                     placeholder="3"
                                     placeholderTextColor="#9ca3af"
                                 />

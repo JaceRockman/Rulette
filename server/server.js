@@ -38,6 +38,7 @@ function createGame(hostId, hostName) {
 
     const game = {
         id: gameId,
+        createdAt: Date.now(),
         lobbyCode: lobbyCode,
         players: [{
             id: hostId,
@@ -49,24 +50,37 @@ function createGame(hostId, hostName) {
             promptsCompleted: false
         }],
         settings: {
-            numRules: 3, // Default number of rules per player
-            numPrompts: 3, // Default number of prompts per player
-            numRulesPerPlayer: 3,
-            numPromptsPerPlayer: 3,
+            numSegments: 4,
+            numRulesPerPlayer: 1,
+            numPromptsPerPlayer: 1,
             startingPoints: 20
         },
-        prompts: [],
+        isGameStarted: false,
         rules: [],
+        prompts: [],
         modifiers: [],
         ends: [],
+        playerInputCompleted: false,
+        wheelSegments: [],
+        wheelSpinDetails: undefined,
         currentUser: hostId, // The user ID of the person currently using the app
-        activePlayer: null, // The player ID of the player currently taking their turn (excludes host)
-        isGameStarted: false,
-        isWheelSpinning: false,
+        activePlayer: undefined, // The player ID of the player currently taking their turn (excludes host)
+        selectedPlayerForAction: undefined, // The player ID of the player currently being acted upon
+        selectedRule: undefined, // The rule ID of the rule currently being selected
+
+        activeAccusationDetails: undefined,
+        activePromptDetails: undefined,
+        activeCloneRuleDetails: undefined,
+        activeFlipRuleDetails: undefined,
+        activeSwapRuleDetails: undefined,
+        activeUpDownRuleDetails: undefined,
         currentStack: [],
         roundNumber: 0,
-        createdAt: Date.now()
-    };
+        gameEnded: false,
+        winner: undefined,
+    }
+
+
 
     games.set(gameId, game);
     games.set(lobbyCode, game);
@@ -98,13 +112,21 @@ function setAllPlayerModals(game, modal) {
     })
 }
 
-function setGlobalModal(game, modal) {
-    if (!game) return;
-    game.globalModal = modal;
-}
 
 // Socket connection handling
 io.on('connection', (socket) => {
+
+    // Create lobby
+    socket.on('create_lobby', ({ playerName }) => {
+        console.log('create_lobby', playerName);
+        const playerId = uuidv4();
+        const game = createGame(playerId, playerName);
+
+        players.set(playerId, { gameId: game.id, socketId: socket.id });
+        socket.join(game.id);
+
+        socket.emit('lobby_created', { playerId, game });
+    });
 
     // Join lobby
     socket.on('join_lobby', ({ lobbyCode, playerName }) => {
@@ -140,16 +162,70 @@ io.on('connection', (socket) => {
         socket.emit('joined_lobby', { playerId, game });
     });
 
-    // Create lobby
-    socket.on('create_lobby', ({ playerName }) => {
-        console.log('create_lobby', playerName);
-        const playerId = uuidv4();
-        const game = createGame(playerId, playerName);
+    // Update game settings
+    socket.on('update_game_settings', ({ gameId, settings }) => {
+        const game = games.get(gameId);
+        if (!game) return;
 
-        players.set(playerId, { gameId: game.id, socketId: socket.id });
-        socket.join(game.id);
+        // Update the game settings
+        if (settings.numRules !== undefined) {
+            game.numRules = settings.numRules;
+        }
+        if (settings.numPrompts !== undefined) {
+            game.numPrompts = settings.numPrompts;
+        }
+        if (settings.startingPoints !== undefined) {
+            // Update all players' starting points
+            game.players.forEach(player => {
+                player.points = settings.startingPoints;
+            });
+        }
 
-        socket.emit('lobby_created', { playerId, game });
+        console.log('Server: Updated game settings:', settings, 'for game:', gameId);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Start game
+    socket.on('start_game', ({ gameId, settings }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.settings = settings;
+
+        game.players.forEach(player => {
+            player.points = settings.startingPoints;
+        });
+
+        game.isGameStarted = true;
+        game.roundNumber = 1;
+
+        // Set the first non-host player as the initial active player
+        const nonHostPlayers = game.players.filter(player => !player.isHost);
+        if (nonHostPlayers.length > 0) {
+            game.activePlayer = nonHostPlayers[0].id;
+            console.log('Server: Setting initial activePlayer to:', game.activePlayer, 'for game:', gameId);
+        }
+
+        io.to(gameId).emit('game_updated', game);
+
+        game.players.forEach(player => {
+            let destinationScreen = 'Game';
+            if (player.isHost) {
+                destinationScreen = 'RuleWriting';
+            } else if (game.settings.numRulesPerPlayer > 0) {
+                destinationScreen = 'RuleWriting';
+            } else if (game.settings.numPromptsPerPlayer > 0) {
+                destinationScreen = 'PromptWriting';
+            } else {
+                player.rulesCompleted = true;
+                player.promptsCompleted = true;
+                game.playerInputCompleted = true;
+                io.to(gameId).emit('game_updated', game);
+                destinationScreen = 'Game';
+            }
+            console.log('destinationScreen', destinationScreen);
+            io.to(gameId).emit('navigate_player_to_screen', { screen: destinationScreen, playerId: player.id });
+        })
     });
 
     // Add plaque (unified handler for rules, prompts, and modifiers)
@@ -276,100 +352,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Start game
-    socket.on('start_game', ({ gameId, settings }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        game.settings = settings;
-
-        game.players.forEach(player => {
-            player.points = settings.startingPoints;
-        });
-
-        game.isGameStarted = true;
-        game.roundNumber = 1;
-
-        // Set the first non-host player as the initial active player
-        const nonHostPlayers = game.players.filter(player => !player.isHost);
-        if (nonHostPlayers.length > 0) {
-            game.activePlayer = nonHostPlayers[0].id;
-            console.log('Server: Setting initial activePlayer to:', game.activePlayer, 'for game:', gameId);
-        }
-
-        io.to(gameId).emit('game_updated', game);
-
-        game.players.forEach(player => {
-            let destinationScreen = 'Game';
-            if (player.isHost) {
-                destinationScreen = 'RuleWriting';
-            } else if (game.settings.numRulesPerPlayer > 0) {
-                destinationScreen = 'RuleWriting';
-            } else if (game.settings.numPromptsPerPlayer > 0) {
-                destinationScreen = 'PromptWriting';
-            } else {
-                player.rulesCompleted = true;
-                player.promptsCompleted = true;
-                game.playerInputCompleted = true;
-                io.to(gameId).emit('game_updated', game);
-                destinationScreen = 'Game';
-            }
-            console.log('destinationScreen', destinationScreen);
-            io.to(gameId).emit('navigate_player_to_screen', { screen: destinationScreen, playerId: player.id });
-        })
-    });
-
-    socket.on('set_player_modal', ({ gameId, playerId, modal }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-        setPlayerModal(game, playerId, modal);
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    socket.on('set_all_player_modals', ({ gameId, modal }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-        setAllPlayerModals(game, modal);
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    socket.on('set_selected_rule', ({ gameId, ruleId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-        game.selectedRule = ruleId;
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    socket.on('set_selected_player_for_action', ({ gameId, playerId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-        game.selectedPlayerForAction = playerId;
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    // Update game settings
-    socket.on('update_game_settings', ({ gameId, settings }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        // Update the game settings
-        if (settings.numRules !== undefined) {
-            game.numRules = settings.numRules;
-        }
-        if (settings.numPrompts !== undefined) {
-            game.numPrompts = settings.numPrompts;
-        }
-        if (settings.startingPoints !== undefined) {
-            // Update all players' starting points
-            game.players.forEach(player => {
-                player.points = settings.startingPoints;
-            });
-        }
-
-        console.log('Server: Updated game settings:', settings, 'for game:', gameId);
-        io.to(gameId).emit('game_updated', game);
-    });
-
     // Mark rules as completed
     socket.on('rules_completed', ({ gameId, playerId }) => {
         const game = games.get(gameId);
@@ -396,6 +378,56 @@ io.on('connection', (socket) => {
                 console.log('playerInputCompleted');
                 game.playerInputCompleted = true;
             }
+            io.to(gameId).emit('game_updated', game);
+        }
+    });
+
+    // Sync wheel segments
+    socket.on('sync_wheel_segments', ({ gameId, wheelSegments }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.wheelSegments = wheelSegments;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_player_modal', ({ gameId, playerId, modal }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        setPlayerModal(game, playerId, modal);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_all_player_modals', ({ gameId, modal }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        setAllPlayerModals(game, modal);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_selected_player_for_action', ({ gameId, playerId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.selectedPlayerForAction = playerId;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_selected_rule', ({ gameId, ruleId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.selectedRule = ruleId;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Update points
+    socket.on('update_points', ({ gameId, playerId, pointChange }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const player = game.players.find(p => p.id === playerId);
+        if (player) {
+            player.points = Math.max(0, player.points + pointChange);
+            game.selectedRule = undefined;
             io.to(gameId).emit('game_updated', game);
         }
     });
@@ -461,6 +493,111 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('wheel_spun', stack);
     });
 
+    // Broadcast synchronized wheel spin
+    socket.on('update_wheel_spin_details', ({ gameId, wheelSpinDetails }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        console.log('Server: Updating wheel spin details', wheelSpinDetails);
+
+        game.wheelSpinDetails = wheelSpinDetails;
+
+        // Broadcast to all players in the game (including sender for consistency)
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Complete wheel spin - handles all wheel completion logic centrally
+    socket.on('complete_wheel_spin', ({ gameId, segmentId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        console.log('Server: Completing wheel spin for game:', gameId);
+
+        // Remove wheel layer if segmentId is provided
+        if (segmentId && game.wheelSegments) {
+            game.wheelSegments = game.wheelSegments.map(segment => {
+                if (segment.id === segmentId) {
+                    return {
+                        ...segment,
+                        currentLayerIndex: segment.currentLayerIndex + 1
+                    };
+                }
+                return segment;
+            });
+        }
+
+        // Clear wheel spin details
+        game.wheelSpinDetails = undefined;
+
+        // Clear any active prompt or accusation details
+        game.activePromptDetails = undefined;
+        game.activeAccusationDetails = undefined;
+
+        // Advance to next player
+        const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
+
+        if (currentActivePlayer) {
+            const currentIndex = game.players.findIndex(p => p.id === game.activePlayer);
+            if (currentIndex !== -1) {
+                let nextIndex = (currentIndex + 1) % game.players.length;
+                while (game.players[nextIndex].isHost) {
+                    nextIndex = (nextIndex + 1) % game.players.length;
+                }
+                game.activePlayer = game.players[nextIndex].id;
+            }
+        }
+
+        // Broadcast updated game state to all players
+        io.to(gameId).emit('game_updated', game);
+
+        // Broadcast navigation to game screen for all players
+        io.to(gameId).emit('broadcast_navigate_to_screen', {
+            screen: 'Game'
+        });
+    });
+
+    // Remove wheel layer
+    socket.on('remove_wheel_layer', ({ gameId, segmentId }) => {
+        const game = games.get(gameId);
+        if (!game || !game.wheelSegments) return;
+
+        const segment = game.wheelSegments.find(s => s.id === segmentId);
+        console.log('Server: Removing wheel layer', segment);
+        if (segment) {
+            segment.currentLayerIndex = Math.min(segment.currentLayerIndex + 1, segment.layers.length - 1);
+            console.log('Server: Updated wheel segments', game.wheelSegments);
+            io.to(gameId).emit('game_updated', game);
+        }
+    });
+
+    // Advance to next player
+    socket.on('advance_to_next_player', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Find the current active player
+        const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
+        if (!currentActivePlayer) return;
+
+        // Find the index of the current active player
+        const currentIndex = game.players.findIndex(p => p.id === game.activePlayer);
+        if (currentIndex === -1) return;
+
+        // Find the next non-host player
+        let nextIndex = (currentIndex + 1) % game.players.length;
+        while (game.players[nextIndex].isHost) {
+            nextIndex = (nextIndex + 1) % game.players.length;
+        }
+
+        // Set the new active player
+        game.activePlayer = game.players[nextIndex].id;
+
+        console.log('Server: Advanced to next player:', game.activePlayer, 'for game:', gameId);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
+
     // Start accusation
     socket.on('initiate_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
         const game = games.get(gameId);
@@ -484,8 +621,6 @@ io.on('connection', (socket) => {
             accuser,
             accused
         };
-
-        setGlobalModal(game, 'AccusationJudgement');
 
         console.log('game.activeAccusationDetails', game.activeAccusationDetails);
         console.log('game.players', game.players);
@@ -535,23 +670,12 @@ io.on('connection', (socket) => {
 
         game.activeAccusationDetails = undefined;
         setAllPlayerModals(game, undefined);
-        setGlobalModal(game, undefined);
 
         io.to(gameId).emit('game_updated', game);
     });
 
-    // Update points
-    socket.on('update_points', ({ gameId, playerId, pointChange }) => {
-        const game = games.get(gameId);
-        if (!game) return;
 
-        const player = game.players.find(p => p.id === playerId);
-        if (player) {
-            player.points = Math.max(0, player.points + pointChange);
-            game.selectedRule = undefined;
-            io.to(gameId).emit('game_updated', game);
-        }
-    });
+
 
     // Give prompt
     socket.on('give_prompt', ({ gameId, playerId, promptId }) => {
@@ -605,14 +729,6 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', game);
     });
 
-    // End prompt
-    socket.on('end_prompt', ({ gameId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-        game.activePromptDetails = undefined;
-        io.to(gameId).emit('game_updated', game);
-    });
-
     // Shred rule
     socket.on('shred_rule', ({ gameId, ruleId }) => {
         const game = games.get(gameId);
@@ -625,6 +741,16 @@ io.on('connection', (socket) => {
         game.rules = game.rules.filter(r => r.id !== ruleId);
         io.to(gameId).emit('game_updated', game);
     });
+
+    // End prompt
+    socket.on('end_prompt', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activePromptDetails = undefined;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
 
     // Initiate clone rule
     socket.on('update_active_cloning_details', ({ gameId, details }) => {
@@ -657,34 +783,9 @@ io.on('connection', (socket) => {
         if (!game) return;
         game.activeCloneRuleDetails = undefined;
         setAllPlayerModals(game, undefined);
-        setGlobalModal(game, undefined);
         io.to(gameId).emit('game_updated', game);
     });
 
-    // Accusation
-    socket.on('start_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        const rule = game.rules.find(r => r.id === ruleId);
-        if (!rule) return;
-
-        const accuser = game.players.find(p => p.id === accuserId);
-        if (!accuser) return;
-
-        const accused = game.players.find(p => p.id === accusedId);
-        if (!accused) return;
-
-        game.isAccusationInProgress = true;
-        game.activeAccusationDetails = {
-            rule,
-            accuser,
-            accused
-        };
-
-        // Broadcast accusation to all players
-        io.to(gameId).emit('game_updated', game);
-    });
 
 
     // Update active flipping details
@@ -723,6 +824,17 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', game);
     });
 
+    // End flip rule
+    socket.on('end_flip_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeFlipRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
+
     socket.on('trigger_up_down_modifier', ({ gameId, direction }) => {
         const game = games.get(gameId);
         if (!game) return;
@@ -759,19 +871,10 @@ io.on('connection', (socket) => {
         if (!game) return;
         game.activeUpDownRuleDetails = undefined;
         setAllPlayerModals(game, undefined);
-        setGlobalModal(game, undefined);
         io.to(gameId).emit('game_updated', game);
     });
 
-    // End flip rule
-    socket.on('end_flip_rule', ({ gameId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-        game.activeFlipRuleDetails = undefined;
-        setAllPlayerModals(game, undefined);
-        setGlobalModal(game, undefined);
-        io.to(gameId).emit('game_updated', game);
-    });
+
 
     function navigatePlayersForSwapeeSelection(game, details) {
         game.players.forEach(player => {
@@ -809,7 +912,6 @@ io.on('connection', (socket) => {
             navigatePlayersForRuleSwapSelection(game, details);
         } else {
             setAllPlayerModals(game, 'SwapRuleResolution');
-            setGlobalModal(game, 'SwapRuleResolution');
         }
 
         io.to(gameId).emit('game_updated', game);
@@ -821,7 +923,6 @@ io.on('connection', (socket) => {
         if (!game) return;
         game.activeSwapRuleDetails = undefined;
         setAllPlayerModals(game, undefined);
-        setGlobalModal(game, undefined);
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -839,6 +940,8 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', game);
     });
 
+
+
     // Assign rule
     socket.on('assign_rule', ({ gameId, ruleId, playerId }) => {
         console.log('Server: Assigning rule:', ruleId, 'to player:', playerId, 'for game:', gameId);
@@ -854,51 +957,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Assign rule to active player (when wheel lands on a rule)
-    socket.on('assign_rule_to_current_player', ({ gameId, ruleId }) => {
-        const game = games.get(gameId);
-        if (!game || !game.activePlayer) return;
 
-        const rule = game.rules.find(r => r.id === ruleId);
-        if (rule) {
-            rule.assignedTo = game.activePlayer;
-            io.to(gameId).emit('game_updated', game);
-        }
-    });
-
-    // Remove wheel layer
-    socket.on('remove_wheel_layer', ({ gameId, segmentId }) => {
-        const game = games.get(gameId);
-        if (!game || !game.wheelSegments) return;
-
-        const segment = game.wheelSegments.find(s => s.id === segmentId);
-        console.log('Server: Removing wheel layer', segment);
-        if (segment) {
-            segment.currentLayerIndex = Math.min(segment.currentLayerIndex + 1, segment.layers.length - 1);
-            console.log('Server: Updated wheel segments', game.wheelSegments);
-            io.to(gameId).emit('game_updated', game);
-        }
-    });
-
-    // Sync wheel segments
-    socket.on('sync_wheel_segments', ({ gameId, wheelSegments }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        game.wheelSegments = wheelSegments;
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    // Broadcast synchronized wheel spin
-    socket.on('update_wheel_spin_details', ({ gameId, wheelSpinDetails }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        game.wheelSpinDetails = wheelSpinDetails;
-
-        // Broadcast to all players in the game (including sender for consistency)
-        io.to(gameId).emit('game_updated', game);
-    });
 
     // Broadcast navigation to screen
     socket.on('broadcast_navigate_to_screen', ({ gameId, screen, params }) => {
@@ -906,7 +965,6 @@ io.on('connection', (socket) => {
         if (!game) return;
 
         setAllPlayerModals(game, undefined);
-        setGlobalModal(game, undefined);
 
         // Broadcast to all players in the game (including sender for consistency)
         io.to(gameId).emit('navigate_to_screen', {
@@ -940,83 +998,6 @@ io.on('connection', (socket) => {
 
         // Broadcast to all players in the game (including sender for consistency)
         io.to(gameId).emit('end_game_end');
-    });
-
-    // Advance to next player
-    socket.on('advance_to_next_player', ({ gameId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        // Find the current active player
-        const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
-        if (!currentActivePlayer) return;
-
-        // Find the index of the current active player
-        const currentIndex = game.players.findIndex(p => p.id === game.activePlayer);
-        if (currentIndex === -1) return;
-
-        // Find the next non-host player
-        let nextIndex = (currentIndex + 1) % game.players.length;
-        while (game.players[nextIndex].isHost) {
-            nextIndex = (nextIndex + 1) % game.players.length;
-        }
-
-        // Set the new active player
-        game.activePlayer = game.players[nextIndex].id;
-
-        console.log('Server: Advanced to next player:', game.activePlayer, 'for game:', gameId);
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    // Complete wheel spin - handles all wheel completion logic centrally
-    socket.on('complete_wheel_spin', ({ gameId, segmentId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        console.log('Server: Completing wheel spin for game:', gameId);
-
-        // Remove wheel layer if segmentId is provided
-        if (segmentId && game.wheelSegments) {
-            game.wheelSegments = game.wheelSegments.map(segment => {
-                if (segment.id === segmentId) {
-                    return {
-                        ...segment,
-                        currentLayerIndex: segment.currentLayerIndex + 1
-                    };
-                }
-                return segment;
-            });
-        }
-
-        // Clear wheel spin details
-        game.wheelSpinDetails = undefined;
-
-        // Clear any active prompt or accusation details
-        game.activePromptDetails = undefined;
-        game.activeAccusationDetails = undefined;
-
-        // Advance to next player
-        const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
-        if (currentActivePlayer) {
-            const currentIndex = game.players.findIndex(p => p.id === game.activePlayer);
-            if (currentIndex !== -1) {
-                let nextIndex = (currentIndex + 1) % game.players.length;
-                while (game.players[nextIndex].isHost) {
-                    nextIndex = (nextIndex + 1) % game.players.length;
-                }
-                game.activePlayer = game.players[nextIndex].id;
-            }
-        }
-
-        // Broadcast updated game state to all players
-        io.to(gameId).emit('game_updated', game);
-
-        // Broadcast navigation to game screen for all players
-        io.to(gameId).emit('navigate_to_screen', {
-            screen: 'Game'
-        });
-
-        console.log('Server: Wheel spin completed, advanced to player:', game.activePlayer);
     });
 
     // Disconnect handling

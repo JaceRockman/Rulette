@@ -240,8 +240,9 @@ export default function ModifierModals(
     };
 
     React.useEffect(() => {
-        if (!gameState) return;
-        if (gameState?.activeCloneRuleDetails === undefined || gameState?.activeCloneRuleDetails?.cloningCompleted) {
+        if (!gameState || gameState?.activeCloneRuleDetails === undefined || gameState?.activeCloneRuleDetails === null || gameState?.activePlayer === undefined) return;
+        console.log('modifier modals', gameState?.activeCloneRuleDetails);
+        if (gameState?.activeCloneRuleDetails?.cloningCompleted) {
             onFinishModifier();
             return;
         }
@@ -266,12 +267,12 @@ export default function ModifierModals(
     }, [gameState?.activeCloneRuleDetails]);
 
     React.useEffect(() => {
-        if (!gameState) return;
+        if (!gameState || gameState?.activeUpDownRuleDetails === undefined) return;
 
         const currentPlayerHasSelectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[currentUser?.id];
         const currentPlayerHasRules = gameState?.rules.filter(rule => rule.assignedTo === currentUser?.id).length > 0;
 
-        if (gameState?.activeUpDownRuleDetails === undefined || gameState?.activeUpDownRuleDetails?.isComplete) {
+        if (gameState?.activeUpDownRuleDetails?.isComplete) {
             onFinishModifier();
             return;
         } else if (currentUser?.isHost || currentPlayerHasSelectedRule || !currentPlayerHasRules) {

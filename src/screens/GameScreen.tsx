@@ -482,7 +482,7 @@ export default function GameScreen() {
                     selectedRule={selectedRule}
                     currentUser={currentUser}
                     selectedPlayerForAction={selectedPlayerForAction}
-                    onFinishModifier={() => {
+                    onFinishPrompt={() => {
                         setCurrentModal(undefined);
                     }}
                 />

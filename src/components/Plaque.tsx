@@ -4,7 +4,7 @@ import { colors } from '../shared/styles';
 import { Plaque as PlaqueType } from '../types/game';
 
 interface PlaqueProps {
-    plaque?: PlaqueType;
+    plaque?: PlaqueType | null;
     concealed?: boolean;
     style?: any;
     onPress?: () => void;
@@ -12,6 +12,7 @@ interface PlaqueProps {
 }
 
 export default function Plaque({ plaque, concealed, style, onPress, selected }: PlaqueProps) {
+    if (!plaque) return null;
 
     const PlaqueContent = (
         <View style={[
