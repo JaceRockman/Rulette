@@ -17,7 +17,7 @@ const VISIBLE_ITEMS = 5;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList) as unknown as typeof FlatList<WheelSegmentType>;
 
 export default function WheelScreen2() {
-    const { gameState, currentUser, assignRule, givePrompt, initiateAccusation, acceptPrompt, shredRule, endPrompt, endGame, endAccusation, acceptAccusation, updatePoints,
+    const { gameState, currentUser, assignRule, givePrompt, endGame,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
     const [currentWheelIndex, setCurrentWheelIndex] = useState<number>(0);
     const flatListRef = useRef<FlatList<WheelSegmentType>>(null);
@@ -25,14 +25,13 @@ export default function WheelScreen2() {
     const currentScrollOffset = useRef(0);
 
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
-    const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
-    const [animationCompleted, setAnimationCompleted] = useState(false);
+    const [selectedRule, setSelectedRule] = useState<Rule | undefined>(undefined);
 
     const logSetCurrentModal = (modal: string | undefined) => {
         // console.log('WheelScreen2: currentModal', modal);
         setCurrentModal(modal);
     }
-    const logSetSelectedRule = (rule: Rule | null) => {
+    const logSetSelectedRule = (rule: Rule | undefined) => {
         // console.log('WheelScreen2: selectedRule', rule);
         setSelectedRule(rule);
     }
@@ -50,6 +49,7 @@ export default function WheelScreen2() {
     React.useEffect(() => {
         const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
         const globalModal = gameState?.globalModal;
+        setSelectedRule(undefined);
         logSetCurrentModal(playerModal || globalModal);
     }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal, gameState?.globalModal]);
 

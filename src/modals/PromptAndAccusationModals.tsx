@@ -39,8 +39,8 @@ export const handleInitiateAccusation = ({ accusedPlayer, accusedRule, initiateA
 interface PromptAndAccusationModalsProps {
     setCurrentModal: (modal: string | undefined) => void;
     currentModal: string;
-    setSelectedRule: (rule: Rule | null) => void;
-    selectedRule: Rule | null;
+    setSelectedRule: (rule: Rule | undefined) => void;
+    selectedRule: Rule | undefined;
     currentUser: Player;
     selectedPlayerForAction: Player | null;
     onFinishPrompt: () => void;
@@ -54,7 +54,7 @@ export default function PromptAndAccusationModals(
     // Sync local state when server updates selectedRule
     React.useEffect(() => {
         if (!gameState) return;
-        setSelectedRule(gameState.rules.find(rule => rule.id === gameState.selectedRule) || null);
+        setSelectedRule(gameState.rules.find(rule => rule.id === gameState.selectedRule) || undefined);
     }, [gameState?.selectedRule]);
 
     return (
@@ -71,7 +71,7 @@ export default function PromptAndAccusationModals(
                     socketService.setSelectedRule(rule.id);
                 }}
                 onClose={() => {
-                    setSelectedRule(null);
+                    setSelectedRule(undefined);
                     setCurrentModal(undefined);
                 }}
             />
@@ -108,7 +108,7 @@ export default function PromptAndAccusationModals(
                     }
                 }
                 onClose={() => {
-                    setSelectedRule(null);
+                    setSelectedRule(undefined);
                     if (gameState?.activePromptDetails !== undefined) {
                         setCurrentModal('PromptPerformance');
                     } else {

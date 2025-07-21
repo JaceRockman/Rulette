@@ -12,20 +12,12 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import { ActiveAccusationDetails, Plaque as PlaqueType, Player, Prompt, Rule } from '../types/game';
-import { Backdrop, OutlinedText, ScoreDisplay, PrimaryButton, Plaque, render2ColumnPlaqueList } from '../components';
+import { Plaque as PlaqueType, Player, Rule } from '../types/game';
+import { Backdrop, OutlinedText, ScoreDisplay, PrimaryButton, render2ColumnPlaqueList } from '../components';
 import {
-    SimpleModal,
-    RuleDetailsModal,
-    AccusationJudgementModal,
     HostActionModal,
-    FlipTextInputModal,
     ExitGameModal,
-    PromptPerformanceModal,
-    PromptResolutionModal,
-    RuleSelectionModal,
     PlayerSelectionModal,
-    PromptSelectionModal,
 } from '../modals';
 import socketService from '../services/socketService';
 import shared from '../shared/styles';
@@ -38,10 +30,10 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, assignRule, endGame, dispatch, setPlayerModal,
+        setShowExitGameModal, updatePoints, endGame, dispatch,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
 
-    const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
+    const [selectedRule, setSelectedRule] = useState<Rule | undefined>(undefined);
     const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
 
     const logSetCurrentModal = (modal: string | undefined) => {
@@ -49,7 +41,7 @@ export default function GameScreen() {
         setCurrentModal(modal)
     }
 
-    const logSetSelectedRule = (rule: Rule | null) => {
+    const logSetSelectedRule = (rule: Rule | undefined) => {
         console.log("settinging selected rule", rule)
         setSelectedRule(rule)
     }
