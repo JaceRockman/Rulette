@@ -208,10 +208,10 @@ class SocketService {
         });
     }
 
-    setAllPlayerModals(gameId: string, modal: string | undefined) {
+    setAllPlayerModals(modal: string | undefined) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('set_all_player_modals', {
-            gameId,
+            gameId: this.gameState.id,
             modal
         });
     }

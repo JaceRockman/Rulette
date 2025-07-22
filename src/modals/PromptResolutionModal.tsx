@@ -11,7 +11,7 @@ import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 interface PromptResolutionModalProps {
     visible: boolean;
     onShredRule: (ruleId: string) => void;
-    onSkip: () => void;
+    onSkip?: () => void;
 }
 
 export default function PromptResolutionModal({
@@ -33,6 +33,10 @@ export default function PromptResolutionModal({
         } else {
             setSelectedRule(rule);
         }
+    }
+
+    const handleShredRule = () => {
+        onShredRule(selectedRule?.id!);
     }
 
     return (
@@ -58,11 +62,11 @@ export default function PromptResolutionModal({
                                 onPress: (plaque: PlaqueType) => toggleSelectedRule(plaque as Rule)
                             })}
                             <View style={shared.buttonContainer}>
-                                <SecondaryButton title="Skip" onPress={() => onSkip()} />
+                                {onSkip && <SecondaryButton title="Skip" onPress={onSkip} />}
 
                                 <PrimaryButton
                                     title="Shred Rule"
-                                    onPress={() => onShredRule(selectedRule?.id!)}
+                                    onPress={handleShredRule}
                                     buttonStyle={{ opacity: selectedRule ? 1 : 0.3 }}
                                     disabled={!selectedRule}
                                 />

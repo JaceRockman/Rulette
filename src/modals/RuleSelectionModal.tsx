@@ -15,7 +15,7 @@ interface RuleSelectionModalProps {
     description2?: string;
     rules2?: Rule[];
     onAccept: (rule1: Rule, rule2?: Rule) => void;
-    onClose: () => void;
+    onClose?: () => void;
     cancelButtonText?: string;
 }
 
@@ -84,10 +84,13 @@ export default function RuleSelectionModal({
                         )}
                     </ScrollView>
                     <View style={shared.buttonContainer}>
-                        <SecondaryButton title={cancelButtonText} onPress={() => {
-                            setSelectedRule(null)
-                            onClose()
-                        }} />
+                        {onClose && (
+                            <SecondaryButton title={cancelButtonText} onPress={() => {
+                                setSelectedRule(null)
+                                onClose()
+                            }}
+                            />
+                        )}
 
                         <PrimaryButton
                             title="Accept"

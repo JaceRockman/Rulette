@@ -30,7 +30,7 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
     const { gameState, currentUser, showExitGameModal,
-        setShowExitGameModal, updatePoints, endGame, dispatch,
+        setShowExitGameModal, updatePoints, endGame, dispatch, shredRule,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
 
     const [selectedRule, setSelectedRule] = useState<Rule | undefined>(undefined);
@@ -69,32 +69,32 @@ export default function GameScreen() {
         }
     }, [gameState?.selectedPlayerForAction]);
 
-    React.useEffect(() => {
-        if (!gameState) return;
-        if (gameState?.activeCloneRuleDetails === undefined || gameState?.activeCloneRuleDetails?.cloningCompleted) {
-            setCurrentModal(undefined);
-            gameState.globalModal = undefined;
-            return;
-        }
-        const currentPlayerIsCloning = gameState?.activeCloneRuleDetails?.cloningPlayer.id === currentUser?.id;
-        if (currentPlayerIsCloning) {
-            if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
-                setCurrentModal('CloneActionRuleSelection');
-            } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
-                setCurrentModal('CloneActionTargetSelection');
-            } else {
-                setCurrentModal('CloneActionResolution');
-            }
-        } else {
-            if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
-                setCurrentModal('AwaitCloneRuleSelection');
-            } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
-                setCurrentModal('AwaitCloneTargetSelection');
-            } else {
-                setCurrentModal('CloneActionResolution');
-            }
-        }
-    }, [gameState?.activeCloneRuleDetails]);
+    // React.useEffect(() => {
+    //     if (!gameState) return;
+    //     if (gameState?.activeCloneRuleDetails === undefined || gameState?.activeCloneRuleDetails?.cloningCompleted) {
+    //         setCurrentModal(undefined);
+    //         gameState.globalModal = undefined;
+    //         return;
+    //     }
+    //     const currentPlayerIsCloning = gameState?.activeCloneRuleDetails?.cloningPlayer.id === currentUser?.id;
+    //     if (currentPlayerIsCloning) {
+    //         if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
+    //             setCurrentModal('CloneActionRuleSelection');
+    //         } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
+    //             setCurrentModal('CloneActionTargetSelection');
+    //         } else {
+    //             setCurrentModal('CloneActionResolution');
+    //         }
+    //     } else {
+    //         if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
+    //             setCurrentModal('AwaitCloneRuleSelection');
+    //         } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
+    //             setCurrentModal('AwaitCloneTargetSelection');
+    //         } else {
+    //             setCurrentModal('CloneActionResolution');
+    //         }
+    //     }
+    // }, [gameState?.activeCloneRuleDetails]);
 
     const handleRuleTap = (rule: Rule) => {
         logSetSelectedRule(rule);
@@ -123,10 +123,10 @@ export default function GameScreen() {
     };
 
     const handleGiveRuleAction = () => {
-        if (selectedPlayerForAction !== null) {
+        if (gameState?.selectedPlayerForAction !== null) {
             // Check if there are unassigned rules available
 
-            const availableRules = gameState?.rules.filter(rule => rule.assignedTo !== selectedPlayerForAction.id);
+            const availableRules = gameState?.rules.filter(rule => rule.assignedTo !== gameState?.selectedPlayerForAction);
             if (availableRules && availableRules.length > 0) {
                 setCurrentModal('GiveRule');
             } else {
@@ -147,29 +147,60 @@ export default function GameScreen() {
 
 
     const handleInitiateClone = () => {
-        if (selectedPlayerForAction && gameState) {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-            initiateClone({ cloningPlayer: selectedPlayerForAction, playerRules, triggerCloneModifier: triggerCloneModifier });
+        if (gameState?.selectedPlayerForAction !== null && gameState) {
+            const selectedPlayer = gameState.players.find(player => player.id === gameState.selectedPlayerForAction);
+            if (selectedPlayer) {
+                const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayer.id);
+                initiateClone({ cloningPlayer: selectedPlayer, playerRules, triggerCloneModifier: triggerCloneModifier });
+                gameState.players.forEach(player => {
+                    if (player.id === selectedPlayer.id) {
+                        socketService.setPlayerModal(player.id, 'CloneActionRuleSelection');
+                    } else {
+                        socketService.setPlayerModal(player.id, 'AwaitCloneRuleSelection');
+                    }
+                })
+            }
         }
     };
 
 
     const handleInitiateFlip = () => {
-        if (selectedPlayerForAction && gameState) {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-            initiateFlip({ flippingPlayer: selectedPlayerForAction, playerRules, triggerFlipModifier: triggerFlipModifier });
+        if (gameState?.selectedPlayerForAction !== null && gameState) {
+            const selectedPlayer = gameState.players.find(player => player.id === gameState.selectedPlayerForAction);
+            if (selectedPlayer) {
+                const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayer.id);
+                initiateFlip({ flippingPlayer: selectedPlayer, playerRules, triggerFlipModifier: triggerFlipModifier });
+                gameState.players.forEach(player => {
+                    if (player.id === selectedPlayer?.id) {
+                        socketService.setPlayerModal(player.id, "FlipActionRuleSelection");
+                    } else {
+                        socketService.setPlayerModal(player.id, "AwaitFlipRuleSelection");
+                    }
+                })
+            }
         }
     };
 
 
     const handleInitiateSwap = () => {
-        if (selectedPlayerForAction && gameState) {
-            const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayerForAction.id);
-            const otherPlayersWithRules = gameState.players.filter(player => player.id !== selectedPlayerForAction.id && gameState.rules.some(rule => rule.assignedTo === player.id));
-            if (otherPlayersWithRules.length > 0) {
-                initiateSwap({ swappingPlayer: selectedPlayerForAction, playerRules, triggerSwapModifier: triggerSwapModifier });
-            } else {
-                Alert.alert('No Other Players With Rules', `No other players have rules to swap with ${selectedPlayerForAction.name}.`);
+        if (gameState?.selectedPlayerForAction !== null && gameState) {
+            const selectedPlayer = gameState.players.find(player => player.id === gameState.selectedPlayerForAction);
+            if (selectedPlayer) {
+                const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayer.id);
+                const otherPlayersWithRules = gameState.players.filter(player => player.id !== selectedPlayer.id && gameState.rules.some(rule => rule.assignedTo === player.id));
+                if (otherPlayersWithRules.length > 0) {
+                    initiateSwap({ swappingPlayer: selectedPlayer, playerRules, triggerSwapModifier: triggerSwapModifier });
+                } else {
+                    Alert.alert('No Other Players With Rules', `No other players have rules to swap with ${selectedPlayer.name}.`);
+                }
+
+                gameState.players.forEach(player => {
+                    if (player.id === selectedPlayer?.id) {
+                        socketService.setPlayerModal(player.id, "SwapActionTargetSelection");
+                    } else {
+                        socketService.setPlayerModal(player.id, "AwaitSwapTargetSelection");
+                    }
+                })
             }
         }
     };
@@ -198,8 +229,20 @@ export default function GameScreen() {
             return;
         }
 
-        if (selectedPlayerForAction && gameState) {
-            initiateUpDown({ direction, triggerUpDownModifier: triggerUpDownModifier });
+        if (gameState?.selectedPlayerForAction !== null && gameState) {
+            const selectedPlayer = gameState.players.find(player => player.id === gameState.selectedPlayerForAction);
+            if (selectedPlayer) {
+                initiateUpDown({ direction, triggerUpDownModifier: triggerUpDownModifier });
+
+                gameState.players.forEach(player => {
+                    const playerHasRules = gameState.rules.some(rule => rule.assignedTo === player.id);
+                    if (playerHasRules && !player.isHost) {
+                        socketService.setPlayerModal(player.id, "UpDownRuleSelection");
+                    } else {
+                        socketService.setPlayerModal(player.id, "AwaitUpDownRuleSelection");
+                    }
+                })
+            }
         }
     };
 
@@ -315,6 +358,16 @@ export default function GameScreen() {
             </View>
         ) : null;
     };
+
+    const finishPrompt = (sideEffects?: () => void) => {
+        setCurrentModal(undefined);
+        sideEffects?.();
+    }
+
+    const finishModifier = (sideEffects?: () => void) => {
+        setCurrentModal(undefined);
+        sideEffects?.();
+    }
 
     // Show game over screen if game has ended
     if (gameState?.gameEnded && gameState?.winner) {
@@ -474,9 +527,12 @@ export default function GameScreen() {
                     selectedRule={selectedRule}
                     currentUser={currentUser}
                     selectedPlayerForAction={selectedPlayerForAction}
-                    onFinishPrompt={() => {
-                        setCurrentModal(undefined);
+                    onShredRule={(ruleId: string) => {
+                        shredRule(ruleId);
+                        socketService.setAllPlayerModals(undefined);
+                        socketService.setSelectedRule(null);
                     }}
+                    onFinishPrompt={finishPrompt}
                 />
 
                 {/* Modifier Modals */}
@@ -484,9 +540,7 @@ export default function GameScreen() {
                     setCurrentModal={setCurrentModal}
                     currentModal={currentModal || ''}
                     currentUser={currentUser}
-                    onFinishModifier={() => {
-                        setCurrentModal(undefined);
-                    }}
+                    onFinishModifier={finishModifier}
                 />
 
 

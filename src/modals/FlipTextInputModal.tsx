@@ -17,7 +17,7 @@ interface FlipTextInputModalProps {
     visible: boolean;
     selectedRule: Rule | undefined;
     onFlipRule: (rule: Rule, flippedText: string) => void;
-    onClose: () => void;
+    onClose?: () => void;
 }
 
 export default function FlipTextInputModal({
@@ -39,7 +39,7 @@ export default function FlipTextInputModal({
 
     const handleClose = () => {
         setFlippedRuleText('');
-        onClose();
+        if (onClose) onClose();
     };
 
     return (
@@ -74,10 +74,10 @@ export default function FlipTextInputModal({
                     </View>
 
                     <View style={shared.buttonContainer}>
-                        <SecondaryButton
+                        {onClose && <SecondaryButton
                             title="Cancel"
                             onPress={handleClose}
-                        />
+                        />}
 
                         <PrimaryButton
                             title="Flip Rule"

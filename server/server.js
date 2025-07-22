@@ -712,6 +712,8 @@ io.on('connection', (socket) => {
     socket.on('accept_prompt', ({ gameId }) => {
         const game = games.get(gameId);
         if (!game) return;
+        if (game.activePromptDetails === undefined) return;
+        if (game.activePromptDetails.selectedPlayer === undefined) return;
         const promptedPlayer = game.players.find(p => p.id === game.activePromptDetails.selectedPlayer.id);
         game.activePromptDetails.isPromptAccepted = true;
         promptedPlayer.points += 2;
@@ -792,35 +794,7 @@ io.on('connection', (socket) => {
     socket.on('update_active_flipping_details', ({ gameId, details }) => {
         const game = games.get(gameId);
         if (!game) return;
-
         game.activeFlipRuleDetails = details;
-        game.players.forEach(player => {
-            const playerType = player.isHost ? 'Host' : player.id === details.flippingPlayer.id ? 'Flipper' : 'Spectator';
-            switch (playerType) {
-                case 'Host':
-                    if (details.ruleToFlip === undefined) {
-                        setPlayerModal(game, player.id, 'AwaitFlipRuleSelection');
-                    } else {
-                        setPlayerModal(game, player.id, 'FlipRuleTextInput');
-                    }
-                    break;
-                case 'Flipper':
-                    if (details.ruleToFlip === undefined) {
-                        setPlayerModal(game, player.id, 'FlipRuleSelection');
-                    } else {
-                        setPlayerModal(game, player.id, 'AwaitFlipRuleExecution');
-                    }
-                    break;
-                case 'Spectator':
-                    if (details.ruleToFlip === undefined) {
-                        setPlayerModal(game, player.id, 'AwaitFlipRuleSelection');
-                    } else {
-                        setPlayerModal(game, player.id, 'AwaitFlipRuleExecution');
-                    }
-                    break;
-            }
-        });
-
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -852,15 +826,6 @@ io.on('connection', (socket) => {
         if (!game) return;
 
         game.activeUpDownRuleDetails = details;
-
-        game.players.forEach(player => {
-            const playerRules = game.rules.filter(r => r.assignedTo === player.id);
-            if (details.selectedRules[player.id] !== undefined || playerRules.length === 0 || player.isHost) {
-                setPlayerModal(game, player.id, 'AwaitUpDownSelection');
-            } else {
-                setPlayerModal(game, player.id, 'UpDownRuleSelection');
-            }
-        });
 
         io.to(gameId).emit('game_updated', game);
     });

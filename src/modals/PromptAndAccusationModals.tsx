@@ -43,19 +43,15 @@ interface PromptAndAccusationModalsProps {
     selectedRule: Rule | undefined;
     currentUser: Player;
     selectedPlayerForAction: Player | null;
-    onFinishPrompt: () => void;
+    onShredRule: (ruleId: string) => void;
+    onFinishPrompt: (sideEffects?: () => void) => void;
 }
 
 export default function PromptAndAccusationModals(
-    { setCurrentModal, currentModal, setSelectedRule, selectedRule, currentUser, selectedPlayerForAction, onFinishPrompt }: PromptAndAccusationModalsProps) {
+    { setCurrentModal, currentModal, setSelectedRule, selectedRule, currentUser, selectedPlayerForAction, onShredRule, onFinishPrompt }: PromptAndAccusationModalsProps) {
 
     const { gameState } = useGame();
 
-    // Sync local state when server updates selectedRule
-    React.useEffect(() => {
-        if (!gameState) return;
-        setSelectedRule(gameState.rules.find(rule => rule.id === gameState.selectedRule) || undefined);
-    }, [gameState?.selectedRule]);
 
     return (
         <>
@@ -67,7 +63,7 @@ export default function PromptAndAccusationModals(
                 description={`Select a rule to give to ${selectedPlayerForAction?.name}:`}
                 rules={gameState?.rules.filter(rule => rule.assignedTo !== selectedPlayerForAction?.id) || []}
                 onAccept={(rule) => {
-                    socketService.setAllPlayerModals(gameState?.id!, 'AwaitRuleAcceptance');
+                    socketService.setAllPlayerModals('AwaitRuleAcceptance');
                     socketService.setSelectedRule(rule.id);
                 }}
                 onClose={() => {
@@ -82,12 +78,12 @@ export default function PromptAndAccusationModals(
                 title={`Rule Assigned`}
                 description={`Waiting for ${selectedPlayerForAction?.name} to accept the rule...`}
                 content={
-                    <Plaque plaque={selectedRule as PlaqueType} style={{ width: '50%' }} />
+                    <Plaque plaque={gameState?.rules.find(rule => rule.id === gameState?.selectedRule) as PlaqueType} style={{ width: '50%' }} />
                 }
                 onAccept={() => {
-                    socketService.assignRule(selectedRule?.id!, selectedPlayerForAction!.id);
-                    socketService.setAllPlayerModals(gameState?.id!, undefined);
-                    socketService.setSelectedRule('');
+                    socketService.assignRule(gameState?.selectedRule!, selectedPlayerForAction!.id);
+                    socketService.setAllPlayerModals(undefined);
+                    socketService.setSelectedRule(null);
                 }}
                 acceptButtonDisplayed={currentUser?.id === selectedPlayerForAction?.id}
             />
@@ -104,7 +100,7 @@ export default function PromptAndAccusationModals(
                 onAccuse={
                     (accusationDetails: ActiveAccusationDetails) => {
                         socketService.initiateAccusation(accusationDetails);
-                        socketService.setAllPlayerModals(gameState?.id!, 'AccusationJudgement');
+                        socketService.setAllPlayerModals('AccusationJudgement');
                     }
                 }
                 onClose={() => {
@@ -129,7 +125,7 @@ export default function PromptAndAccusationModals(
                 }}
                 onDecline={() => {
                     socketService.endAccusation();
-                    socketService.setAllPlayerModals(gameState?.id!, undefined);
+                    socketService.setAllPlayerModals(undefined);
                     socketService.possiblyReturnToPrompt();
                 }}
             />
@@ -172,7 +168,7 @@ export default function PromptAndAccusationModals(
                 prompts={gameState?.prompts || []}
                 onAccept={(prompt: PlaqueType | null) => {
                     socketService.givePrompt(selectedPlayerForAction!.id, prompt!.id);
-                    socketService.setAllPlayerModals(gameState?.id!, "PromptPerformance");
+                    socketService.setAllPlayerModals("PromptPerformance");
                 }}
                 onClose={() => {
                     setCurrentModal(undefined);
@@ -188,38 +184,36 @@ export default function PromptAndAccusationModals(
                     setCurrentModal('RuleDetails');
                 }}
                 onSuccess={() => {
-                    socketService.acceptPrompt();
                     const playerHasRules = gameState?.rules.some(rule => rule.assignedTo === selectedPlayerForAction?.id);
+                    socketService.acceptPrompt();
 
                     if (playerHasRules) {
-                        socketService.setAllPlayerModals(gameState?.id!, 'PromptResolution');
+                        socketService.setAllPlayerModals('PromptResolution');
                     } else {
-                        socketService.endPrompt();
-                        socketService.setAllPlayerModals(gameState?.id!, undefined);
-                        onFinishPrompt();
+                        onFinishPrompt(() => {
+                            socketService.endPrompt();
+                            socketService.setAllPlayerModals(undefined);
+                        });
                     }
                 }}
                 onFailure={() => {
-                    socketService.endPrompt();
-                    socketService.setAllPlayerModals(gameState?.id!, undefined);
-                    onFinishPrompt();
+                    onFinishPrompt(() => {
+                        socketService.endPrompt();
+                        socketService.setAllPlayerModals(undefined);
+                    });
                 }}
             />
 
             {/* Prompt Resolution Modal */}
             <PromptResolutionModal
                 visible={currentModal === 'PromptResolution'}
-                onShredRule={(ruleId: string) => {
-                    socketService.shredRule(ruleId);
-                    socketService.endPrompt();
-                    socketService.setAllPlayerModals(gameState?.id!, undefined);
-                    onFinishPrompt();
-                }}
-                onSkip={() => {
-                    socketService.endPrompt();
-                    socketService.setAllPlayerModals(gameState?.id!, undefined);
-                    onFinishPrompt();
-                }}
+                onShredRule={onShredRule}
+            // onSkip={() => {
+            //     onFinishPrompt(() => {
+            //         socketService.setAllPlayerModals(gameState?.id!, undefined);
+            //         socketService.endPrompt();
+            //     });
+            // }}
             />
         </>
     );

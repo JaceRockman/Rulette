@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView, Alert } from 'react-native';
 import { useGame } from '../context/GameContext';
 import WheelSegment from '../components/WheelSegment';
 import socketService from '../services/socketService';
@@ -61,7 +61,7 @@ export default function WheelScreen2() {
         const randomSpins = 40 + Math.floor(Math.random() * 10);
         const scrollAmount = (randomSpins * ITEM_HEIGHT);
         const finalIndex = (currentWheelIndex + randomSpins) % segments.length;
-        const duration = 3000 + Math.random() * 2000; // 3-5 seconds
+        const duration = 300 + Math.random() * 200; // 3-5 seconds
 
         const newWheelSpinDetails: WheelSpinDetails = {
             spinningPlayerId: gameState?.activePlayer || '',
@@ -149,29 +149,67 @@ export default function WheelScreen2() {
         console.log('handleModifierSpun', modifier);
         const activePlayer = gameState?.players.find(player => player.id === gameState?.activePlayer);
         const playerRules = gameState?.rules.filter(rule => rule.assignedTo === activePlayer?.id);
-        if (!activePlayer) return;
+        if (!activePlayer || !currentUser) return;
         if (!gameState) return;
         switch (modifier?.text) {
             case 'Clone':
                 if (initiateClone({ cloningPlayer: activePlayer, playerRules, triggerCloneModifier: triggerCloneModifier }) === 'failed') {
                     finishWheelSpin();
+                } else if (currentUser?.id === activePlayer?.id) {
+                    socketService.setPlayerModal(currentUser.id, "CloneActionRuleSelection");
+                } else {
+                    socketService.setPlayerModal(currentUser.id, "AwaitCloneRuleSelection");
                 }
                 break;
             case 'Flip':
                 if (initiateFlip({ flippingPlayer: activePlayer, playerRules, triggerFlipModifier: triggerFlipModifier }) === 'failed') {
                     finishWheelSpin();
+                } else if (currentUser?.id === activePlayer?.id) {
+                    socketService.setPlayerModal(currentUser.id, "FlipActionRuleSelection");
+                } else {
+                    socketService.setPlayerModal(currentUser.id, "AwaitFlipRuleSelection");
                 }
                 break;
             case 'Swap':
                 if (initiateSwap({ swappingPlayer: activePlayer, playerRules, triggerSwapModifier: triggerSwapModifier }) === 'failed') {
                     finishWheelSpin();
+                } else if (currentUser?.id === activePlayer?.id) {
+                    socketService.setPlayerModal(currentUser.id, "SwapActionTargetSelection");
+                } else {
+                    socketService.setPlayerModal(currentUser.id, "AwaitSwapTargetSelection");
                 }
                 break;
             case 'Up':
-                initiateUpDown({ direction: 'up', triggerUpDownModifier: triggerUpDownModifier });
+                const nonHostPlayers = gameState.players.filter(p => !p.isHost);
+                const nonHostPlayersWithRules = nonHostPlayers.filter(player => gameState.rules.some(rule => rule.assignedTo === player.id));
+                if (nonHostPlayersWithRules.length === 0) {
+                    Alert.alert('Not Enough Players with rules', `Need at least 1 player with rules for up action.`);
+                    finishWheelSpin();
+                } else {
+                    initiateUpDown({ direction: 'up', triggerUpDownModifier: triggerUpDownModifier });
+                    const playerHasRules = gameState.rules.some(rule => rule.assignedTo === currentUser?.id);
+                    if (playerHasRules && !currentUser?.isHost) {
+                        socketService.setPlayerModal(currentUser.id, "UpDownRuleSelection");
+                    } else {
+                        socketService.setPlayerModal(currentUser.id, "AwaitUpDownRuleSelection");
+                    }
+                }
                 break;
             case 'Down':
-                initiateUpDown({ direction: 'down', triggerUpDownModifier: triggerUpDownModifier });
+                const nonHostPlayersDown = gameState.players.filter(p => !p.isHost);
+                const nonHostPlayersWithRulesDown = nonHostPlayersDown.filter(player => gameState.rules.some(rule => rule.assignedTo === player.id));
+                if (nonHostPlayersWithRulesDown.length < 1) {
+                    Alert.alert('Not Enough Players with rules', `Need at least 1 player with rules for down action.`);
+                    finishWheelSpin();
+                } else {
+                    initiateUpDown({ direction: 'down', triggerUpDownModifier: triggerUpDownModifier });
+                    const playerHasRules = gameState.rules.some(rule => rule.assignedTo === currentUser?.id);
+                    if (playerHasRules && !currentUser?.isHost) {
+                        socketService.setPlayerModal(currentUser.id, "UpDownRuleSelection");
+                    } else {
+                        socketService.setPlayerModal(currentUser.id, "AwaitUpDownRuleSelection");
+                    }
+                }
                 break;
         }
     }
@@ -208,45 +246,61 @@ export default function WheelScreen2() {
         return () => scrollY.removeListener(id);
     }, [scrollY, gameState?.wheelSpinDetails?.spinCompleted]);
 
-    const finishWheelSpin = () => {
+    const finishWheelSpin = (sideEffects?: () => void) => {
+        console.log('finishWheelSpin');
         // console.log('finishWheelSpin');
         // console.log('wheel state', { currentWheelIndex, scrollY, currentScrollOffset, currentModal, selectedRule });
 
         // Use the centralized server-side approach
         socketService.completeWheelSpin(gameState?.wheelSpinDetails?.spunSegmentId);
 
+        console.log('finishWheelSpin: sideEffects', sideEffects);
+
         // Reset local state
         setCurrentWheelIndex(0);
         setCurrentModal(undefined);
+
+        if (typeof sideEffects === 'function') {
+            sideEffects();
+        }
     };
+
+    const shredRule = (ruleId: string) => {
+        console.log('shredRule', ruleId);
+        finishWheelSpin(() => {
+            socketService.setAllPlayerModals(undefined);
+            socketService.shredRule(ruleId);
+            socketService.endPrompt();
+        });
+    }
 
 
     // Interrupt prompts with accusations but be able to return to the prompt performance modal
-    React.useEffect(() => {
-        // console.log('UseEffect: prompt, accusation, or rule updated', gameState?.activePromptDetails)
-        if (selectedRule) {
-            setCurrentModal('RuleDetails');
-            return;
-        }
-        if (gameState?.activePromptDetails !== undefined && gameState?.activeAccusationDetails === undefined) {
-            if (!gameState?.activePromptDetails?.isPromptAccepted) {
-                setCurrentModal('PromptPerformance');
-            } else {
-                setCurrentModal('PromptResolution');
-            }
-        }
-    }, [gameState?.activePromptDetails, gameState?.activeAccusationDetails, selectedRule]);
+    // React.useEffect(() => {
+    //     // console.log('UseEffect: prompt, accusation, or rule updated', gameState?.activePromptDetails)
+    //     if (selectedRule) {
+    //         setCurrentModal('RuleDetails');
+    //         return;
+    //     }
+    //     if (gameState?.activePromptDetails !== undefined && gameState?.activeAccusationDetails === undefined) {
+    //         if (!gameState?.activePromptDetails?.isPromptAccepted) {
+    //             setCurrentModal('PromptPerformance');
+    //         } else {
+    //             setCurrentModal('PromptResolution');
+    //         }
+    //     }
+    // }, [gameState?.activePromptDetails, gameState?.activeAccusationDetails, selectedRule]);
 
-    useEffect(() => {
-        // console.log('UseEffect: accusation updated')
-        if (gameState?.activeAccusationDetails?.accusationAccepted) {
-            if (gameState?.activeAccusationDetails?.accuser?.id === currentUser?.id) {
-                setCurrentModal('SuccessfulAccusationRuleSelection');
-            } else {
-                setCurrentModal('AwaitAccusationRuleSelection');
-            }
-        }
-    }, [gameState?.activeAccusationDetails?.accusationAccepted]);
+    // useEffect(() => {
+    //     // console.log('UseEffect: accusation updated')
+    //     if (gameState?.activeAccusationDetails?.accusationAccepted) {
+    //         if (gameState?.activeAccusationDetails?.accuser?.id === currentUser?.id) {
+    //             setCurrentModal('SuccessfulAccusationRuleSelection');
+    //         } else {
+    //             setCurrentModal('AwaitAccusationRuleSelection');
+    //         }
+    //     }
+    // }, [gameState?.activeAccusationDetails?.accusationAccepted]);
 
     const getPlaqueForCurrentSegment = () => {
         if (!gameState || !gameState.wheelSpinDetails || !gameState.wheelSegments) return null;
@@ -318,6 +372,7 @@ export default function WheelScreen2() {
                     selectedRule={selectedRule}
                     currentUser={currentUser}
                     selectedPlayerForAction={gameState?.players.find(player => player.id === gameState?.activePlayer) || null}
+                    onShredRule={shredRule}
                     onFinishPrompt={finishWheelSpin}
                 />
 
@@ -341,7 +396,8 @@ export default function WheelScreen2() {
                         endGame();
                     }}
                     onClose={() => {
-                        setCurrentModal(undefined);
+                        socketService.setAllPlayerModals(undefined);
+                        socketService.updateWheelSpinDetails(undefined);
                     }}
                 />
 
