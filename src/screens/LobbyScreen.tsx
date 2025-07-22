@@ -3,268 +3,137 @@ import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
     TextInput,
     ScrollView,
     Alert,
     SafeAreaView,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
 import * as Clipboard from 'expo-clipboard';
-import StripedBackground from '../components/StripedBackground';
-import shared from '../styles/shared';
+import StripedBackground from '../components/Backdrop';
 import OutlinedText from '../components/OutlinedText';
+import { PrimaryButton } from '../components/Buttons';
+import { Player } from '../types/game';
+import shared from '../shared/styles';
 import socketService from '../services/socketService';
 
-type LobbyScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Lobby'>;
-type LobbyScreenRouteProp = RouteProp<RootStackParamList, 'Lobby'>;
-
 export default function LobbyScreen() {
-    const navigation = useNavigation<LobbyScreenNavigationProp>();
-    const route = useRoute<LobbyScreenRouteProp>();
-    const { gameState, currentUser, startGame, addTestPlayers, addFillerRules, addFillerPrompts, dispatch } = useGame();
+    const { gameState, currentUser, getHostPlayer, getNonHostPlayers } = useGame();
 
-    const [startingPoints, setStartingPoints] = useState('');
-    const [numRules, setNumRules] = useState('');
-    const [numPrompts, setNumPrompts] = useState('');
-    const [numTestPlayers, setNumTestPlayers] = useState('');
-    const [numFillerRules, setNumFillerRules] = useState('');
-    const [numFillerPrompts, setNumFillerPrompts] = useState('');
+    const [startingPoints, setStartingPoints] = useState('20');
+    const [numSegments, setNumSegments] = useState('4');
 
-    const isHost = currentUser?.isHost;
-    const lobbyCode = gameState?.code || route.params.code;
+    const host = getHostPlayer();
+    const nonHostPlayers = getNonHostPlayers();
+    const isHost = currentUser?.id === host?.id;
 
-    // Navigate to rule writing when game starts
-    React.useEffect(() => {
-        if (gameState?.isGameStarted) {
-            navigation.navigate('RuleWriting');
-        }
-    }, [gameState?.isGameStarted, navigation]);
+    const lobbyCode = gameState?.lobbyCode || '';
 
     const copyLobbyCode = async () => {
         await Clipboard.setStringAsync(lobbyCode);
-        Alert.alert('Copied!', 'Lobby code copied to clipboard');
-    };
-
-    const handleAddTestPlayers = () => {
-        const numPlayers = parseInt(numTestPlayers) || 0;
-        if (numPlayers > 0) {
-            addTestPlayers(numPlayers);
-            Alert.alert('Test Players Added', `${numPlayers} test players have been added to the game.`);
-        }
-    };
-
-    const handleAddFillerRules = () => {
-        const numRules = parseInt(numFillerRules) || 0;
-        if (numRules > 0) {
-            addFillerRules(numRules);
-            Alert.alert('Filler Rules Added', `${numRules} filler rules have been added to the game.`);
-        }
-    };
-
-    const handleAddFillerPrompts = () => {
-        const numPrompts = parseInt(numFillerPrompts) || 0;
-        if (numPrompts > 0) {
-            addFillerPrompts(numPrompts);
-            Alert.alert('Filler Prompts Added', `${numPrompts} filler prompts have been added to the game.`);
-        }
     };
 
     const handleStartGame = () => {
-        if (!gameState?.players.length) {
+        if (nonHostPlayers?.length === 0) {
             Alert.alert('Error', 'Need at least one player to start');
             return;
         }
 
         // Get the game settings from the UI
         const settings = {
-            numRules: parseInt(numRules) || 3,
-            numPrompts: parseInt(numPrompts) || 3,
+            numSegments: parseInt(numSegments) || 4,
             startingPoints: parseInt(startingPoints) || 20
         };
 
-        // Send the settings to the server
-        socketService.updateGameSettings(settings);
-
-        // Update the game state with the settings before starting
-        if (gameState) {
-            const updatedGameState = {
-                ...gameState,
-                numRules: settings.numRules,
-                numPrompts: settings.numPrompts
-            };
-            // Dispatch the updated game state
-            dispatch({ type: 'SET_GAME_STATE', payload: updatedGameState });
-        }
-
-        // Start the game - navigation will be handled by useEffect when game state updates
-        startGame();
+        // Start the game with settings - this will update settings on server and start the game
+        socketService.startGame(settings);
     };
 
     return (
         <StripedBackground>
-            <SafeAreaView style={styles.container}>
-                <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
+            <SafeAreaView style={shared.container}>
+                <ScrollView style={shared.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
                     {/* Lobby Code Section */}
-                    <View style={styles.section}>
-                        <OutlinedText style={{ textAlign: 'center' }}>Lobby Code</OutlinedText>
-                        <TouchableOpacity style={styles.lobbyCodeButton} onPress={copyLobbyCode}>
-                            <Text style={styles.lobbyCodeText}>{lobbyCode}</Text>
-                        </TouchableOpacity>
+                    <View style={shared.section}>
+                        <OutlinedText>Lobby Code</OutlinedText>
+                        <PrimaryButton
+                            title={lobbyCode}
+                            onPress={copyLobbyCode}
+                            textStyle={styles.lobbyCodeText}
+                        />
                     </View>
 
                     {/* Host Section */}
-                    {gameState?.players?.find(player => player.isHost) && (
-                        <View style={styles.section}>
-                            <OutlinedText>Host</OutlinedText>
+                    <View style={shared.section}>
+                        <OutlinedText>Host</OutlinedText>
+                        {host && (
                             <View style={styles.hostContainer}>
-                                {gameState?.players?.filter(player => player.isHost).map((player) => (
-                                    <View key={player.id} style={styles.hostItem}>
-                                        <Text style={styles.playerName}>{player.name}</Text>
-                                    </View>
-                                ))}
+                                <View key={host.id} style={shared.listedUserCard}>
+                                    <Text style={shared.listedUserText}>{host.name}</Text>
+                                </View>
                             </View>
-                        </View>
-                    )}
+                        )}
+                        {!host && (
+                            <Text style={{ textAlign: 'center' }}>No Host Found</Text>
+                        )}
+                    </View>
 
                     {/* Players Section */}
-                    {(gameState?.players?.filter(player => !player.isHost)?.length ?? 0) > 0 && (
-                        <View style={styles.section}>
-                            <OutlinedText>Players</OutlinedText>
+                    <View style={shared.section}>
+                        <OutlinedText>Players</OutlinedText>
+                        {nonHostPlayers && nonHostPlayers.length > 0 && (
                             <View style={styles.playerGrid}>
-                                {(gameState?.players?.filter(player => !player.isHost) ?? []).map((player) => (
-                                    <View key={player.id} style={styles.playerItem}>
-                                        <Text style={styles.playerName}>{player.name}</Text>
+                                {nonHostPlayers?.map((player: Player) => (
+                                    <View key={player.id} style={shared.listedUserCard}>
+                                        <Text style={shared.listedUserText}>{player.name}</Text>
                                     </View>
                                 ))}
                             </View>
-                        </View>
-                    )}
+                        )}
+                        {nonHostPlayers && nonHostPlayers.length === 0 && (
+                            <Text style={{ textAlign: 'center' }}>No Players</Text>
+                        )}
+                    </View>
 
                     {/* Host Settings Section */}
                     {isHost && (
-                        <View style={styles.section}>
-                            <OutlinedText style={styles.gameSettingsTitle}>Game Settings</OutlinedText>
+                        <View style={shared.section}>
+                            <OutlinedText>Game Settings</OutlinedText>
 
                             <View style={styles.settingContainer}>
                                 <OutlinedText style={styles.settingLabel}>Starting Points</OutlinedText>
                                 <TextInput
                                     style={styles.settingInput}
+                                    keyboardType="numeric"
                                     value={startingPoints}
                                     onChangeText={setStartingPoints}
-                                    keyboardType="numeric"
                                     placeholder="20"
                                     placeholderTextColor="#9ca3af"
                                 />
                             </View>
 
                             <View style={styles.settingContainer}>
-                                <OutlinedText style={styles.settingLabel}>Number of Rules</OutlinedText>
+                                <OutlinedText style={styles.settingLabel}>Number of Wheel Segments</OutlinedText>
                                 <TextInput
                                     style={styles.settingInput}
-                                    value={numRules}
-                                    onChangeText={setNumRules}
                                     keyboardType="numeric"
+                                    value={numSegments}
+                                    onChangeText={setNumSegments}
                                     placeholder="3"
                                     placeholderTextColor="#9ca3af"
                                 />
                             </View>
-
-                            <View style={styles.settingContainer}>
-                                <OutlinedText style={styles.settingLabel}>Number of Prompts</OutlinedText>
-                                <TextInput
-                                    style={styles.settingInput}
-                                    value={numPrompts}
-                                    onChangeText={setNumPrompts}
-                                    keyboardType="numeric"
-                                    placeholder="3"
-                                    placeholderTextColor="#9ca3af"
-                                />
-                            </View>
-
-                            {/* Development-only settings */}
-                            {__DEV__ && (
-                                <>
-                                    <View style={styles.settingContainer}>
-                                        <OutlinedText style={styles.settingLabel}>Test Players</OutlinedText>
-                                        <TextInput
-                                            style={styles.settingInput}
-                                            value={numTestPlayers}
-                                            onChangeText={setNumTestPlayers}
-                                            keyboardType="numeric"
-                                            placeholder="0"
-                                            placeholderTextColor="#9ca3af"
-                                        />
-                                    </View>
-
-                                    {parseInt(numTestPlayers) > 0 && (
-                                        <TouchableOpacity
-                                            style={[shared.button, { marginTop: 10 }]}
-                                            onPress={handleAddTestPlayers}
-                                        >
-                                            <Text style={shared.buttonText}>Add Test Players</Text>
-                                        </TouchableOpacity>
-                                    )}
-
-                                    <View style={styles.settingContainer}>
-                                        <OutlinedText style={styles.settingLabel}>Filler Rules</OutlinedText>
-                                        <TextInput
-                                            style={styles.settingInput}
-                                            value={numFillerRules}
-                                            onChangeText={setNumFillerRules}
-                                            keyboardType="numeric"
-                                            placeholder="0"
-                                            placeholderTextColor="#9ca3af"
-                                        />
-                                    </View>
-
-                                    {parseInt(numFillerRules) > 0 && (
-                                        <TouchableOpacity
-                                            style={[shared.button, { marginTop: 10 }]}
-                                            onPress={handleAddFillerRules}
-                                        >
-                                            <Text style={shared.buttonText}>Add Filler Rules</Text>
-                                        </TouchableOpacity>
-                                    )}
-
-                                    <View style={styles.settingContainer}>
-                                        <OutlinedText style={styles.settingLabel}>Filler Prompts</OutlinedText>
-                                        <TextInput
-                                            style={styles.settingInput}
-                                            value={numFillerPrompts}
-                                            onChangeText={setNumFillerPrompts}
-                                            keyboardType="numeric"
-                                            placeholder="0"
-                                            placeholderTextColor="#9ca3af"
-                                        />
-                                    </View>
-
-                                    {parseInt(numFillerPrompts) > 0 && (
-                                        <TouchableOpacity
-                                            style={[shared.button, { marginTop: 10 }]}
-                                            onPress={handleAddFillerPrompts}
-                                        >
-                                            <Text style={shared.buttonText}>Add Filler Prompts</Text>
-                                        </TouchableOpacity>
-                                    )}
-                                </>
-                            )}
                         </View>
                     )}
 
                     {/* Start Game Button */}
                     {isHost && (
-                        <View style={styles.section}>
-                            <TouchableOpacity
-                                style={shared.button}
+                        <View style={shared.section}>
+                            <PrimaryButton
                                 onPress={handleStartGame}
-                                disabled={!gameState?.players.length}
-                            >
-                                <Text style={shared.buttonText}>Start Game</Text>
-                            </TouchableOpacity>
+                                disabled={!gameState?.players?.length}
+                                title="Start Game"
+                            />
                         </View>
                     )}
                 </ScrollView>
@@ -274,80 +143,17 @@ export default function LobbyScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    scrollView: {
-        flex: 1,
-        padding: 20,
-    },
-    section: {
-        marginBottom: 30,
-
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        marginBottom: 15,
-        textAlign: 'center',
-    },
-    codeContainer: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 12,
-        paddingVertical: 3,
-        paddingHorizontal: 16,
-        alignItems: 'center',
-        alignSelf: 'center',
-        width: '50%'
-    },
-    lobbyCode: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1f2937',
+    lobbyCodeText: {
         letterSpacing: 2,
-    },
-    copyText: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginTop: 5,
     },
     hostContainer: {
         alignItems: 'center',
-    },
-    hostItem: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 8,
-        paddingVertical: 16,
-        paddingHorizontal: 8,
-        marginBottom: 8,
-        alignItems: 'center',
-        width: '50%',
     },
     playerGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
         paddingHorizontal: 10,
-    },
-    playerItem: {
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        borderRadius: 8,
-        paddingVertical: 16,
-        paddingHorizontal: 8,
-        marginBottom: 8,
-        alignItems: 'center',
-        width: '48%',
-    },
-    playerName: {
-        fontSize: 18,
-        fontWeight: '500',
-        color: '#1f2937',
-    },
-    gameSettingsTitle: {
-        fontSize: 28,
-        textAlign: 'center',
-        marginBottom: 20,
     },
     settingContainer: {
         alignItems: 'center',
@@ -366,32 +172,5 @@ const styles = StyleSheet.create({
         color: '#1f2937',
         width: 200,
         textAlign: 'center',
-    },
-    startButton: {
-        backgroundColor: '#cba84b',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-    },
-    startButtonText: {
-        color: '#ffffff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    lobbyCodeButton: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 16,
-        alignItems: 'center',
-        alignSelf: 'center',
-        width: '60%',
-        borderWidth: 3,
-        borderColor: '#000000',
-    },
-    lobbyCodeText: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        letterSpacing: 2,
     },
 }); 

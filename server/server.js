@@ -24,11 +24,11 @@ const players = new Map();
 function generateLobbyCode() {
     // Generate 4 random letters (A-Z)
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    let code = '';
+    let lobbyCode = '';
     for (let i = 0; i < 4; i++) {
-        code += letters.charAt(Math.floor(Math.random() * letters.length));
+        lobbyCode += letters.charAt(Math.floor(Math.random() * letters.length));
     }
-    return code;
+    return lobbyCode;
 }
 
 // Create a new game
@@ -38,7 +38,8 @@ function createGame(hostId, hostName) {
 
     const game = {
         id: gameId,
-        code: lobbyCode,
+        createdAt: Date.now(),
+        lobbyCode: lobbyCode,
         players: [{
             id: hostId,
             name: hostName,
@@ -48,37 +49,88 @@ function createGame(hostId, hostName) {
             rulesCompleted: false,
             promptsCompleted: false
         }],
-        prompts: [],
-        rules: [],
-        currentUser: hostId, // The user ID of the person currently using the app
-        activePlayer: null, // The player ID of the player currently taking their turn (excludes host)
+        settings: {
+            numSegments: 4,
+            numRulesPerPlayer: 1,
+            numPromptsPerPlayer: 1,
+            startingPoints: 20
+        },
         isGameStarted: false,
-        isWheelSpinning: false,
+        rules: [],
+        prompts: [],
+        modifiers: [],
+        ends: [],
+        playerInputCompleted: false,
+        wheelSegments: [],
+        wheelSpinDetails: undefined,
+        currentUser: hostId, // The user ID of the person currently using the app
+        activePlayer: undefined, // The player ID of the player currently taking their turn (excludes host)
+        selectedPlayerForAction: undefined, // The player ID of the player currently being acted upon
+        selectedRule: undefined, // The rule ID of the rule currently being selected
+
+        activeAccusationDetails: undefined,
+        activePromptDetails: undefined,
+        activeCloneRuleDetails: undefined,
+        activeFlipRuleDetails: undefined,
+        activeSwapRuleDetails: undefined,
+        activeUpDownRuleDetails: undefined,
         currentStack: [],
         roundNumber: 0,
-        numRules: 3, // Default number of rules per player
-        numPrompts: 3, // Default number of prompts per player
-        createdAt: Date.now()
-    };
+        gameEnded: false,
+        winner: undefined,
+    }
+
+
 
     games.set(gameId, game);
     games.set(lobbyCode, game);
     players.set(hostId, { gameId, socketId: null });
 
+    console.log('game', game);
+
     return game;
 }
 
-// Find game by code
-function findGameByCode(code) {
-    return games.get(code.toUpperCase());
+// Find game by lobby code
+function findGameByCode(lobbyCode) {
+    if (!lobbyCode) return null;
+    return games.get(lobbyCode.toUpperCase());
 }
+
+function setPlayerModal(game, playerId, modal) {
+    if (!game) return;
+    const player = game.players.find(p => p.id === playerId);
+    if (player) {
+        player.currentModal = modal;
+    }
+}
+
+function setAllPlayerModals(game, modal) {
+    if (!game) return;
+    game.players.forEach(player => {
+        player.currentModal = modal;
+    })
+}
+
 
 // Socket connection handling
 io.on('connection', (socket) => {
 
+    // Create lobby
+    socket.on('create_lobby', ({ playerName }) => {
+        console.log('create_lobby', playerName);
+        const playerId = uuidv4();
+        const game = createGame(playerId, playerName);
+
+        players.set(playerId, { gameId: game.id, socketId: socket.id });
+        socket.join(game.id);
+
+        socket.emit('lobby_created', { playerId, game });
+    });
+
     // Join lobby
-    socket.on('join_lobby', ({ code, playerName }) => {
-        const game = findGameByCode(code);
+    socket.on('join_lobby', ({ lobbyCode, playerName }) => {
+        const game = findGameByCode(lobbyCode);
 
         if (!game) {
             socket.emit('error', { message: 'Lobby not found' });
@@ -110,26 +162,83 @@ io.on('connection', (socket) => {
         socket.emit('joined_lobby', { playerId, game });
     });
 
-    // Create lobby
-    socket.on('create_lobby', ({ playerName }) => {
-        const playerId = uuidv4();
-        const game = createGame(playerId, playerName);
+    // Update game settings
+    socket.on('update_game_settings', ({ gameId, settings }) => {
+        const game = games.get(gameId);
+        if (!game) return;
 
-        players.set(playerId, { gameId: game.id, socketId: socket.id });
-        socket.join(game.id);
+        // Update the game settings
+        if (settings.numRules !== undefined) {
+            game.numRules = settings.numRules;
+        }
+        if (settings.numPrompts !== undefined) {
+            game.numPrompts = settings.numPrompts;
+        }
+        if (settings.startingPoints !== undefined) {
+            // Update all players' starting points
+            game.players.forEach(player => {
+                player.points = settings.startingPoints;
+            });
+        }
 
-        socket.emit('lobby_created', { playerId, game });
+        console.log('Server: Updated game settings:', settings, 'for game:', gameId);
+        io.to(gameId).emit('game_updated', game);
     });
 
-    // Add plaque (unified handler for rules and prompts)
+    // Start game
+    socket.on('start_game', ({ gameId, settings }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.settings = settings;
+
+        game.players.forEach(player => {
+            player.points = settings.startingPoints;
+        });
+
+        game.isGameStarted = true;
+        game.roundNumber = 1;
+
+        // Set the first non-host player as the initial active player
+        const nonHostPlayers = game.players.filter(player => !player.isHost);
+        if (nonHostPlayers.length > 0) {
+            game.activePlayer = nonHostPlayers[0].id;
+            console.log('Server: Setting initial activePlayer to:', game.activePlayer, 'for game:', gameId);
+        }
+
+        io.to(gameId).emit('game_updated', game);
+
+        game.players.forEach(player => {
+            let destinationScreen = 'Game';
+            if (player.isHost) {
+                destinationScreen = 'RuleWriting';
+            } else if (game.settings.numRulesPerPlayer > 0) {
+                destinationScreen = 'RuleWriting';
+            } else if (game.settings.numPromptsPerPlayer > 0) {
+                destinationScreen = 'PromptWriting';
+            } else {
+                player.rulesCompleted = true;
+                player.promptsCompleted = true;
+                game.playerInputCompleted = true;
+                io.to(gameId).emit('game_updated', game);
+                destinationScreen = 'Game';
+            }
+            console.log('destinationScreen', destinationScreen);
+            io.to(gameId).emit('navigate_player_to_screen', { screen: destinationScreen, playerId: player.id });
+        })
+    });
+
+    // Add plaque (unified handler for rules, prompts, and modifiers)
     socket.on('add_plaque', ({ gameId, plaque }) => {
         const game = games.get(gameId);
         if (!game) return;
 
+        console.log('add_plaque', plaque);
+
         if (plaque.type === 'rule') {
             const rule = {
                 ...plaque,
-                isActive: plaque.isActive || true,
+                isActive: true,
                 assignedTo: undefined
             };
             game.rules.push(rule);
@@ -138,22 +247,18 @@ io.on('connection', (socket) => {
                 ...plaque
             };
             game.prompts.push(prompt);
+        } else if (plaque.type === 'modifier') {
+            const modifier = {
+                ...plaque
+            };
+            game.modifiers.push(modifier);
+        } else if (plaque.type === 'end') {
+            const end = {
+                ...plaque
+            };
+            game.ends.push(end);
         }
 
-        io.to(gameId).emit('game_updated', game);
-    });
-
-    // Add prompt
-    socket.on('add_prompt', ({ gameId, plaqueObject }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        // Use the plaque object as the prompt (it already has id, text, category, authorId, plaqueColor)
-        const prompt = {
-            ...plaqueObject
-        };
-
-        game.prompts.push(prompt);
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -170,6 +275,20 @@ io.on('connection', (socket) => {
         };
 
         game.rules.push(rule);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Add prompt
+    socket.on('add_prompt', ({ gameId, plaqueObject }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        // Use the plaque object as the prompt (it already has id, text, category, authorId, plaqueColor)
+        const prompt = {
+            ...plaqueObject
+        };
+
+        game.prompts.push(prompt);
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -233,49 +352,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Start game
-    socket.on('start_game', ({ gameId }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        game.isGameStarted = true;
-        game.roundNumber = 1;
-
-        // Set the first non-host player as the initial active player
-        const nonHostPlayers = game.players.filter(player => !player.isHost);
-        if (nonHostPlayers.length > 0) {
-            game.activePlayer = nonHostPlayers[0].id;
-            console.log('Server: Setting initial activePlayer to:', game.activePlayer, 'for game:', gameId);
-        }
-
-        console.log('Server: Broadcasting game_updated after start with activePlayer:', game.activePlayer, 'for game:', gameId);
-        io.to(gameId).emit('game_updated', game);
-        io.to(gameId).emit('game_started');
-    });
-
-    // Update game settings
-    socket.on('update_game_settings', ({ gameId, settings }) => {
-        const game = games.get(gameId);
-        if (!game) return;
-
-        // Update the game settings
-        if (settings.numRules !== undefined) {
-            game.numRules = settings.numRules;
-        }
-        if (settings.numPrompts !== undefined) {
-            game.numPrompts = settings.numPrompts;
-        }
-        if (settings.startingPoints !== undefined) {
-            // Update all players' starting points
-            game.players.forEach(player => {
-                player.points = settings.startingPoints;
-            });
-        }
-
-        console.log('Server: Updated game settings:', settings, 'for game:', gameId);
-        io.to(gameId).emit('game_updated', game);
-    });
-
     // Mark rules as completed
     socket.on('rules_completed', ({ gameId, playerId }) => {
         const game = games.get(gameId);
@@ -296,6 +372,62 @@ io.on('connection', (socket) => {
         const player = game.players.find(p => p.id === playerId);
         if (player) {
             player.promptsCompleted = true;
+            const nonHostPlayers = game.players.filter(p => !p.isHost);
+            console.log('nonHostPlayers', nonHostPlayers);
+            if (nonHostPlayers.every(p => p.promptsCompleted) && nonHostPlayers.every(p => p.rulesCompleted)) {
+                console.log('playerInputCompleted');
+                game.playerInputCompleted = true;
+            }
+            io.to(gameId).emit('game_updated', game);
+        }
+    });
+
+    // Sync wheel segments
+    socket.on('sync_wheel_segments', ({ gameId, wheelSegments }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.wheelSegments = wheelSegments;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_player_modal', ({ gameId, playerId, modal }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        setPlayerModal(game, playerId, modal);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_all_player_modals', ({ gameId, modal }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        setAllPlayerModals(game, modal);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_selected_player_for_action', ({ gameId, playerId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.selectedPlayerForAction = playerId;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('set_selected_rule', ({ gameId, ruleId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.selectedRule = ruleId;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Update points
+    socket.on('update_points', ({ gameId, playerId, pointChange }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const player = game.players.find(p => p.id === playerId);
+        if (player) {
+            player.points = Math.max(0, player.points + pointChange);
+            game.selectedRule = undefined;
             io.to(gameId).emit('game_updated', game);
         }
     });
@@ -361,59 +493,67 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('wheel_spun', stack);
     });
 
-    // Update points
-    socket.on('update_points', ({ gameId, playerId, points }) => {
+    // Broadcast synchronized wheel spin
+    socket.on('update_wheel_spin_details', ({ gameId, wheelSpinDetails }) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        const player = game.players.find(p => p.id === playerId);
-        if (player) {
-            player.points = Math.max(0, points);
-            io.to(gameId).emit('game_updated', game);
-        }
-    });
+        console.log('Server: Updating wheel spin details', wheelSpinDetails);
 
-    // Swap rules
-    socket.on('swap_rules', ({ gameId, player1Id, player2Id }) => {
-        const game = games.get(gameId);
-        if (!game) return;
+        game.wheelSpinDetails = wheelSpinDetails;
 
-        const player1Rules = game.rules.filter(r => r.assignedTo === player1Id);
-        const player2Rules = game.rules.filter(r => r.assignedTo === player2Id);
-
-        player1Rules.forEach(rule => {
-            rule.assignedTo = player2Id;
-        });
-
-        player2Rules.forEach(rule => {
-            rule.assignedTo = player1Id;
-        });
-
+        // Broadcast to all players in the game (including sender for consistency)
         io.to(gameId).emit('game_updated', game);
     });
 
-    // Assign rule
-    socket.on('assign_rule', ({ gameId, ruleId, playerId }) => {
+    // Complete wheel spin - handles all wheel completion logic centrally
+    socket.on('complete_wheel_spin', ({ gameId, segmentId }) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        const rule = game.rules.find(r => r.id === ruleId);
-        if (rule) {
-            rule.assignedTo = playerId;
-            io.to(gameId).emit('game_updated', game);
-        }
-    });
+        console.log('Server: Completing wheel spin for game:', gameId);
 
-    // Assign rule to active player (when wheel lands on a rule)
-    socket.on('assign_rule_to_current_player', ({ gameId, ruleId }) => {
-        const game = games.get(gameId);
-        if (!game || !game.activePlayer) return;
-
-        const rule = game.rules.find(r => r.id === ruleId);
-        if (rule) {
-            rule.assignedTo = game.activePlayer;
-            io.to(gameId).emit('game_updated', game);
+        // Remove wheel layer if segmentId is provided
+        if (segmentId && game.wheelSegments) {
+            game.wheelSegments = game.wheelSegments.map(segment => {
+                if (segment.id === segmentId) {
+                    return {
+                        ...segment,
+                        currentLayerIndex: segment.currentLayerIndex + 1
+                    };
+                }
+                return segment;
+            });
         }
+
+        // Clear wheel spin details
+        game.wheelSpinDetails = undefined;
+
+        // Clear any active prompt or accusation details
+        game.activePromptDetails = undefined;
+        game.activeAccusationDetails = undefined;
+
+        // Advance to next player
+        const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
+
+        if (currentActivePlayer) {
+            const currentIndex = game.players.findIndex(p => p.id === game.activePlayer);
+            if (currentIndex !== -1) {
+                let nextIndex = (currentIndex + 1) % game.players.length;
+                while (game.players[nextIndex].isHost) {
+                    nextIndex = (nextIndex + 1) % game.players.length;
+                }
+                game.activePlayer = game.players[nextIndex].id;
+            }
+        }
+
+        // Broadcast updated game state to all players
+        io.to(gameId).emit('game_updated', game);
+
+        // Broadcast navigation to game screen for all players
+        io.to(gameId).emit('broadcast_navigate_to_screen', {
+            screen: 'Game'
+        });
     });
 
     // Remove wheel layer
@@ -422,45 +562,389 @@ io.on('connection', (socket) => {
         if (!game || !game.wheelSegments) return;
 
         const segment = game.wheelSegments.find(s => s.id === segmentId);
+        console.log('Server: Removing wheel layer', segment);
         if (segment) {
             segment.currentLayerIndex = Math.min(segment.currentLayerIndex + 1, segment.layers.length - 1);
+            console.log('Server: Updated wheel segments', game.wheelSegments);
             io.to(gameId).emit('game_updated', game);
         }
     });
 
-    // Sync wheel segments
-    socket.on('sync_wheel_segments', ({ gameId, wheelSegments }) => {
+    // Advance to next player
+    socket.on('advance_to_next_player', ({ gameId }) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        game.wheelSegments = wheelSegments;
+        // Find the current active player
+        const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
+        if (!currentActivePlayer) return;
+
+        // Find the index of the current active player
+        const currentIndex = game.players.findIndex(p => p.id === game.activePlayer);
+        if (currentIndex === -1) return;
+
+        // Find the next non-host player
+        let nextIndex = (currentIndex + 1) % game.players.length;
+        while (game.players[nextIndex].isHost) {
+            nextIndex = (nextIndex + 1) % game.players.length;
+        }
+
+        // Set the new active player
+        game.activePlayer = game.players[nextIndex].id;
+
+        console.log('Server: Advanced to next player:', game.activePlayer, 'for game:', gameId);
         io.to(gameId).emit('game_updated', game);
     });
 
-    // Broadcast synchronized wheel spin
-    socket.on('broadcast_synchronized_wheel_spin', ({ gameId, spinningPlayerId, finalIndex, scrollAmount, duration }) => {
+
+
+    // Start accusation
+    socket.on('initiate_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
         const game = games.get(gameId);
         if (!game) return;
 
-        // Broadcast to all players in the game (including sender for consistency)
-        io.to(gameId).emit('synchronized_wheel_spin', {
-            spinningPlayerId,
-            finalIndex,
-            scrollAmount,
-            duration
-        });
+        const rule = game.rules.find(r => r.id === ruleId);
+        if (!rule) return;
+
+        const accuser = game.players.find(p => p.id === accuserId);
+        if (!accuser) return;
+
+        const accused = game.players.find(p => p.id === accusedId);
+        if (!accused) return;
+
+        console.log('accuser', accuser);
+        console.log('accused', accused);
+
+        game.isAccusationInProgress = true;
+        game.activeAccusationDetails = {
+            rule,
+            accuser,
+            accused
+        };
+
+        console.log('game.activeAccusationDetails', game.activeAccusationDetails);
+        console.log('game.players', game.players);
+
+        io.to(gameId).emit('game_updated', game);
     });
+
+    // Accept accusation
+    socket.on('accept_accusation', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game || !game.activeAccusationDetails) return;
+
+        const rule = game.rules.find(r => r.id === game.activeAccusationDetails.rule.id);
+        if (!rule) return;
+
+        const accuser = game.players.find(p => p.id === game.activeAccusationDetails.accuser.id);
+        const accused = game.players.find(p => p.id === game.activeAccusationDetails.accused.id);
+
+        accuser.points += 1;
+        accused.points -= 1;
+
+        if (accuser.isHost || game.rules.filter(r => r.assignedTo === accuser.id).length === 0) {
+            game.activeAccusationDetails = undefined;
+            if (game.activePromptDetails !== undefined) {
+                setAllPlayerModals(game, 'PromptPerformance');
+            } else {
+                setAllPlayerModals(game, undefined);
+            }
+        } else {
+            game.activeAccusationDetails.accusationAccepted = true;
+            game.players.forEach(player => {
+                if (player.id === accuser.id) {
+                    setPlayerModal(game, player.id, 'SuccessfulAccusationRuleSelection');
+                } else {
+                    setPlayerModal(game, player.id, 'WaitForRuleSelection');
+                }
+            });
+        }
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End accusation
+    socket.on('end_accusation', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.activeAccusationDetails = undefined;
+        setAllPlayerModals(game, undefined);
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
+
+
+    // Give prompt
+    socket.on('give_prompt', ({ gameId, playerId, promptId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const promptedPlayer = game.players.find(p => p.id === playerId);
+        const prompt = game.prompts.find(p => p.id === promptId);
+        if (promptedPlayer && prompt) {
+            prompt.isActive = false;
+            game.activePromptDetails = {
+                selectedPrompt: prompt,
+                selectedPlayer: promptedPlayer,
+                isPromptAccepted: undefined
+            };
+            io.to(gameId).emit('game_updated', game);
+        } else if (!promptedPlayer && !prompt) {
+            socket.emit('error', { message: 'Player and prompt not found' });
+        } else if (!promptedPlayer) {
+            socket.emit('error', { message: 'Player not found' });
+        } else if (!prompt) {
+            socket.emit('error', { message: 'Prompt not found' });
+        }
+    });
+
+    socket.on('update_active_prompt_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activePromptDetails = details;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Accept prompt
+    socket.on('accept_prompt', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        if (game.activePromptDetails === undefined) return;
+        if (game.activePromptDetails.selectedPlayer === undefined) return;
+        const promptedPlayer = game.players.find(p => p.id === game.activePromptDetails.selectedPlayer.id);
+        game.activePromptDetails.isPromptAccepted = true;
+        promptedPlayer.points += 2;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    socket.on('possibly_return_to_prompt', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        if (game.activePromptDetails !== undefined) {
+            setAllPlayerModals(game, 'PromptPerformance');
+        } else {
+            setAllPlayerModals(game, undefined);
+        }
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Shred rule
+    socket.on('shred_rule', ({ gameId, ruleId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        const rule = game.rules.find(r => r.id === ruleId);
+        if (rule) {
+            rule.assignedTo = undefined;
+            rule.isActive = false;
+        }
+        game.rules = game.rules.filter(r => r.id !== ruleId);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End prompt
+    socket.on('end_prompt', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activePromptDetails = undefined;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
+
+    // Initiate clone rule
+    socket.on('update_active_cloning_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeCloneRuleDetails = details;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Clone rule to player
+    socket.on('clone_rule_to_player', ({ gameId, ruleId, targetPlayerId, authorId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const ruleToClone = game.rules.find(r => r.id === ruleId);
+        if (!ruleToClone) return;
+
+        const clonedRule = {
+            ...ruleToClone,
+            id: Math.random().toString(36).substring(2, 15),
+            assignedTo: targetPlayerId,
+        };
+        game.rules.push(clonedRule);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End clone rule
+    socket.on('end_clone_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeCloneRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
+
+    // Update active flipping details
+    socket.on('update_active_flipping_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeFlipRuleDetails = details;
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End flip rule
+    socket.on('end_flip_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeFlipRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
+
+    socket.on('trigger_up_down_modifier', ({ gameId, direction }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeUpDownRuleDetails = {
+            direction,
+            selectedRules: {},
+            isComplete: false
+        };
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Update active up/down details
+    socket.on('update_active_up_down_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.activeUpDownRuleDetails = details;
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End up/down rule
+    socket.on('end_up_down_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeUpDownRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
+
+    function navigatePlayersForSwapeeSelection(game, details) {
+        game.players.forEach(player => {
+            if (player.id === details.swapper.id) {
+                setPlayerModal(game, player.id, 'SwapActionTargetSelection');
+            } else {
+                setPlayerModal(game, player.id, "AwaitSwapTargetSelection")
+            }
+        });
+    }
+
+    function navigatePlayersForRuleSwapSelection(game, details) {
+        game.players.forEach(player => {
+            if (player.id === details.swapper.id) {
+                setPlayerModal(game, player.id, 'SwapActionRuleSelection');
+            } else {
+                setPlayerModal(game, player.id, "AwaitSwapRuleSelection")
+            }
+        });
+    }
+
+
+    // Update active swapping details
+    socket.on('update_active_swapping_details', ({ gameId, details }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        game.activeSwapRuleDetails = details;
+
+        console.log('game.activeSwapRuleDetails', game.activeSwapRuleDetails);
+
+        if (details.swappee === undefined) {
+            navigatePlayersForSwapeeSelection(game, details);
+        } else if (details.swapperRule === undefined || details.swappeeRule === undefined) {
+            navigatePlayersForRuleSwapSelection(game, details);
+        } else {
+            setAllPlayerModals(game, 'SwapRuleResolution');
+        }
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // End swap rule
+    socket.on('end_swap_rule', ({ gameId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.activeSwapRuleDetails = undefined;
+        setAllPlayerModals(game, undefined);
+        io.to(gameId).emit('game_updated', game);
+    });
+
+    // Swap rules
+    socket.on('swap_rules', ({ gameId, player1Id, player1RuleId, player2Id, player2RuleId }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const player1Rule = game.rules.find(r => r.id === player1RuleId);
+        const player2Rule = game.rules.find(r => r.id === player2RuleId);
+
+        player1Rule.assignedTo = player2Id;
+        player2Rule.assignedTo = player1Id;
+
+        io.to(gameId).emit('game_updated', game);
+    });
+
+
+
+    // Assign rule
+    socket.on('assign_rule', ({ gameId, ruleId, playerId }) => {
+        console.log('Server: Assigning rule:', ruleId, 'to player:', playerId, 'for game:', gameId);
+        const game = games.get(gameId);
+        if (!game) return;
+
+        const rule = game.rules.find(r => r.id === ruleId);
+        const player = game.players.find(p => p.id === playerId);
+
+        if (rule && player) {
+            rule.assignedTo = player.id;
+            io.to(gameId).emit('game_updated', game);
+        }
+    });
+
+
 
     // Broadcast navigation to screen
     socket.on('broadcast_navigate_to_screen', ({ gameId, screen, params }) => {
         const game = games.get(gameId);
         if (!game) return;
 
+        setAllPlayerModals(game, undefined);
+
         // Broadcast to all players in the game (including sender for consistency)
         io.to(gameId).emit('navigate_to_screen', {
             screen,
             params
         });
+    });
+
+    // End game
+    socket.on('end_game', ({ gameId, winner }) => {
+        const game = games.get(gameId);
+        if (!game) return;
+        game.gameEnded = true;
+        game.winner = winner;
+        io.to(gameId).emit('game_updated', game);
     });
 
     // Broadcast end game continue
@@ -481,63 +965,12 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('end_game_end');
     });
 
-    // Advance to next player after wheel spinning
-    socket.on('advance_to_next_player', ({ gameId }) => {
-        console.log('Server: Received advance_to_next_player event for game:', gameId, 'at:', new Date().toISOString());
-        const game = games.get(gameId);
-        if (!game) {
-            console.log('Server: Game not found for advance_to_next_player');
-            return;
-        }
-
-        console.log('Server: Current game state before advancement:');
-        console.log('Server: - activePlayer:', game.activePlayer);
-        console.log('Server: - players:', game.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
-
-        // Find non-host players
-        const nonHostPlayers = game.players.filter(player => !player.isHost);
-        console.log('Server: Non-host players:', nonHostPlayers.map(p => ({ id: p.id, name: p.name })));
-
-        if (nonHostPlayers.length === 0) {
-            console.log('Server: No non-host players found for advance_to_next_player');
-            return;
-        }
-
-        // Find active player index
-        const activePlayerIndex = nonHostPlayers.findIndex(player => player.id === game.activePlayer);
-        console.log('Server: Current activePlayer:', game.activePlayer, 'at index:', activePlayerIndex);
-
-        // Check if active player is not found in non-host players
-        if (activePlayerIndex === -1) {
-            console.log('Server: Current activePlayer not found in non-host players, setting to first non-host player');
-            game.activePlayer = nonHostPlayers[0].id;
-            console.log('Server: Set activePlayer to:', game.activePlayer, '(', nonHostPlayers[0].name, ') for game:', gameId);
-            io.to(gameId).emit('game_updated', game);
-            return;
-        }
-
-        // Move to next player (or back to first if at end)
-        const nextPlayerIndex = (activePlayerIndex + 1) % nonHostPlayers.length;
-        const oldActivePlayer = game.activePlayer;
-        const newActivePlayer = nonHostPlayers[nextPlayerIndex];
-        game.activePlayer = newActivePlayer.id;
-        console.log('Server: Advancing activePlayer from:', oldActivePlayer, 'to:', newActivePlayer.id, '(', newActivePlayer.name, ') for game:', gameId);
-
-        console.log('Server: Game state after advancement:');
-        console.log('Server: - activePlayer:', game.activePlayer);
-        console.log('Server: - players:', game.players.map(p => ({ id: p.id, name: p.name, isHost: p.isHost })));
-
-        // Broadcast the updated game state to all players
-        console.log('Server: Broadcasting game_updated after advancing player with activePlayer:', game.activePlayer, 'for game:', gameId, 'at:', new Date().toISOString());
-        console.log('Server: Full game state being sent:', JSON.stringify(game, null, 2));
-        io.to(gameId).emit('game_updated', game);
-    });
-
     // Disconnect handling
     socket.on('disconnect', () => {
 
         // Find and remove player
         for (const [playerId, playerData] of players.entries()) {
+            console.log('disconnecting playerData', playerData);
             if (playerData.socketId === socket.id) {
                 const game = games.get(playerData.gameId);
                 if (game) {
@@ -546,7 +979,7 @@ io.on('connection', (socket) => {
                     // If no players left, remove game
                     if (game.players.length === 0) {
                         games.delete(game.id);
-                        games.delete(game.code);
+                        games.delete(game.lobbyCode);
                     } else {
                         // Assign host to first remaining player if host left
                         if (!game.players.some(p => p.isHost)) {
@@ -577,7 +1010,7 @@ app.get('/health', (req, res) => {
 
 // Get active games (for debugging)
 app.get('/games', (req, res) => {
-    const gameList = Array.from(games.values()).filter(game => game.id && game.code);
+    const gameList = Array.from(games.values()).filter(game => game.id && game.lobbyCode);
     res.json(gameList);
 });
 

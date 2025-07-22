@@ -5,23 +5,16 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import shared from '../styles/shared';
-import StripedBackground from '../components/StripedBackground';
-import OutlinedText from '../components/OutlinedText';
+import shared from '../shared/styles';
+import { colors } from '../shared/styles';
+import StripedBackground from '../components/Backdrop';
+import { Player, Rule } from '../types/game';
 import WheelSegment from '../components/WheelSegment';
 import {
-    FlipTextInputModal,
-    PlayerSelectionModal,
-    RuleSelectionModal,
-    SwapModal,
     EndGameConfirmationModal,
-    CloneWorkflowModal,
-    FlipWorkflowModal,
-    UpDownWorkflowModal,
-    SwapWorkflowModal,
-    ShredWorkflowModal
-} from '../components/Modals';
+} from '../modals';
 import socketService from '../services/socketService';
+import ModifierModals from '../modals/ModifierModals';
 
 const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
@@ -30,55 +23,24 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 type WheelScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Wheel'>;
 type WheelScreenRouteProp = RouteProp<RootStackParamList, 'Wheel'>;
 
+
+
 export default function WheelScreen() {
     const navigation = useNavigation<WheelScreenNavigationProp>();
     const route = useRoute<WheelScreenRouteProp>();
-    const { gameState, removeWheelLayer, endGame, assignRuleToCurrentUser, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule, spinWheel } = useGame();
+    const { gameState, currentUser, removeWheelLayer, endGame, updatePoints, cloneRuleToPlayer, shredRule, dispatch, assignRule, currentModal } = useGame();
 
     // Get the player ID from navigation params if provided
     const playerId = route.params?.playerId;
 
-    // Note: We don't set the active player here - the server manages it
-    // The playerId param is just for reference to know who is spinning
-    // Workflow modal states
-    const [showCloneWorkflowModal, setShowCloneWorkflowModal] = useState(false);
-    const [showFlipWorkflowModal, setShowFlipWorkflowModal] = useState(false);
-    const [showUpWorkflowModal, setShowUpWorkflowModal] = useState(false);
-    const [showDownWorkflowModal, setShowDownWorkflowModal] = useState(false);
-    const [showSwapWorkflowModal, setShowSwapWorkflowModal] = useState(false);
-    const [showShredWorkflowModal, setShowShredWorkflowModal] = useState(false);
-
-    // Legacy modal states (keeping for compatibility)
-    const [showCloneModal, setShowCloneModal] = useState(false);
-    const [showClonePlayerModal, setShowClonePlayerModal] = useState(false);
-    const [showFlipModal, setShowFlipModal] = useState(false);
-    const [showFlipTextInputModal, setShowFlipTextInputModal] = useState(false);
-    const [showShredModal, setShowShredModal] = useState(false);
-    const [showSwapModal, setShowSwapModal] = useState(false);
-    const [selectedRuleForClone, setSelectedRuleForClone] = useState<{ rule: any; player: any } | null>(null);
-    const [selectedRuleForFlip, setSelectedRuleForFlip] = useState<any>(null);
-    const [swapStep, setSwapStep] = useState<'selectOwnRule' | 'selectOtherRule'>('selectOwnRule');
-    const [selectedOwnRule, setSelectedOwnRule] = useState<any>(null);
-    const [selectedOtherPlayer, setSelectedOtherPlayer] = useState<any>(null);
     const [showEndGameConfirmationModal, setShowEndGameConfirmationModal] = useState(false);
     const [isEndGameActionInProgress, setIsEndGameActionInProgress] = useState(false);
     const [hasProcessedEndSegment, setHasProcessedEndSegment] = useState(false);
 
-    // Use wheel segments from game state
-    const segments = gameState?.wheelSegments || [];
-
-    // If no segments exist and game is started, create them
-    React.useEffect(() => {
-        if (gameState?.isGameStarted && segments.length === 0 && gameState.rules.length > 0 && gameState.prompts.length > 0) {
-            // Create wheel segments if they don't exist
-            dispatch({ type: 'CREATE_WHEEL_SEGMENTS' });
-        }
-    }, [gameState?.isGameStarted, segments.length, gameState?.rules.length, gameState?.prompts.length]);
 
     const [isSpinning, setIsSpinning] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState<number>(0);
     const [showExpandedPlaque, setShowExpandedPlaque] = useState(false);
-    const [showPromptButtons, setShowPromptButtons] = useState(false);
     const [isClosingPopup, setIsClosingPopup] = useState(false);
     const [frozenSegment, setFrozenSegment] = useState<any>(null);
     const [synchronizedSpinResult, setSynchronizedSpinResult] = useState<{ finalIndex: number; showPopup: boolean } | null>(null);
@@ -86,11 +48,13 @@ export default function WheelScreen() {
     const flatListRef = useRef<FlatList>(null);
     const currentScrollOffset = useRef(0);
     const wheelContainerRef = useRef<View>(null);
-    const [wheelHeight, setWheelHeight] = useState(0);
-    const currentRotation = useRef(0);
     const popupScale = useRef(new Animated.Value(0)).current;
     const popupOpacity = useRef(new Animated.Value(0)).current;
     const [hasAdvancedPlayer, setHasAdvancedPlayer] = useState(false);
+
+
+    // Use wheel segments from game state
+    const segments = gameState?.wheelSegments || [];
 
     // Pad the segments so the selected item can be centered and create a continuous loop
     const paddedSegments = [
@@ -197,7 +161,7 @@ export default function WheelScreen() {
                 if (winner) {
                     endGame();
                     // Navigate to game room to show game over screen
-                    socketService.broadcastNavigateToScreen('GAME_ROOM');
+                    socketService.broadcastNavigateToScreen('Game');
                 }
                 console.log('WheelScreen: End game end popup closed');
             });
@@ -214,7 +178,7 @@ export default function WheelScreen() {
     React.useEffect(() => {
         if (gameState?.gameEnded && gameState?.winner) {
             // Navigate to game screen to show the game over screen
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('Game');
         }
     }, [gameState?.gameEnded, gameState?.winner, navigation]);
 
@@ -222,7 +186,7 @@ export default function WheelScreen() {
 
     // Memoize current player info to avoid repeated function calls during render
     const currentPlayerInfo = React.useMemo(() => {
-        const currentClientId = socketService.getCurrentPlayerId();
+        const currentClientId = socketService.getCurrentUserId();
         const currentPlayer = gameState?.players.find(p => p.id === currentClientId);
         return {
             id: currentClientId,
@@ -251,7 +215,7 @@ export default function WheelScreen() {
 
     const handleSpin = () => {
         // Check if the current player is the active player
-        const currentClientId = socketService.getCurrentPlayerId();
+        const currentClientId = socketService.getCurrentUserId();
         const isActivePlayer = gameState?.activePlayer === currentClientId;
 
         if (!isActivePlayer) {
@@ -349,13 +313,13 @@ export default function WheelScreen() {
         PanResponder.create({
             onStartShouldSetPanResponder: () => {
                 // Only allow the active player to start pan gestures
-                const currentClientId = socketService.getCurrentPlayerId();
+                const currentClientId = socketService.getCurrentUserId();
                 const isActivePlayer = gameState?.activePlayer === currentClientId;
                 return isActivePlayer;
             },
             onMoveShouldSetPanResponder: (_, gestureState) => {
                 // Only allow the active player to move pan gestures
-                const currentClientId = socketService.getCurrentPlayerId();
+                const currentClientId = socketService.getCurrentUserId();
                 const isActivePlayer = gameState?.activePlayer === currentClientId;
                 return isActivePlayer && Math.abs(gestureState.dy) > 10;
             },
@@ -534,7 +498,7 @@ export default function WheelScreen() {
             popupScale.setValue(0);
             popupOpacity.setValue(0);
             // Broadcast navigation to game room for all players and host
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('Game');
 
             // Advance to next player after wheel spinning is complete (only once)
             if (!hasAdvancedPlayer) {
@@ -644,7 +608,10 @@ export default function WheelScreen() {
 
     const handleClonePlayerSelect = (player: any) => {
         if (selectedRuleForClone) {
-            cloneRuleToPlayer(selectedRuleForClone.rule.id, player.id);
+            if (!currentUser?.id) {
+                throw new Error('User ID is required to clone a rule');
+            }
+            cloneRuleToPlayer(selectedRuleForClone.rule, player as Player);
         }
         setShowClonePlayerModal(false);
 
@@ -675,7 +642,7 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('Game');
 
             // Advance to next player after wheel spinning is complete (only once)
             if (!hasAdvancedPlayer) {
@@ -732,7 +699,7 @@ export default function WheelScreen() {
                 setSynchronizedSpinResult(null);
                 popupScale.setValue(0);
                 popupOpacity.setValue(0);
-                socketService.broadcastNavigateToScreen('GAME_ROOM');
+                socketService.broadcastNavigateToScreen('Game');
 
                 // Advance to next player after wheel spinning is complete (only once)
                 if (!hasAdvancedPlayer) {
@@ -774,7 +741,7 @@ export default function WheelScreen() {
             setSynchronizedSpinResult(null);
             popupScale.setValue(0);
             popupOpacity.setValue(0);
-            socketService.broadcastNavigateToScreen('GAME_ROOM');
+            socketService.broadcastNavigateToScreen('Game');
 
             // Advance to next player after wheel spinning is complete (only once)
             if (!hasAdvancedPlayer) {
@@ -893,7 +860,7 @@ export default function WheelScreen() {
                 if (winner) {
                     endGame();
                     // Navigate to game room to show game over screen
-                    socketService.broadcastNavigateToScreen('GAME_ROOM');
+                    socketService.broadcastNavigateToScreen('Game');
                 }
             });
         }, 0);
@@ -910,10 +877,6 @@ export default function WheelScreen() {
                             styles.wheelContainer,
                             { height: ITEM_HEIGHT * VISIBLE_ITEMS, width: '70%' } // dynamic height and width inline
                         ]}
-                        onLayout={(event) => {
-                            const { height } = event.nativeEvent.layout;
-                            setWheelHeight(height);
-                        }}
                         {...panResponder.panHandlers}
                     >
                         <FlatList
@@ -940,14 +903,8 @@ export default function WheelScreen() {
 
                                 return (
                                     <WheelSegment
-                                        text={currentLayer ? (typeof currentLayer.content === 'string' ? currentLayer.content : currentLayer.content.text) : ''}
-                                        isSelected={actualIndex === selectedIndex}
-                                        color={segment?.color || '#8b5cf6'}
-                                        plaqueColor={segment?.plaqueColor || '#fff'}
-                                        index={actualIndex}
-                                        currentLayer={currentLayer}
-                                        layerCount={segment?.layers.length || 1}
-                                        currentLayerIndex={segment?.currentLayerIndex || 0}
+                                        currentPlaque={currentLayer}
+                                        color={segment?.color || colors.gameChangerWhite}
                                     />
                                 );
                             }}
@@ -1008,7 +965,7 @@ export default function WheelScreen() {
                                 backgroundColor: (() => {
                                     const segment = segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                     const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
-                                    return currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
+                                    return currentLayer?.content?.plaqueColor || segment?.plaqueColor || colors.gameChangerWhite;
                                 })(),
                                 borderRadius: 20,
                                 padding: 40,
@@ -1034,8 +991,8 @@ export default function WheelScreen() {
                                     color: (() => {
                                         const segment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                         const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
-                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
-                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
+                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || colors.gameChangerWhite;
+                                        return (plaqueColor === colors.gameChangerWhite) ? '#000' : colors.gameChangerWhite;
                                     })(),
                                 }}
                             >
@@ -1060,8 +1017,8 @@ export default function WheelScreen() {
                                     color: (() => {
                                         const segment = isClosingPopup ? frozenSegment : segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                         const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
-                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
-                                        return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
+                                        const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || colors.gameChangerWhite;
+                                        return (plaqueColor === colors.gameChangerWhite) ? '#000' : colors.gameChangerWhite;
                                     })(),
                                     lineHeight: 26,
                                 }}
@@ -1139,8 +1096,8 @@ export default function WheelScreen() {
                                                             color: (() => {
                                                                 const segment = isClosingPopup ? frozenSegment : segments[selectedIndex];
                                                                 const currentLayer = segment?.layers[segment?.currentLayerIndex || 0];
-                                                                const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || '#fff';
-                                                                return (plaqueColor === '#fbbf24' || plaqueColor === '#fff') ? '#000' : '#fff';
+                                                                const plaqueColor = currentLayer?.plaqueColor || segment?.plaqueColor || colors.gameChangerWhite;
+                                                                return (plaqueColor === colors.gameChangerWhite) ? '#000' : colors.gameChangerWhite;
                                                             })(),
                                                         }}
                                                     >
@@ -1171,7 +1128,7 @@ export default function WheelScreen() {
                                             <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 10 }}>
                                                 {/* Only show buttons for the host */}
                                                 {(() => {
-                                                    const currentClientId = socketService.getCurrentPlayerId();
+                                                    const currentClientId = socketService.getCurrentUserId();
                                                     const isHost = gameState?.players.find(p => p.id === currentClientId)?.isHost;
 
                                                     if (!isHost) {
@@ -1213,7 +1170,7 @@ export default function WheelScreen() {
                                                                     setShowShredWorkflowModal(true);
                                                                 }}
                                                             >
-                                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
                                                                     SUCCESS (+2)
                                                                 </Text>
                                                             </TouchableOpacity>
@@ -1254,7 +1211,7 @@ export default function WheelScreen() {
                                                                         setSynchronizedSpinResult(null);
                                                                         popupScale.setValue(0);
                                                                         popupOpacity.setValue(0);
-                                                                        socketService.broadcastNavigateToScreen('GAME_ROOM');
+                                                                        socketService.broadcastNavigateToScreen('Game');
 
                                                                         // Advance to next player after wheel spinning is complete (only once)
                                                                         if (!hasAdvancedPlayer) {
@@ -1264,7 +1221,7 @@ export default function WheelScreen() {
                                                                     });
                                                                 }}
                                                             >
-                                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
+                                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold', textAlign: 'center' }}>
                                                                     FAILURE (0)
                                                                 </Text>
                                                             </TouchableOpacity>
@@ -1277,7 +1234,7 @@ export default function WheelScreen() {
                                 } else if (currentLayer && currentLayer.type === 'modifier' && typeof currentLayer.content === 'string') {
                                     // Only show modifier buttons for the active player (spinning player)
                                     const spinningPlayerId = gameState?.activePlayer;
-                                    const currentClientId = socketService.getCurrentPlayerId();
+                                    const currentClientId = socketService.getCurrentUserId();
                                     const isActivePlayer = spinningPlayerId === currentClientId;
 
                                     if (!isActivePlayer) {
@@ -1310,7 +1267,7 @@ export default function WheelScreen() {
                                                     setShowCloneWorkflowModal(true);
                                                 }}
                                             >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                     SELECT RULE TO CLONE
                                                 </Text>
                                             </TouchableOpacity>
@@ -1350,7 +1307,7 @@ export default function WheelScreen() {
                                                     setShowUpWorkflowModal(true);
                                                 }}
                                             >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                     PASS RULE UP
                                                 </Text>
                                             </TouchableOpacity>
@@ -1370,7 +1327,7 @@ export default function WheelScreen() {
                                                     setShowDownWorkflowModal(true);
                                                 }}
                                             >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                     PASS RULE DOWN
                                                 </Text>
                                             </TouchableOpacity>
@@ -1390,7 +1347,7 @@ export default function WheelScreen() {
                                                     setShowSwapWorkflowModal(true);
                                                 }}
                                             >
-                                                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                                <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                     SWAP RULES
                                                 </Text>
                                             </TouchableOpacity>
@@ -1399,7 +1356,7 @@ export default function WheelScreen() {
                                 } else {
                                     // Only show CLOSE button for the active player (spinning player) and not for end segments
                                     const spinningPlayerId = gameState?.activePlayer;
-                                    const currentClientId = socketService.getCurrentPlayerId();
+                                    const currentClientId = socketService.getCurrentUserId();
                                     const isActivePlayer = spinningPlayerId === currentClientId;
                                     const selectedSegment = segments[synchronizedSpinResult?.finalIndex ?? selectedIndex];
                                     const currentLayer = selectedSegment?.layers[selectedSegment?.currentLayerIndex || 0];
@@ -1443,15 +1400,13 @@ export default function WheelScreen() {
                                                     // Handle rule assignment
                                                     if (currentLayer && currentLayer.type === 'rule') {
                                                         // Assign the rule to the spinning player (not the current player)
-                                                        if (typeof currentLayer.content !== 'string' && currentLayer.content.id) {
-                                                            const spinningPlayerId = gameState?.activePlayer;
-                                                            if (spinningPlayerId) {
-                                                                assignRule(currentLayer.content.id, spinningPlayerId);
-                                                            }
-                                                            // Remove the wheel layer since the rule has been assigned
-                                                            if (selectedSegment) {
-                                                                removeWheelLayer(selectedSegment.id);
-                                                            }
+                                                        const spinningPlayerId = gameState?.activePlayer;
+                                                        if (spinningPlayerId) {
+                                                            assignRule(currentLayer.id, spinningPlayerId);
+                                                        }
+                                                        // Remove the wheel layer since the rule has been assigned
+                                                        if (selectedSegment) {
+                                                            removeWheelLayer(selectedSegment.id);
                                                         }
                                                     }
                                                 }
@@ -1499,7 +1454,7 @@ export default function WheelScreen() {
                                                     popupScale.setValue(0);
                                                     popupOpacity.setValue(0);
                                                     // Broadcast navigation to game room for all players and host
-                                                    socketService.broadcastNavigateToScreen("GAME_ROOM");
+                                                    socketService.broadcastNavigateToScreen("Game");
 
                                                     // Advance to next player after wheel spinning is complete (only once)
                                                     if (!hasAdvancedPlayer) {
@@ -1509,7 +1464,7 @@ export default function WheelScreen() {
                                                 });
                                             }}
                                         >
-                                            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>
+                                            <Text style={{ color: colors.gameChangerWhite, fontSize: 16, fontWeight: 'bold' }}>
                                                 CLOSE
                                             </Text>
                                         </TouchableOpacity>
@@ -1520,153 +1475,17 @@ export default function WheelScreen() {
                     </View>
                 )}
 
-                <RuleSelectionModal
-                    visible={showCloneModal}
-                    title="Select Rule to Clone"
-                    description={(() => {
-                        const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive);
-                        if (currentPlayerRules && currentPlayerRules.length > 0) {
-                            return "Choose one of your rules to give to another player";
-                        } else {
-                            return "Choose any rule to give to another player";
-                        }
-                    })()}
-                    rules={(() => {
-                        const currentPlayerRules = gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive);
-                        if (currentPlayerRules && currentPlayerRules.length > 0) {
-                            return currentPlayerRules;
-                        } else {
-                            return gameState?.rules.filter(rule => rule.assignedTo && rule.isActive) || [];
-                        }
-                    })()}
-                    onSelectRule={(ruleId) => {
-                        const rule = gameState?.rules.find(r => r.id === ruleId);
-                        const player = gameState?.players.find(p => p.id === rule?.assignedTo);
-                        handleCloneRuleSelect(rule, player);
-                    }}
-                    onClose={() => setShowCloneModal(false)}
-                />
-                <PlayerSelectionModal
-                    visible={showClonePlayerModal}
-                    title="Select Player to Give Rule To"
-                    description={`Choose who to give "${selectedRuleForClone?.rule.text}" to`}
-                    players={gameState?.players || []}
-                    onSelectPlayer={handleClonePlayerSelect}
-                    onClose={() => setShowClonePlayerModal(false)}
-                />
-                <SwapModal
-                    visible={showSwapModal}
-                    onClose={() => {
-                        setShowSwapModal(false);
-                        setSwapStep('selectOwnRule');
-                        setSelectedOwnRule(null);
-                        setSelectedOtherPlayer(null);
-                    }}
-                    onOwnRuleSelect={handleSwapOwnRuleSelect}
-                    onOtherPlayerSelect={handleSwapOtherPlayerSelect}
-                    onOtherRuleSelect={handleSwapOtherRuleSelect}
-                    swapStep={swapStep}
-                    selectedOwnRule={selectedOwnRule}
-                    selectedOtherPlayer={selectedOtherPlayer}
+                <ModifierModals
+                    currentModal={currentModal || ''}
                     gameState={gameState}
-                    activePlayerId={gameState?.activePlayer || ''}
+                    currentUser={currentUser}
                 />
-                <RuleSelectionModal
-                    visible={showShredModal}
-                    title="Select Rule to Shred"
-                    description="Choose a rule to remove from your collection"
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activePlayer && rule.isActive) || []}
-                    onSelectRule={handleShredRuleSelect}
-                    onClose={() => setShowShredModal(false)}
-                />
-                {/* Flip Text Input Modal */}
-                <FlipTextInputModal
-                    visible={showFlipTextInputModal}
-                    selectedRule={selectedRuleForFlip}
-                    onFlipRule={handleFlipTextSubmit}
-                    onClose={() => {
-                        setShowFlipTextInputModal(false);
-                        setSelectedRuleForFlip(null);
-                    }}
-                />
-                <RuleSelectionModal
-                    visible={showFlipModal}
-                    title="Select Rule to Flip"
-                    description="Choose a rule to flip its meaning"
-                    rules={gameState?.rules.filter(rule => rule.assignedTo && rule.isActive) || []}
-                    onSelectRule={(ruleId) => {
-                        handleFlipRuleSelect(ruleId);
-                    }}
-                    onClose={() => setShowFlipModal(false)}
-                />
+
                 <EndGameConfirmationModal
                     visible={showEndGameConfirmationModal}
                     onContinue={handleContinueGame}
                     onEnd={handleEndGame}
                     onClose={() => setShowEndGameConfirmationModal(false)}
-                />
-
-                {/* Workflow Modals */}
-                <CloneWorkflowModal
-                    visible={showCloneWorkflowModal}
-                    onClose={() => setShowCloneWorkflowModal(false)}
-                    onCloneComplete={handleCloneComplete}
-                    gameState={gameState}
-                    sourcePlayerId={gameState?.activePlayer}
-                    title="Clone Rule"
-                    description="Choose a rule to clone to another player"
-                />
-
-                <FlipWorkflowModal
-                    visible={showFlipWorkflowModal}
-                    onClose={() => setShowFlipWorkflowModal(false)}
-                    onFlipComplete={handleFlipComplete}
-                    gameState={gameState}
-                    sourcePlayerId={gameState?.activePlayer}
-                    title="Flip Rule"
-                    description="Choose a rule to flip its meaning"
-                />
-
-                <UpDownWorkflowModal
-                    visible={showUpWorkflowModal}
-                    onClose={() => setShowUpWorkflowModal(false)}
-                    onUpDownComplete={handleUpDownComplete}
-                    gameState={gameState}
-                    sourcePlayerId={gameState?.activePlayer}
-                    direction="up"
-                    title="Pass Rule Up"
-                    description="Choose a rule to pass to the player above you"
-                />
-
-                <UpDownWorkflowModal
-                    visible={showDownWorkflowModal}
-                    onClose={() => setShowDownWorkflowModal(false)}
-                    onUpDownComplete={handleUpDownComplete}
-                    gameState={gameState}
-                    sourcePlayerId={gameState?.activePlayer}
-                    direction="down"
-                    title="Pass Rule Down"
-                    description="Choose a rule to pass to the player below you"
-                />
-
-                <SwapWorkflowModal
-                    visible={showSwapWorkflowModal}
-                    onClose={() => setShowSwapWorkflowModal(false)}
-                    onSwapComplete={handleSwapComplete}
-                    gameState={gameState}
-                    sourcePlayerId={gameState?.activePlayer}
-                    title="Swap Rules"
-                    description="Choose a rule to swap with another player"
-                />
-
-                <ShredWorkflowModal
-                    visible={showShredWorkflowModal}
-                    onClose={() => setShowShredWorkflowModal(false)}
-                    onShredComplete={handleShredComplete}
-                    gameState={gameState}
-                    sourcePlayerId={gameState?.activePlayer}
-                    title="Shred Rule"
-                    description="Choose a rule to remove from your collection"
                 />
             </SafeAreaView>
         </StripedBackground>

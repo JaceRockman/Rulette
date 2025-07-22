@@ -1,24 +1,12 @@
 import io, { Socket } from 'socket.io-client';
-import { GameState, Player, Prompt, Rule } from '../types/game';
+import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActivePromptDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, GameState, Plaque, Player, Prompt, Rule, WheelSpinDetails } from '../types/game';
 
-const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
+const SERVER_URL = 'http://192.168.1.57:3001'; // Your computer's IP address
 
 class SocketService {
     private socket: Socket | null = null;
     private gameState: GameState | null = null;
-    private currentPlayerId: string | null = null;
-
-    // Event callbacks
-    private onGameUpdated: ((gameState: GameState) => void) | null = null;
-    private onError: ((error: string) => void) | null = null;
-    private onJoinedLobby: ((data: { playerId: string; game: GameState }) => void) | null = null;
-    private onLobbyCreated: ((data: { playerId: string; game: GameState }) => void) | null = null;
-    private onGameStarted: (() => void) | null = null;
-    private onWheelSpun: ((stack: any[]) => void) | null = null;
-    private onSynchronizedWheelSpin: ((data: { spinningPlayerId: string; finalIndex: number; scrollAmount: number; duration: number }) => void) | null = null;
-    private onNavigateToScreen: ((data: { screen: string; params?: any }) => void) | null = null;
-    private onEndGameContinue: (() => void) | null = null;
-    private onEndGameEnd: (() => void) | null = null;
+    private currentUserId: string | null = null;
 
     connect() {
         if (this.socket) {
@@ -32,6 +20,20 @@ class SocketService {
         this.setupEventListeners();
     }
 
+    // Event callbacks
+    private onGameUpdated: ((gameState: GameState) => void) | null = null;
+    private onError: ((error: string) => void) | null = null;
+    private onJoinedLobby: ((data: { playerId: string; game: GameState }) => void) | null = null;
+    private onLobbyCreated: ((data: { playerId: string; game: GameState }) => void) | null = null;
+    private onGameStarted: (() => void) | null = null;
+    private onWheelSpun: ((stack: any[]) => void) | null = null;
+    private onSynchronizedWheelSpin: ((data: { spinningPlayerId: string; finalIndex: number; scrollAmount: number; duration: number }) => void) | null = null;
+    private onNavigateToScreen: ((data: { screen: string; params?: any }) => void) | null = null;
+    private onNavigatePlayerToScreen: ((data: { screen: string; playerId: string; params?: any }) => void) | null = null;
+    private onEndGameContinue: (() => void) | null = null;
+    private onEndGameEnd: (() => void) | null = null;
+
+
     private setupEventListeners() {
         if (!this.socket) return;
 
@@ -41,20 +43,26 @@ class SocketService {
         });
 
         this.socket.on('game_updated', (gameState: GameState) => {
+            // console.log('SocketService: Game updated:', gameState);
             this.gameState = gameState;
             this.onGameUpdated?.(gameState);
         });
 
         this.socket.on('joined_lobby', (data: { playerId: string; game: GameState }) => {
-            this.currentPlayerId = data.playerId;
+            this.currentUserId = data.playerId;
             this.gameState = data.game;
             this.onJoinedLobby?.(data);
         });
 
         this.socket.on('lobby_created', (data: { playerId: string; game: GameState }) => {
-            this.currentPlayerId = data.playerId;
+            console.log('SocketService: Lobby created:', data);
+            this.currentUserId = data.playerId;
             this.gameState = data.game;
             this.onLobbyCreated?.(data);
+        });
+
+        this.socket.on('broadcast_navigate_to_screen', (data: { screen: string; params?: any }) => {
+            this.onNavigateToScreen?.(data);
         });
 
         this.socket.on('game_started', () => {
@@ -71,6 +79,10 @@ class SocketService {
 
         this.socket.on('navigate_to_screen', (data: { screen: string; params?: any }) => {
             this.onNavigateToScreen?.(data);
+        });
+
+        this.socket.on('navigate_player_to_screen', (data: { screen: string; playerId: string; params?: any }) => {
+            this.onNavigatePlayerToScreen?.(data);
         });
 
         this.socket.on('end_game_continue', () => {
@@ -115,6 +127,10 @@ class SocketService {
         this.onNavigateToScreen = callback;
     }
 
+    setOnNavigatePlayerToScreen(callback: ((data: { screen: string; playerId: string; params?: any }) => void) | null) {
+        this.onNavigatePlayerToScreen = callback;
+    }
+
     setOnEndGameContinue(callback: (() => void) | null) {
         this.onEndGameContinue = callback;
     }
@@ -129,22 +145,24 @@ class SocketService {
         this.socket.emit('create_lobby', { playerName });
     }
 
-    joinLobby(code: string, playerName: string) {
+    joinLobby(lobbyCode: string, playerName: string) {
         if (!this.socket) return;
-        this.socket.emit('join_lobby', { code, playerName });
+        this.socket.emit('join_lobby', { lobbyCode, playerName });
     }
 
-    markRulesCompleted() {
+
+
+    markRulesCompletedForUser(userId: string) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('rules_completed', { gameId: this.gameState.id, playerId: this.currentPlayerId });
+        this.socket.emit('rules_completed', { gameId: this.gameState.id, playerId: userId });
     }
 
-    markPromptsCompleted() {
+    markPromptsCompletedForUser(userId: string) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('prompts_completed', { gameId: this.gameState.id, playerId: this.currentPlayerId });
+        this.socket.emit('prompts_completed', { gameId: this.gameState.id, playerId: userId });
     }
 
-    addPlaque(plaque: { id: string; type: 'rule' | 'prompt'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
+    addPlaque(plaque: Plaque) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('add_plaque', {
             gameId: this.gameState.id,
@@ -168,7 +186,7 @@ class SocketService {
         });
     }
 
-    updatePlaque(plaque: { id: string; type: 'rule' | 'prompt'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
+    updatePlaque(plaque: { id: string; type: 'rule' | 'prompt' | 'modifier' | 'end'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_plaque', {
             gameId: this.gameState.id,
@@ -176,49 +194,102 @@ class SocketService {
         });
     }
 
-    updateRule(plaqueObject: { id: string; text: string; isActive: boolean; authorId: string; plaqueColor: string }) {
+    startGame(settings?: { numRules?: number; numPrompts?: number; startingPoints?: number }) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('update_rule', {
+        this.socket.emit('start_game', { gameId: this.gameState.id, settings });
+    }
+
+    setPlayerModal(playerId: string, modal: string | undefined) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('set_player_modal', {
             gameId: this.gameState.id,
-            plaqueObject
+            playerId,
+            modal
         });
     }
 
-    updatePrompt(plaqueObject: { id: string; text: string; category?: string; authorId: string; plaqueColor: string }) {
+    setAllPlayerModals(modal: string | undefined) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('update_prompt', {
+        this.socket.emit('set_all_player_modals', {
             gameId: this.gameState.id,
-            plaqueObject
+            modal
         });
     }
 
-    startGame() {
+    setSelectedRule(ruleId: string | null) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('start_game', { gameId: this.gameState.id });
-    }
-
-    spinWheel() {
-        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
-        this.socket.emit('spin_wheel', { gameId: this.gameState.id, playerId: this.currentPlayerId });
-    }
-
-    broadcastSynchronizedWheelSpin(finalIndex: number, scrollAmount: number, duration: number) {
-        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
-        this.socket.emit('broadcast_synchronized_wheel_spin', {
+        this.socket.emit('set_selected_rule', {
             gameId: this.gameState.id,
-            spinningPlayerId: this.gameState.activePlayer || this.currentPlayerId,
-            finalIndex,
-            scrollAmount,
-            duration
+            ruleId
+        });
+    }
+
+    setSelectedPlayerForAction(playerId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('set_selected_player_for_action', {
+            gameId: this.gameState.id,
+            playerId
+        });
+    }
+
+    assignRule(ruleId: string, playerId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('assign_rule', {
+            gameId: this.gameState.id,
+            ruleId,
+            playerId
+        });
+    }
+
+    updateWheelSpinDetails(wheelSpinDetails: WheelSpinDetails | undefined) {
+        if (!this.socket || !this.gameState || !this.currentUserId) return;
+        this.socket.emit('update_wheel_spin_details', {
+            gameId: this.gameState.id,
+            wheelSpinDetails
+        });
+    }
+
+    initiateAccusation(accusationDetails: ActiveAccusationDetails) {
+        if (!this.socket || !this.gameState) return;
+
+        const { rule, accuser, accused } = accusationDetails;
+
+        this.socket.emit('initiate_accusation', {
+            gameId: this.gameState.id,
+            ruleId: rule.id,
+            accuserId: accuser.id,
+            accusedId: accused.id
+        });
+    }
+
+    acceptAccusation() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('accept_accusation', {
+            gameId: this.gameState.id,
+        });
+    }
+
+    endAccusation() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_accusation', {
+            gameId: this.gameState.id,
         });
     }
 
     broadcastNavigateToScreen(screen: string, params?: any) {
-        if (!this.socket || !this.gameState || !this.currentPlayerId) return;
+        if (!this.socket || !this.gameState || !this.currentUserId) return;
         this.socket.emit('broadcast_navigate_to_screen', {
             gameId: this.gameState.id,
             screen,
             params
+        });
+    }
+
+    endGame(winner?: Player) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_game', {
+            gameId: this.gameState.id,
+            winner
         });
     }
 
@@ -241,8 +312,6 @@ class SocketService {
             console.log('SocketService: Cannot advance to next player - socket or gameState not available');
             return;
         }
-        console.log('SocketService: Calling advanceToNextPlayer for game:', this.gameState.id);
-        console.log('SocketService: Current activePlayer:', this.gameState.activePlayer);
         this.socket.emit('advance_to_next_player', {
             gameId: this.gameState.id
         });
@@ -253,51 +322,182 @@ class SocketService {
             console.log('SocketService: Cannot update game settings - socket or gameState not available');
             return;
         }
-        console.log('SocketService: Updating game settings:', settings, 'for game:', this.gameState.id);
         this.socket.emit('update_game_settings', {
             gameId: this.gameState.id,
             settings
         });
     }
 
-    updatePoints(playerId: string, points: number) {
+    updatePoints(playerId: string, pointChange: number) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_points', {
             gameId: this.gameState.id,
             playerId,
-            points
+            pointChange
         });
     }
 
-    swapRules(player1Id: string, player2Id: string) {
+    givePrompt(playerId: string, promptId: string) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('swap_rules', {
+        this.socket.emit('give_prompt', {
             gameId: this.gameState.id,
-            player1Id,
-            player2Id
+            playerId,
+            promptId
         });
     }
 
-    assignRule(ruleId: string, playerId: string) {
+    updateActivePromptDetails(details: ActivePromptDetails | undefined) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('assign_rule', {
+        this.socket.emit('update_active_prompt_details', {
             gameId: this.gameState.id,
-            ruleId,
-            playerId
+            details
         });
     }
 
-    assignRuleToCurrentPlayer(ruleId: string) {
+    acceptPrompt() {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('assign_rule_to_current_player', {
+        this.socket.emit('accept_prompt', {
+            gameId: this.gameState.id
+        });
+    }
+
+    possiblyReturnToPrompt() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('possibly_return_to_prompt', {
+            gameId: this.gameState.id
+        });
+    }
+
+    endPrompt() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_prompt', {
+            gameId: this.gameState.id
+        });
+    }
+
+    shredRule(ruleId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('shred_rule', {
             gameId: this.gameState.id,
             ruleId
         });
     }
 
+    updateActiveCloningDetails(details: ActiveCloneRuleDetails) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_cloning_details', {
+            gameId: this.gameState.id,
+            details
+        });
+    }
+
+    cloneRuleToPlayer(ruleId: string, targetPlayerId: string, authorId?: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('clone_rule_to_player', {
+            gameId: this.gameState.id,
+            ruleId,
+            targetPlayerId,
+            authorId
+        });
+    }
+
+    endCloneRule() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_clone_rule', {
+            gameId: this.gameState.id
+        });
+    }
+
+
+    updateActiveFlippingDetails(details: ActiveFlipRuleDetails) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_flipping_details', {
+            gameId: this.gameState.id,
+            details
+        });
+    }
+
+    endFlipRule() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_flip_rule', {
+            gameId: this.gameState.id
+        });
+    }
+
+
+
+    triggerSwapModifier(player: Player, modifierId?: string) {
+        if (!this.socket || !this.gameState) return;
+        const details: ActiveSwapRuleDetails = {
+            swapper: player,
+        }
+        this.updateActiveSwappingDetails(details);
+    }
+
+    updateActiveSwappingDetails(details: ActiveSwapRuleDetails) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_swapping_details', {
+            gameId: this.gameState.id,
+            details
+        });
+    }
+
+
+    swapRules(player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('swap_rules', {
+            gameId: this.gameState.id,
+            player1Id,
+            player1RuleId,
+            player2Id,
+            player2RuleId
+        });
+    }
+
+    endSwapRule() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_swap_rule', {
+            gameId: this.gameState.id
+        });
+    }
+
+    updateActiveUpDownDetails(details: ActiveUpDownRuleDetails | undefined) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_up_down_details', {
+            gameId: this.gameState.id,
+            details
+        });
+    }
+
+    triggerUpDownModifier(direction: 'up' | 'down') {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('trigger_up_down_modifier', {
+            gameId: this.gameState.id,
+            direction
+        });
+    }
+
+    endUpDownRule() {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('end_up_down_rule', {
+            gameId: this.gameState.id
+        });
+    }
+
+
+
+
     removeWheelLayer(segmentId: string) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('remove_wheel_layer', {
+            gameId: this.gameState.id,
+            segmentId
+        });
+    }
+
+    completeWheelSpin(segmentId?: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('complete_wheel_spin', {
             gameId: this.gameState.id,
             segmentId
         });
@@ -312,8 +512,8 @@ class SocketService {
     }
 
     // Getters
-    getCurrentPlayerId(): string | null {
-        return this.currentPlayerId;
+    getCurrentUserId(): string | null {
+        return this.currentUserId;
     }
 
     getGameState(): GameState | null {
@@ -330,7 +530,7 @@ class SocketService {
             this.socket = null;
         }
         this.gameState = null;
-        this.currentPlayerId = null;
+        this.currentUserId = null;
     }
 }
 

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Animated, TextInput, SafeAreaView } from 'react-native';
+import { colors } from '../shared/styles';
 
 interface InputPlaqueProps {
     visible: boolean;
@@ -29,10 +30,6 @@ export default function InputPlaque({
     const popupScale = useRef(new Animated.Value(0)).current;
     const popupOpacity = useRef(new Animated.Value(0)).current;
     const textInputRef = useRef<TextInput>(null);
-
-    // Determine text color based on plaque color (same logic as wheel segments)
-    const isLightPlaque = plaqueColor === '#fbbf24' || plaqueColor === '#fff';
-    const textColor = isLightPlaque ? '#000' : '#fff';
 
     // Check if input is valid
     const trimmedValue = value.trim();
@@ -116,7 +113,7 @@ export default function InputPlaque({
                         fontWeight: 'bold',
                         textAlign: 'center',
                         marginBottom: 20,
-                        color: textColor,
+                        color: colors.gameChangerBlack,
                     }}
                 >
                     {title}

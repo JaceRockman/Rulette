@@ -14,29 +14,32 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import StripedBackground from '../components/StripedBackground';
-import shared from '../styles/shared';
+import StripedBackground from '../components/Backdrop';
+import shared from '../shared/styles';
+import { PrimaryButton } from '../components/Buttons';
+import socketService from '../services/socketService';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 export default function HomeScreen() {
     const navigation = useNavigation<HomeScreenNavigationProp>();
-    const { createLobby, joinLobby } = useGame();
     const [playerName, setPlayerName] = useState('');
     const [lobbyCode, setLobbyCode] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [isJoining, setIsJoining] = useState(false);
 
     const handleCreateLobby = () => {
-        if (!playerName.trim()) {
+        const trimmedPlayerName = playerName.trim();
+
+        if (!trimmedPlayerName) {
             Alert.alert('Error', 'Please enter your name');
             return;
         }
 
         setIsCreating(true);
-        createLobby(playerName.trim());
+        socketService.createLobby(trimmedPlayerName);
+        navigation.navigate('Lobby', {});
         setIsCreating(false);
-        navigation.navigate('Lobby', { code: 'NEW' });
     };
 
     const handleJoinLobby = () => {
@@ -46,17 +49,17 @@ export default function HomeScreen() {
         }
 
         setIsJoining(true);
-        joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim());
+        socketService.joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim());
+        navigation.navigate('Lobby', { lobbyCode: lobbyCode.trim().toUpperCase() });
         setIsJoining(false);
-        navigation.navigate('Lobby', { code: lobbyCode.trim().toUpperCase() });
     };
 
     return (
         <StripedBackground>
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={styles.flexOne}>
                 <KeyboardAvoidingView
                     behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.keyboardView}
+                    style={styles.flexOne}
                 >
                     <View style={styles.content}>
                         <View style={styles.inputContainer}>
@@ -73,15 +76,13 @@ export default function HomeScreen() {
                         <View style={styles.spacer} />
 
                         <View style={styles.buttonContainer}>
-                            <TouchableOpacity
-                                style={[shared.button, styles.createButton]}
+                            <PrimaryButton
+                                title={isCreating ? 'Creating...' : 'Create Lobby'}
                                 onPress={handleCreateLobby}
                                 disabled={isCreating}
-                            >
-                                <Text style={[shared.buttonText, styles.createButtonText]}>
-                                    {isCreating ? 'Creating...' : 'Create Lobby'}
-                                </Text>
-                            </TouchableOpacity>
+                                buttonStyle={styles.createButton}
+                                textStyle={styles.createButtonText}
+                            />
 
                             <View style={styles.divider}>
                                 <View style={styles.dividerLine} />
@@ -99,15 +100,12 @@ export default function HomeScreen() {
                                     maxLength={6}
                                     autoCapitalize="characters"
                                 />
-                                <TouchableOpacity
-                                    style={[shared.button, styles.joinButton]}
+                                <PrimaryButton
+                                    title={isJoining ? 'Joining...' : 'Join Lobby'}
                                     onPress={handleJoinLobby}
                                     disabled={isJoining}
-                                >
-                                    <Text style={shared.buttonText}>
-                                        {isJoining ? 'Joining...' : 'Join Lobby'}
-                                    </Text>
-                                </TouchableOpacity>
+                                    buttonStyle={styles.joinButton}
+                                />
                             </View>
                         </View>
                     </View>
@@ -118,10 +116,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
-    keyboardView: {
+    flexOne: {
         flex: 1,
     },
     content: {
@@ -179,7 +174,7 @@ const styles = StyleSheet.create({
         marginBottom: 0,
     },
     createButtonText: {
+        fontSize: 24,
         fontWeight: 'bold',
-        fontSize: 22,
     },
 }); 

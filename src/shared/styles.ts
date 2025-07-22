@@ -9,6 +9,7 @@ export const colors = {
     gameChangerBlue: '#6bb9d3',
     gameChangerMaroon: '#b6475e',
     gameChangerWhite: '#fff',
+    gameChangerBlack: '#000',
 
     // Neutral colors
     black: '#000',
@@ -39,23 +40,79 @@ export const colors = {
     },
 } as const;
 
-const shared = StyleSheet.create({
+export const LAYER_PLAQUE_COLORS = [colors.gameChangerBlue, colors.gameChangerYellow, colors.gameChangerRed];
+
+export const SEGMENT_COLORS = [colors.gameChangerBlue, colors.gameChangerMaroon, colors.gameChangerRed, colors.gameChangerYellow];
+
+// Define button style separately to avoid circular reference
+const buttonStyle = {
+    backgroundColor: colors.gameChangerWhite,
+    borderColor: colors.border.primary,
+    borderWidth: 3,
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center' as const,
+    marginBottom: 16,
+};
+
+export const shared = StyleSheet.create({
     container: {
         flex: 1,
     },
-    button: {
+    scrollView: {
+        flex: 1,
+        padding: 20,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 0,
+    },
+    modalContent: {
+        width: '90%',
         backgroundColor: colors.gameChangerWhite,
-        borderColor: colors.border.primary,
-        borderWidth: 3,
         borderRadius: 12,
         padding: 16,
         alignItems: 'center',
-        marginBottom: 16,
+        alignSelf: 'center',
+        zIndex: 1,
     },
+    modalTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+        color: colors.text.primary,
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    modalSubtitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: colors.text.primary,
+        marginBottom: 15,
+        textAlign: 'center',
+    },
+    modalDescription: {
+        fontSize: 14,
+        color: '#6b7280',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    button: buttonStyle,
+    disabledButton: { ...buttonStyle, opacity: 0.5 },
     buttonText: {
         color: colors.text.primary,
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        gap: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        marginTop: 20,
     },
     input: {
         backgroundColor: colors.background.secondary,
@@ -95,6 +152,20 @@ const shared = StyleSheet.create({
         marginHorizontal: 16,
         fontSize: 14,
         fontWeight: 'bold',
+    },
+    listedUserCard: {
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+        borderRadius: 8,
+        paddingVertical: 16,
+        paddingHorizontal: 8,
+        marginBottom: 8,
+        alignItems: 'center',
+        width: '50%',
+    },
+    listedUserText: {
+        fontSize: 18,
+        fontWeight: '500',
+        color: '#1f2937',
     },
 });
 

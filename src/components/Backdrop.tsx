@@ -8,13 +8,11 @@ interface StripedBackgroundProps {
 export default function StripedBackground({ children }: StripedBackgroundProps) {
     return (
         <View style={styles.stripedBackground}>
-            {/* Vertical stripes */}
             <View style={[styles.stripe, styles.redStripe]} />
             <View style={[styles.stripe, styles.yellowStripe]} />
             <View style={[styles.stripe, styles.orangeStripe]} />
             <View style={[styles.stripe, styles.blueStripe]} />
             <View style={[styles.stripe, styles.maroonStripe]} />
-            {/* Content overlays the stripes */}
             {children}
         </View>
     );

@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
-import { Player } from '../../types/game';
+import { Player } from '../types/game';
+import { shared } from '../shared/styles';
 
 interface PlayerSelectionModalProps {
     visible: boolean;
@@ -8,7 +9,7 @@ interface PlayerSelectionModalProps {
     description: string;
     players: Player[];
     onSelectPlayer: (player: Player) => void;
-    onClose: () => void;
+    onClose?: () => void;
     cancelButtonText?: string;
 }
 
@@ -42,13 +43,13 @@ export default function PlayerSelectionModal({
             visible={visible}
             transparent={true}
             animationType="fade"
-            onRequestClose={onClose}
+            onRequestClose={onClose || (() => { })}
             statusBarTranslucent={true}
         >
-            <SafeAreaView style={styles.modalOverlay}>
-                <View style={styles.modalContent}>
-                    <Text style={styles.modalTitle}>{title}</Text>
-                    <Text style={styles.modalRuleText}>{description}</Text>
+            <SafeAreaView style={shared.modalOverlay}>
+                <View style={shared.modalContent}>
+                    <Text style={shared.modalTitle}>{title}</Text>
+                    <Text style={shared.modalDescription}>{description}</Text>
 
                     <ScrollView style={styles.modalPlayerList}>
                         {players.map((player) => (
@@ -62,12 +63,14 @@ export default function PlayerSelectionModal({
                         ))}
                     </ScrollView>
 
-                    <TouchableOpacity
-                        style={styles.modalCancelButton}
-                        onPress={onClose}
-                    >
-                        <Text style={styles.modalCancelText}>{cancelButtonText}</Text>
-                    </TouchableOpacity>
+                    {onClose && (
+                        <TouchableOpacity
+                            style={styles.modalCancelButton}
+                            onPress={onClose}
+                        >
+                            <Text style={styles.modalCancelText}>{cancelButtonText}</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
             </SafeAreaView>
         </Modal>
@@ -75,32 +78,6 @@ export default function PlayerSelectionModal({
 }
 
 const styles = StyleSheet.create({
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalContent: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 20,
-        width: '80%',
-        maxHeight: '70%',
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    modalRuleText: {
-        fontSize: 14,
-        color: '#6b7280',
-        marginBottom: 16,
-        textAlign: 'center',
-    },
     modalPlayerList: {
         maxHeight: 200,
     },

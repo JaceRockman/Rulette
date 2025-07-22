@@ -4,208 +4,115 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
-import shared from '../styles/shared';
-import StripedBackground from '../components/StripedBackground';
-import OutlinedText from '../components/OutlinedText';
-import InputPlaque from '../components/InputPlaque';
-import Plaque from '../components/Plaque';
+import shared from '../shared/styles';
+import StripedBackground from '../components/Backdrop';
+import InputPlaque from '../modals/InputPlaque';
+import { render2ColumnPlaqueList } from '../components/PlaqueList';
+import { Plaque } from '../types/game';
+import { PrimaryButton } from '../components/Buttons';
 
 export default function PromptWritingScreen() {
     const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
-    const { gameState, addPrompt, updatePrompt, dispatch, currentUser, markPromptsCompleted, getVisiblePrompts } = useGame();
+    const { gameState, currentUser, getPromptsByAuthor, getBalancedColor, addPrompt, updatePrompt, markPromptsCompletedForUser } = useGame();
     const [showInputPlaque, setShowInputPlaque] = useState(false);
     const [showEditPlaque, setShowEditPlaque] = useState(false);
     const [inputValue, setInputValue] = useState('');
     const [currentPlaqueColor, setCurrentPlaqueColor] = useState('#fff');
     const [editingPromptId, setEditingPromptId] = useState<string | null>(null);
     const [editingPlaqueColor, setEditingPlaqueColor] = useState('#fff');
-    const numPrompts = Number(gameState?.numPrompts) || 3;
+
+    const isHost = currentUser?.isHost;
+    const numPromptsPerPlayer = Number(gameState?.settings?.numPromptsPerPlayer) || 3;
+
+    const closePromptWritingPopup = () => {
+        setInputValue('');
+        setShowInputPlaque(false);
+        setShowEditPlaque(false);
+        setEditingPromptId(null);
+        setEditingPlaqueColor('#fff');
+    }
 
     const handleAddPrompt = () => {
         setInputValue('');
-        // Use balanced color selection for better distribution
-        const LAYER_PLAQUE_COLORS = ['#6bb9d3', '#a861b3', '#ed5c5d', '#fff'];
-
-        // Count existing prompt colors
-        const colorCount: { [color: string]: number } = {};
-        LAYER_PLAQUE_COLORS.forEach(color => colorCount[color] = 0);
-
-        gameState?.prompts?.forEach(prompt => {
-            if (prompt.plaqueColor && colorCount[prompt.plaqueColor] !== undefined) {
-                colorCount[prompt.plaqueColor]++;
-            }
-        });
-
-        // Find colors with minimum usage
-        const minCount = Math.min(...Object.values(colorCount));
-        const availableColors = LAYER_PLAQUE_COLORS.filter(color => colorCount[color] === minCount);
-
-        // Randomly select from available colors
-        const selectedColor = availableColors[Math.floor(Math.random() * availableColors.length)];
-        setCurrentPlaqueColor(selectedColor);
+        setCurrentPlaqueColor(getBalancedColor('prompt'));
         setShowInputPlaque(true);
     };
 
     const handleConfirmPrompt = () => {
-        const trimmedValue = inputValue.trim();
+        const validatedInput = inputValue.trim();
 
-        if (!trimmedValue) {
-            // This shouldn't happen due to InputPlaque validation, but just in case
-            return;
+        if (validatedInput) {
+            addPrompt(currentUser?.id ?? 'system', validatedInput, currentPlaqueColor);
+            closePromptWritingPopup();
         }
-
-        // Check if current player has reached their prompt limit
-        const visiblePromptCount = getVisiblePrompts().length;
-        if (visiblePromptCount >= numPrompts) {
-            // This shouldn't happen due to button disabled state, but just in case
-            return;
-        }
-
-        addPrompt(trimmedValue, undefined, currentPlaqueColor);
-        setInputValue('');
-        setShowInputPlaque(false);
     };
 
-    const handleCancelPrompt = () => {
-        setInputValue('');
-        setShowInputPlaque(false);
-    };
-
-    const handleEditPrompt = (promptId: string, currentText: string, plaqueColor: string) => {
-        setEditingPromptId(promptId);
-        setInputValue(currentText);
-        setEditingPlaqueColor(plaqueColor);
+    const handleEditPrompt = (prompt: Plaque) => {
+        setEditingPromptId(prompt.id);
+        setInputValue(prompt.text);
+        setEditingPlaqueColor(prompt.plaqueColor || '#fff');
         setShowEditPlaque(true);
     };
 
     const handleConfirmEdit = () => {
-        const trimmedValue = inputValue.trim();
+        const validatedInput = inputValue.trim();
 
-        if (!trimmedValue) {
-            // This shouldn't happen due to InputPlaque validation, but just in case
-            return;
+        if (validatedInput && editingPromptId) {
+            updatePrompt(editingPromptId, validatedInput);
+            closePromptWritingPopup();
         }
-
-        if (editingPromptId) {
-            updatePrompt(editingPromptId, trimmedValue);
-            setInputValue('');
-            setShowEditPlaque(false);
-            setEditingPromptId(null);
-        }
-    };
-
-    const handleCancelEdit = () => {
-        setInputValue('');
-        setShowEditPlaque(false);
-        setEditingPromptId(null);
     };
 
     const handleDone = () => {
         // Mark prompts as completed for this player
-        markPromptsCompleted();
+        if (!currentUser?.id) {
+            throw new Error('User ID is required to mark prompts as completed');
+        }
 
+        markPromptsCompletedForUser(currentUser.id);
         navigation.reset({
             index: 0,
             routes: [{ name: 'Game' }],
         });
     };
 
-    // Create 2-column grid layout
-    const renderPromptsGrid = () => {
-        const visiblePrompts = getVisiblePrompts();
-
-        const rows = [];
-        for (let i = 0; i < visiblePrompts.length; i += 2) {
-            const hasSecondItem = visiblePrompts[i + 1];
-            const row = (
-                <View key={i} style={{
-                    flexDirection: 'row',
-                    marginBottom: 24,
-                    justifyContent: 'flex-start',
-                    marginLeft: '5%'
-                }}>
-                    <View style={{ width: '45%' }}>
-                        <Plaque
-                            text={visiblePrompts[i].text}
-                            plaqueColor={visiblePrompts[i].plaqueColor || '#fff'}
-                            onPress={() => handleEditPrompt(visiblePrompts[i].id, visiblePrompts[i].text, visiblePrompts[i].plaqueColor || '#fff')}
-                            style={{ minHeight: 100 }}
-                        />
-                    </View>
-                    {hasSecondItem && (
-                        <View style={{ width: '45%', marginLeft: '5%' }}>
-                            <Plaque
-                                text={visiblePrompts[i + 1].text}
-                                plaqueColor={visiblePrompts[i + 1].plaqueColor || '#fff'}
-                                onPress={() => handleEditPrompt(visiblePrompts[i + 1].id, visiblePrompts[i + 1].text, visiblePrompts[i + 1].plaqueColor || '#fff')}
-                                style={{ minHeight: 100 }}
-                            />
-                        </View>
-                    )}
-                </View>
-            );
-            rows.push(row);
-        }
-        return rows;
-    };
-
     // Determine if player can add more prompts
-    const visiblePromptCount = getVisiblePrompts().length;
-    const canAddPrompt = currentUser?.isHost || visiblePromptCount < numPrompts;
-    const canContinue = currentUser?.isHost || visiblePromptCount === numPrompts;
+    const visiblePromptCount = getPromptsByAuthor(currentUser?.id ?? 'system').length;
+    const canAddPrompt = currentUser?.isHost || visiblePromptCount < numPromptsPerPlayer;
+    const canContinue = currentUser?.isHost || visiblePromptCount === numPromptsPerPlayer;
+
+    const promptsToDisplay = isHost ? gameState?.prompts : getPromptsByAuthor(currentUser?.id ?? 'system');
 
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
                 <ScrollView
-                    style={{ flex: 1 }}
-                    contentContainerStyle={{ paddingTop: 100, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
-                    showsVerticalScrollIndicator={false}
-                >
-                    <TouchableOpacity
-                        style={[
-                            shared.button,
-                            { marginTop: 30, width: 180 },
-                            !canAddPrompt && { opacity: 0.5 }
-                        ]}
+                    style={{ width: '100%' }}
+                    contentContainerStyle={{ paddingTop: 120, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
+                    showsVerticalScrollIndicator={false}>
+                    <PrimaryButton
+                        title={canAddPrompt ? "Add Prompt" : `Max Prompts (${numPromptsPerPlayer})`}
                         onPress={handleAddPrompt}
                         disabled={!canAddPrompt}
-                    >
-                        <Text style={shared.buttonText}>
-                            {canAddPrompt ? 'Add Prompt' : `Max Prompts (${numPrompts})`}
-                        </Text>
-                    </TouchableOpacity>
-
-                    {!canAddPrompt && (
-                        <Text style={{
-                            fontSize: 14,
-                            color: '#666',
-                            textAlign: 'center',
-                            marginTop: 10,
-                            fontStyle: 'italic'
-                        }}>
-                            You've reached the maximum number of prompts
-                        </Text>
-                    )}
+                        buttonStyle={{ width: '40%', height: "10%", opacity: canAddPrompt ? 1 : 0.5 }}
+                    />
 
                     <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20, flex: 1 }}>
-                        {renderPromptsGrid()}
+                        {render2ColumnPlaqueList({
+                            plaques: promptsToDisplay || [],
+                            onPress: handleEditPrompt,
+                        })}
                     </View>
 
                     {/* Spacer to push Done button to bottom */}
                     <View style={{ flex: 1 }} />
 
-                    <TouchableOpacity
-                        style={[
-                            shared.button,
-                            { width: 180, marginBottom: 30 },
-                            !canContinue && { opacity: 0.5 }
-                        ]}
-                        onPress={canContinue ? handleDone : undefined}
+                    <PrimaryButton
+                        title="Done"
+                        onPress={handleDone}
                         disabled={!canContinue}
-                    >
-                        <Text style={shared.buttonText}>Done</Text>
-                    </TouchableOpacity>
+                        buttonStyle={{ width: '40%', height: "10%", opacity: canContinue ? 1 : 0.5 }}
+                    />
                 </ScrollView>
 
                 <InputPlaque
@@ -215,7 +122,7 @@ export default function PromptWritingScreen() {
                     value={inputValue}
                     onChangeText={setInputValue}
                     onConfirm={handleConfirmPrompt}
-                    onCancel={handleCancelPrompt}
+                    onCancel={closePromptWritingPopup}
                     maxLength={100}
                     plaqueColor={currentPlaqueColor}
                 />
@@ -227,7 +134,7 @@ export default function PromptWritingScreen() {
                     value={inputValue}
                     onChangeText={setInputValue}
                     onConfirm={handleConfirmEdit}
-                    onCancel={handleCancelEdit}
+                    onCancel={closePromptWritingPopup}
                     maxLength={100}
                     plaqueColor={editingPlaqueColor}
                 />

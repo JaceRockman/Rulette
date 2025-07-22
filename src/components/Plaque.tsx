@@ -1,50 +1,33 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { colors } from '../shared/styles';
+import { Plaque as PlaqueType } from '../types/game';
 
 interface PlaqueProps {
-    text: string;
-    plaqueColor: string;
-    onPress?: () => void;
+    plaque?: PlaqueType | null;
+    concealed?: boolean;
     style?: any;
+    onPress?: () => void;
+    selected?: boolean;
 }
 
-export default function Plaque({ text, plaqueColor, onPress, style }: PlaqueProps) {
-    // Determine text color based on plaque color (same logic as wheel segments)
-    const isLightPlaque = plaqueColor === '#fbbf24' || plaqueColor === '#fff';
-    const textColor = isLightPlaque ? '#000' : '#fff';
+export default function Plaque({ plaque, concealed, style, onPress, selected }: PlaqueProps) {
+    if (!plaque) return null;
 
     const PlaqueContent = (
-        <View
-            style={[
-                {
-                    backgroundColor: plaqueColor,
-                    borderRadius: 15,
-                    paddingHorizontal: 20,
-                    paddingVertical: 15,
-                    borderWidth: 2,
-                    borderColor: '#000',
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 2 },
-                    shadowOpacity: 0.15,
-                    shadowRadius: 4,
-                    minHeight: 60,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                },
-                style
+        <View style={[
+            styles.plaqueBack,
+            onPress && styles.selectablePlaque,
+            selected && styles.selectedPlaque,
+            { backgroundColor: plaque?.plaqueColor },
+            style
+        ]}>
+            <Text style={[styles.plaqueText,
+            plaque?.type === 'modifier' && { color: colors.gameChangerWhite },
+            plaque?.type === 'end' && { color: colors.gameChangerWhite }
             ]}
-        >
-            <Text
-                style={{
-                    color: textColor,
-                    fontSize: 16,
-                    fontWeight: 'bold',
-                    textAlign: 'center',
-                    lineHeight: 22,
-                }}
-                numberOfLines={3}
-            >
-                {text}
+                numberOfLines={3}>
+                {concealed ? plaque?.type.toUpperCase() : plaque?.text}
             </Text>
         </View>
     );
@@ -58,4 +41,33 @@ export default function Plaque({ text, plaqueColor, onPress, style }: PlaqueProp
     }
 
     return PlaqueContent;
-} 
+}
+
+const styles = StyleSheet.create({
+    selectedPlaque: {
+        boxShadow: '8px 8px 8px 0 rgba(0, 0, 0, 0.5)',
+        transform: [{ translateY: -4 }],
+    },
+    selectablePlaque: {
+        boxShadow: '3px 3px 3px 0 rgba(0, 0, 0, 0.5)',
+    },
+    plaqueBack: {
+        minWidth: '40%',
+        margin: '5%',
+        borderRadius: 15,
+        borderWidth: 3,
+        minHeight: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    plaqueText: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        lineHeight: 22,
+        color: colors.gameChangerBlack,
+    },
+    endPlaqueText: {
+        color: colors.gameChangerWhite,
+    },
+}); 

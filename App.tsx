@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
@@ -6,17 +6,18 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import HomeScreen from './src/screens/HomeScreen';
 import LobbyScreen from './src/screens/LobbyScreen';
 import GameScreen from './src/screens/GameScreen';
-import WheelScreen from './src/screens/WheelScreen';
 import RuleWritingScreen from './src/screens/RuleWritingScreen';
 import PromptWritingScreen from './src/screens/PromptWritingScreen';
 import { GameProvider } from './src/context/GameContext';
 import OutlinedText from './src/components/OutlinedText';
-import StripedBackground from './src/components/StripedBackground';
-import { View } from 'react-native';
+import StripedBackground from './src/components/Backdrop';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { colors } from './src/shared/styles';
+import WheelScreen2 from './src/screens/WheelScreen2';
 
 export type RootStackParamList = {
     Home: undefined;
-    Lobby: { code: string };
+    Lobby: { lobbyCode?: string };
     Game: undefined;
     Wheel: { playerId?: string };
     RuleWriting: undefined;
@@ -26,10 +27,11 @@ export type RootStackParamList = {
 const Stack = createStackNavigator<RootStackParamList>();
 
 export default function App() {
+    const [showExitGameModal, setShowExitGameModal] = useState(false);
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
-            <GameProvider>
-                <NavigationContainer>
+            <NavigationContainer>
+                <GameProvider>
                     <StatusBar hidden={true} />
                     <Stack.Navigator
                         initialRouteName="Home"
@@ -45,6 +47,14 @@ export default function App() {
                                     }} />
                                 </StripedBackground>
                             ),
+                            headerRight: () => (
+                                <TouchableOpacity
+                                    onPress={() => setShowExitGameModal(true)}
+                                    style={{ marginLeft: 16 }}
+                                >
+                                    <Text style={{ fontSize: 24, marginRight: 16, color: colors.gameChangerWhite }}>✕</Text>
+                                </TouchableOpacity>
+                            ),
                             headerTintColor: '#fff',
                             headerTransparent: true,
                         }}
@@ -55,6 +65,7 @@ export default function App() {
                             options={{
                                 headerTitle: () => <OutlinedText>Spin That Wheel</OutlinedText>,
                                 headerTitleAlign: 'center',
+                                headerRight: undefined,
                             }}
                         />
                         <Stack.Screen
@@ -75,7 +86,7 @@ export default function App() {
                         />
                         <Stack.Screen
                             name="Wheel"
-                            component={WheelScreen}
+                            component={WheelScreen2}
                             options={{
                                 headerTitle: () => <OutlinedText>Spin the Wheel!</OutlinedText>,
                                 headerTitleAlign: 'center',
@@ -98,8 +109,8 @@ export default function App() {
                             }}
                         />
                     </Stack.Navigator>
-                </NavigationContainer>
-            </GameProvider>
+                </GameProvider>
+            </NavigationContainer>
         </GestureHandlerRootView>
     );
 } 

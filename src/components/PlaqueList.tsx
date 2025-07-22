@@ -1,0 +1,47 @@
+import { StyleSheet, View } from "react-native";
+import Plaque from "./Plaque";
+import { Plaque as PlaqueType } from "../types/game";
+import { colors } from "../shared/styles";
+
+interface PlaqueListProps {
+    plaques: PlaqueType[];
+    selectedPlaque?: PlaqueType | null;
+    onPress: (plaque: PlaqueType) => void;
+}
+
+export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: PlaqueListProps) => {
+    const rows = [];
+    if (plaques.length === 0) return null;
+    for (let i = 0; i < plaques.length; i += 2) {
+        const hasSecondItem = plaques[i + 1];
+        const row = (
+            <View key={i} style={styles.plaqueList}>
+                <Plaque
+                    plaque={plaques[i]}
+                    onPress={() => onPress(plaques[i])}
+                    selected={selectedPlaque?.id === plaques[i].id}
+                />
+                {hasSecondItem && (
+                    <Plaque
+                        plaque={plaques[i + 1]}
+                        onPress={() => onPress(plaques[i + 1])}
+                        selected={selectedPlaque?.id === plaques[i + 1].id}
+                    />
+                )}
+                {!hasSecondItem && (
+                    <View style={{ width: '40%' }} />
+                )}
+            </View>
+        );
+        rows.push(row);
+    }
+    return rows;
+};
+
+const styles = StyleSheet.create({
+    plaqueList: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+    }
+});
