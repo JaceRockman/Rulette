@@ -128,7 +128,7 @@ export default function LobbyScreen() {
                             </View>
 
                             <View style={styles.settingContainer}>
-                                <OutlinedText style={styles.settingLabel}>Number of Rules and Prompts per Player</OutlinedText>
+                                <OutlinedText style={styles.settingLabel}>Custom Rules and Prompts per Player</OutlinedText>
                                 <TextInput
                                     style={styles.settingInput}
                                     keyboardType="numeric"

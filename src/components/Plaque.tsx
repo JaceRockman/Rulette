@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors } from '../shared/styles';
+import { colors, SCREEN_WIDTH } from '../shared/styles';
 import { Plaque as PlaqueType } from '../types/game';
 
 interface PlaqueProps {
@@ -15,30 +15,24 @@ export default function Plaque({ plaque, concealed, style, onPress, selected }: 
     if (!plaque) return null;
 
     const PlaqueContent = (
-        <View style={[
-            styles.plaqueBack,
-            onPress && styles.selectablePlaque,
-            selected && styles.selectedPlaque,
-            { backgroundColor: plaque?.plaqueColor },
-            style
-        ]}>
-            <Text style={[styles.plaqueText,
-            plaque?.type === 'modifier' && { color: colors.gameChangerWhite },
-            plaque?.type === 'end' && { color: colors.gameChangerWhite }
-            ]}
-                numberOfLines={3}>
-                {concealed ? plaque?.type.toUpperCase() : plaque?.text}
-            </Text>
-        </View>
+        <TouchableOpacity onPress={onPress} activeOpacity={onPress ? 0.8 : 1} style={styles.plaquePress}>
+            <View style={[
+                styles.plaqueBack,
+                onPress && styles.selectablePlaque,
+                selected && styles.selectedPlaque,
+                { backgroundColor: plaque?.plaqueColor },
+                style
+            ]}>
+                <Text style={[styles.plaqueText,
+                plaque?.type === 'modifier' && { color: colors.gameChangerWhite },
+                plaque?.type === 'end' && { color: colors.gameChangerWhite }
+                ]}
+                    numberOfLines={3}>
+                    {concealed ? plaque?.type.toUpperCase() : plaque?.text}
+                </Text>
+            </View>
+        </TouchableOpacity>
     );
-
-    if (onPress) {
-        return (
-            <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
-                {PlaqueContent}
-            </TouchableOpacity>
-        );
-    }
 
     return PlaqueContent;
 }
@@ -51,12 +45,17 @@ const styles = StyleSheet.create({
     selectablePlaque: {
         boxShadow: '3px 3px 3px 0 rgba(0, 0, 0, 0.5)',
     },
+    plaquePress: {
+        width: '46%',
+        justifyContent: 'center',
+        alignItems: 'center',
+        margin: '2%',
+    },
     plaqueBack: {
-        minWidth: '40%',
-        margin: '5%',
+        width: '100%',
+        minHeight: 100,
         borderRadius: 15,
         borderWidth: 3,
-        minHeight: 100,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -66,6 +65,7 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 22,
         color: colors.gameChangerBlack,
+        flexWrap: 'wrap',
     },
     endPlaqueText: {
         color: colors.gameChangerWhite,

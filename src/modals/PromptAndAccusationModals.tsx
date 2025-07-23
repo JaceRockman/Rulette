@@ -78,7 +78,7 @@ export default function PromptAndAccusationModals(
                 title={`Rule Assigned`}
                 description={`Waiting for ${selectedPlayerForAction?.name} to accept the rule...`}
                 content={
-                    <Plaque plaque={gameState?.rules.find(rule => rule.id === gameState?.selectedRule) as PlaqueType} style={{ width: '50%' }} />
+                    <Plaque plaque={gameState?.rules.find(rule => rule.id === gameState?.selectedRule) as PlaqueType} />
                 }
                 onAccept={() => {
                     socketService.assignRule(gameState?.selectedRule!, selectedPlayerForAction!.id);

@@ -44,7 +44,7 @@ export default function RuleDetailsModal({
                     <Text style={shared.modalTitle}>
                         Rule Details
                     </Text>
-                    <Plaque plaque={rule} style={{ width: '50%' }} />
+                    <Plaque plaque={rule} />
 
                     {!playerIsViewingOwnRule && (
                         <SecondaryButton

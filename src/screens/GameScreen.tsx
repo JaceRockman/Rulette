@@ -416,12 +416,13 @@ export default function GameScreen() {
                         </Text>
                     </View>
 
-                    <TouchableOpacity
-                        style={[shared.button, { marginTop: 30 }]}
-                        onPress={() => navigation.navigate('Home')}
-                    >
-                        <Text style={shared.buttonText}>Back to Home</Text>
-                    </TouchableOpacity>
+                    {currentUser?.isHost &&
+                        <TouchableOpacity
+                            style={[shared.button, { marginTop: 30 }]}
+                            onPress={() => socketService.broadcastNavigateToScreen('Home')}
+                        >
+                            <Text style={shared.buttonText}>Back to Home</Text>
+                        </TouchableOpacity>}
                 </View>
             </Backdrop>
         );

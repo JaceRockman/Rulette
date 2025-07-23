@@ -41,35 +41,34 @@ export default function PromptPerformanceModal({
                     <Text style={shared.modalTitle}>Prompt for {selectedPlayer?.name}</Text>
                     <Plaque plaque={selectedPrompt as PlaqueType} />
 
-                    <View>
-                        {/* Rules Reminder Section */}
-                        {promptedPlayerRules.length > 0 && (
-                            <View>
-                                <Text style={shared.modalDescription}>
-                                    Rules assigned to {isPromptedPlayer ? 'you' : selectedPlayer?.name}:
-                                </Text>
-                                {render2ColumnPlaqueList({
-                                    plaques: promptedPlayerRules,
-                                    onPress: (plaque: PlaqueType) => onPressRule(plaque as Rule)
-                                })}
+                    {/* Rules Reminder Section */}
+                    {promptedPlayerRules.length > 0 && (
+                        <Text style={shared.modalDescription}>
+                            Rules assigned to {isPromptedPlayer ? 'you' : selectedPlayer?.name}:
+                        </Text>
+                    )}
+
+                    {promptedPlayerRules.length > 0 && (
+                        render2ColumnPlaqueList({
+                            plaques: promptedPlayerRules,
+                            onPress: (plaque: PlaqueType) => onPressRule(plaque as Rule)
+                        })
+                    )}
+
+
+                    {/* Success/Failure Buttons */}
+                    <View style={isHost ? styles.buttonContainerHost : styles.buttonContainer}>
+                        {isHost ? (
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 10 }}>
+                                <PrimaryButton title="Success!" onPress={onSuccess} />
+                                <SecondaryButton title="Failure" onPress={onFailure} />
                             </View>
+                        ) : (
+                            <Text style={shared.modalDescription}>
+                                Waiting for host to judge the prompt...
+                            </Text>
                         )}
 
-
-                        {/* Success/Failure Buttons */}
-                        <View style={isHost ? styles.buttonContainerHost : styles.buttonContainer}>
-                            {isHost ? (
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: 10 }}>
-                                    <PrimaryButton title="Success!" onPress={onSuccess} />
-                                    <SecondaryButton title="Failure" onPress={onFailure} />
-                                </View>
-                            ) : (
-                                <Text style={shared.modalDescription}>
-                                    Waiting for host to judge the prompt...
-                                </Text>
-                            )}
-
-                        </View>
                     </View>
                 </View>
             </View>

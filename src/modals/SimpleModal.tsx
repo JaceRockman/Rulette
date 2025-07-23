@@ -1,11 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
-import { Rule } from '../types/game';
-import { Plaque } from '../types/game';
+import React from 'react';
+import { Modal, View, Text, SafeAreaView } from 'react-native';
 
-import { colors, shared } from '../shared/styles';
+import { shared } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
-import { render2ColumnPlaqueList } from '../components/PlaqueList';
 
 interface SimpleModalProps {
     visible: boolean;

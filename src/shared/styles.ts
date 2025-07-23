@@ -1,4 +1,7 @@
-import { StyleSheet } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
+
+export const SCREEN_HEIGHT = Dimensions.get('window').height;
+export const SCREEN_WIDTH = Dimensions.get('window').width;
 
 // Color palette for the entire system
 export const colors = {
@@ -60,18 +63,19 @@ export const shared = StyleSheet.create({
         flex: 1,
     },
     scrollView: {
-        flex: 1,
-        padding: 20,
+        width: '100%',
     },
     modalOverlay: {
-        flex: 1,
+        width: SCREEN_WIDTH,
+        height: SCREEN_HEIGHT,
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 0,
     },
     modalContent: {
-        width: '90%',
+        width: SCREEN_WIDTH * 0.8,
+        maxHeight: SCREEN_HEIGHT * 0.8,
         backgroundColor: colors.gameChangerWhite,
         borderRadius: 12,
         padding: 16,

@@ -3,7 +3,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaVi
 import { Rule } from '../types/game';
 import { Plaque } from '../types/game';
 
-import { colors, shared } from '../shared/styles';
+import styles, { colors, shared } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
 
@@ -66,7 +66,8 @@ export default function RuleSelectionModal({
                     <Text style={shared.modalTitle}>{title}</Text>
                     <Text style={shared.modalDescription}>{description}</Text>
 
-                    <ScrollView showsVerticalScrollIndicator={false}>
+                    <ScrollView style={styles.scrollView}
+                        showsVerticalScrollIndicator={false} >
                         {render2ColumnPlaqueList({
                             plaques: rules,
                             selectedPlaque: selectedRule,

@@ -52,33 +52,36 @@ export default function PromptResolutionModal({
                     <Plaque plaque={selectedPrompt as PlaqueType} />
 
                     {isPromptedPlayer && (
-                        <View>
-                            <Text style={shared.modalDescription}>
-                                You successfully completed the prompt! You have been awarded 2 points and may shred one of your rules to remove it from the game.
-                            </Text>
-                            {render2ColumnPlaqueList({
-                                plaques: promptedPlayerRules,
-                                selectedPlaque: selectedRule,
-                                onPress: (plaque: PlaqueType) => toggleSelectedRule(plaque as Rule)
-                            })}
-                            <View style={shared.buttonContainer}>
-                                {onSkip && <SecondaryButton title="Skip" onPress={onSkip} />}
-
-                                <PrimaryButton
-                                    title="Shred Rule"
-                                    onPress={handleShredRule}
-                                    buttonStyle={{ opacity: selectedRule ? 1 : 0.3 }}
-                                    disabled={!selectedRule}
-                                />
-                            </View>
-                        </View>
-                    )}
-                    {!isPromptedPlayer && (
                         <Text style={shared.modalDescription}>
-                            Waiting for {selectedPlayer?.name} to shred a rule...
+                            You successfully completed the prompt! You have been awarded 2 points and may shred one of your rules to remove it from the game.
                         </Text>
                     )}
+                    {isPromptedPlayer && (
+                        render2ColumnPlaqueList({
+                            plaques: promptedPlayerRules,
+                            selectedPlaque: selectedRule,
+                            onPress: (plaque: PlaqueType) => toggleSelectedRule(plaque as Rule)
+                        })
+                    )}
+
+                    {isPromptedPlayer && (
+                        <View style={shared.buttonContainer}>
+                            {onSkip && <SecondaryButton title="Skip" onPress={onSkip} />}
+
+                            <PrimaryButton
+                                title="Shred Rule"
+                                onPress={handleShredRule}
+                                buttonStyle={{ opacity: selectedRule ? 1 : 0.3 }}
+                                disabled={!selectedRule}
+                            />
+                        </View>
+                    )}
                 </View>
+                {!isPromptedPlayer && (
+                    <Text style={shared.modalDescription}>
+                        Waiting for {selectedPlayer?.name} to shred a rule...
+                    </Text>
+                )}
             </View>
         </Modal >
     );
