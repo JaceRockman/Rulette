@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     View,
     Text,
@@ -16,8 +16,10 @@ import { PrimaryButton } from '../components/Buttons';
 import { Player } from '../types/game';
 import shared from '../shared/styles';
 import socketService from '../services/socketService';
+import { useNavigation } from '@react-navigation/native';
 
 export default function LobbyScreen() {
+    const navigation = useNavigation();
     const { gameState, currentUser, getHostPlayer, getNonHostPlayers } = useGame();
 
     const [startingPoints, setStartingPoints] = useState('20');
@@ -28,6 +30,19 @@ export default function LobbyScreen() {
     const isHost = currentUser?.id === host?.id;
 
     const lobbyCode = gameState?.lobbyCode || '';
+
+    useEffect(() => {
+        navigation.setOptions({
+            headerLeft: () => null,
+            gestureEnabled: false,
+        });
+
+        const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+            e.preventDefault();
+        });
+
+        return unsubscribe;
+    }, [navigation]);
 
     const copyLobbyCode = async () => {
         await Clipboard.setStringAsync(lobbyCode);

@@ -74,22 +74,7 @@ export default function App() {
                             options={{
                                 headerTitle: () => <OutlinedText>Game Lobby</OutlinedText>,
                                 headerTitleAlign: 'center',
-                            }}
-                        />
-                        <Stack.Screen
-                            name="Game"
-                            component={GameScreen}
-                            options={{
-                                headerTitle: () => <OutlinedText>Game Room</OutlinedText>,
-                                headerTitleAlign: 'center',
-                            }}
-                        />
-                        <Stack.Screen
-                            name="Wheel"
-                            component={WheelScreen}
-                            options={{
-                                headerTitle: () => <OutlinedText>Spin the Wheel!</OutlinedText>,
-                                headerTitleAlign: 'center',
+                                headerLeft: undefined,
                             }}
                         />
                         <Stack.Screen
@@ -105,6 +90,22 @@ export default function App() {
                             component={PromptWritingScreen}
                             options={{
                                 headerTitle: () => <OutlinedText>Write Prompts</OutlinedText>,
+                                headerTitleAlign: 'center',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="Game"
+                            component={GameScreen}
+                            options={{
+                                headerTitle: () => <OutlinedText>Game Room</OutlinedText>,
+                                headerTitleAlign: 'center',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="Wheel"
+                            component={WheelScreen}
+                            options={{
+                                headerTitle: () => <OutlinedText>Spin the Wheel!</OutlinedText>,
                                 headerTitleAlign: 'center',
                             }}
                         />

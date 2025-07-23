@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, TouchableOpacity, Text, SafeAreaView, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -23,6 +23,19 @@ export default function RuleWritingScreen() {
 
     const isHost = currentUser?.isHost;
     const numRulesPerPlayer = Number(gameState?.settings?.numRulesPerPlayer) || 3;
+
+    useEffect(() => {
+        navigation.setOptions({
+            headerLeft: () => null,
+            gestureEnabled: false,
+        });
+
+        const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+            e.preventDefault();
+        });
+
+        return unsubscribe;
+    }, [navigation]);
 
     const closeRuleWritingPopup = () => {
         setInputValue('');
