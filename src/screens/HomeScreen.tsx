@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -49,10 +49,18 @@ export default function HomeScreen() {
         }
 
         setIsJoining(true);
-        socketService.joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim());
-        navigation.navigate('Lobby', { lobbyCode: lobbyCode.trim().toUpperCase() });
+        socketService.joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim())
         setIsJoining(false);
     };
+
+    useEffect(() => {
+        socketService.setOnError((errorMessage) => {
+            Alert.alert('Alert', errorMessage);
+        });
+        return () => {
+            socketService.setOnError(null);
+        };
+    }, []);
 
     return (
         <StripedBackground>

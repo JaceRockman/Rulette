@@ -1,7 +1,7 @@
 import io, { Socket } from 'socket.io-client';
 import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActivePromptDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, GameState, Plaque, Player, Prompt, Rule, WheelSpinDetails } from '../types/game';
 
-const SERVER_URL = 'http://192.168.1.57:3001'; // Your computer's IP address
+const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
 
 class SocketService {
     private socket: Socket | null = null;
@@ -99,7 +99,7 @@ class SocketService {
         this.onGameUpdated = callback;
     }
 
-    setOnError(callback: (error: string) => void) {
+    setOnError(callback: ((error: string) => void) | null) {
         this.onError = callback;
     }
 

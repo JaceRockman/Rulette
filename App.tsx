@@ -13,7 +13,7 @@ import OutlinedText from './src/components/OutlinedText';
 import StripedBackground from './src/components/Backdrop';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { colors } from './src/shared/styles';
-import WheelScreen2 from './src/screens/WheelScreen2';
+import WheelScreen from './src/screens/WheelScreen';
 
 export type RootStackParamList = {
     Home: undefined;
@@ -86,7 +86,7 @@ export default function App() {
                         />
                         <Stack.Screen
                             name="Wheel"
-                            component={WheelScreen2}
+                            component={WheelScreen}
                             options={{
                                 headerTitle: () => <OutlinedText>Spin the Wheel!</OutlinedText>,
                                 headerTitleAlign: 'center',

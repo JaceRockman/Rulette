@@ -310,14 +310,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.setOnGameUpdated((game) => {
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
-        socketService.setOnWheelSpun((stack) => {
-            dispatch({ type: 'SPIN_WHEEL', payload: stack });
-        });
-        socketService.setOnSynchronizedWheelSpin((data) => {
-            console.log('GameContext: Dispatching SYNCHRONIZED_WHEEL_SPIN action at:', new Date().toISOString());
-            console.log('GameContext: SYNCHRONIZED_WHEEL_SPIN data:', data);
-            dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: data });
-        });
         socketService.setOnNavigateToScreen((data: { screen: string; params?: any }) => {
             console.log('GameContext: Navigating to screen:', data);
             if (data.screen && navigation) {

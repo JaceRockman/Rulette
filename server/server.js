@@ -142,6 +142,15 @@ io.on('connection', (socket) => {
             return;
         }
 
+        // Check for duplicate player name (case-insensitive)
+        const nameTaken = game.players.some(
+            p => p.name.trim().toLowerCase() === playerName.trim().toLowerCase()
+        );
+        if (nameTaken) {
+            socket.emit('error', { message: 'That name is already taken in this lobby. Please choose a different name.' });
+            return;
+        }
+
         const playerId = uuidv4();
         const player = {
             id: playerId,
@@ -160,6 +169,7 @@ io.on('connection', (socket) => {
         // Update all players in the game
         io.to(game.id).emit('game_updated', game);
         socket.emit('joined_lobby', { playerId, game });
+        socket.emit('navigate_player_to_screen', { screen: 'Lobby', playerId: playerId });
     });
 
     // Update game settings
