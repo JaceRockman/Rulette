@@ -104,8 +104,9 @@ export default function HomeScreen() {
                                     placeholder="Enter lobby code"
                                     placeholderTextColor="#9ca3af"
                                     value={lobbyCode}
-                                    onChangeText={setLobbyCode}
+                                    onChangeText={text => setLobbyCode(text.toUpperCase())}
                                     maxLength={6}
+                                    autoCorrect={false}
                                     autoCapitalize="characters"
                                 />
                                 <PrimaryButton
