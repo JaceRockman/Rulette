@@ -22,7 +22,7 @@ export default function PromptWritingScreen() {
     const [editingPlaqueColor, setEditingPlaqueColor] = useState('#fff');
 
     const isHost = currentUser?.isHost;
-    const numPromptsPerPlayer = Number(gameState?.settings?.numPromptsPerPlayer) || 3;
+    const numPromptsPerPlayer = Number(gameState?.settings?.customRulesAndPrompts) || 0;
 
     const closePromptWritingPopup = () => {
         setInputValue('');

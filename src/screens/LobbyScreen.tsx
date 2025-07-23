@@ -23,7 +23,7 @@ export default function LobbyScreen() {
     const { gameState, currentUser, getHostPlayer, getNonHostPlayers } = useGame();
 
     const [startingPoints, setStartingPoints] = useState('20');
-    const [numSegments, setNumSegments] = useState('4');
+    const [numRulesAndPrompts, setNumRulesAndPrompts] = useState('0');
 
     const host = getHostPlayer();
     const nonHostPlayers = getNonHostPlayers();
@@ -56,7 +56,7 @@ export default function LobbyScreen() {
 
         // Get the game settings from the UI
         const settings = {
-            numSegments: parseInt(numSegments) || 4,
+            customRulesAndPrompts: parseInt(numRulesAndPrompts) || 0,
             startingPoints: parseInt(startingPoints) || 20
         };
 
@@ -128,13 +128,13 @@ export default function LobbyScreen() {
                             </View>
 
                             <View style={styles.settingContainer}>
-                                <OutlinedText style={styles.settingLabel}>Number of Wheel Segments</OutlinedText>
+                                <OutlinedText style={styles.settingLabel}>Number of Rules and Prompts per Player</OutlinedText>
                                 <TextInput
                                     style={styles.settingInput}
                                     keyboardType="numeric"
-                                    value={numSegments}
-                                    onChangeText={setNumSegments}
-                                    placeholder="3"
+                                    value={numRulesAndPrompts}
+                                    onChangeText={setNumRulesAndPrompts}
+                                    placeholder="0"
                                     placeholderTextColor="#9ca3af"
                                 />
                             </View>

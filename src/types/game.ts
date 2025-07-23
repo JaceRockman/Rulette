@@ -78,9 +78,7 @@ export interface GameState {
 }
 
 export interface GameSettings {
-    numSegments: number;
-    numRulesPerPlayer: number;
-    numPromptsPerPlayer: number;
+    customRulesAndPrompts: number;
     startingPoints: number;
 }
 

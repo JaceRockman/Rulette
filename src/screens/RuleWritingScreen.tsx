@@ -22,7 +22,7 @@ export default function RuleWritingScreen() {
     const [editingPlaqueColor, setEditingPlaqueColor] = useState('#fff');
 
     const isHost = currentUser?.isHost;
-    const numRulesPerPlayer = Number(gameState?.settings?.numRulesPerPlayer) || 3;
+    const numRulesPerPlayer = Number(gameState?.settings?.customRulesAndPrompts) || 0;
 
     useEffect(() => {
         navigation.setOptions({

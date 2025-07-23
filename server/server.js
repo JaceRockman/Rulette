@@ -50,9 +50,7 @@ function createGame(hostId, hostName) {
             promptsCompleted: false
         }],
         settings: {
-            numSegments: 4,
-            numRulesPerPlayer: 1,
-            numPromptsPerPlayer: 1,
+            customRulesAndPrompts: 0,
             startingPoints: 20
         },
         isGameStarted: false,
@@ -118,7 +116,6 @@ io.on('connection', (socket) => {
 
     // Create lobby
     socket.on('create_lobby', ({ playerName }) => {
-        console.log('create_lobby', playerName);
         const playerId = uuidv4();
         const game = createGame(playerId, playerName);
 
@@ -178,12 +175,12 @@ io.on('connection', (socket) => {
         if (!game) return;
 
         // Update the game settings
-        if (settings.numRules !== undefined) {
-            game.numRules = settings.numRules;
+        if (settings.customRulesAndPrompts !== undefined) {
+            game.settings.customRulesAndPrompts = settings.customRulesAndPrompts;
+        } else {
+            game.settings.customRulesAndPrompts = 0;
         }
-        if (settings.numPrompts !== undefined) {
-            game.numPrompts = settings.numPrompts;
-        }
+
         if (settings.startingPoints !== undefined) {
             // Update all players' starting points
             game.players.forEach(player => {
@@ -222,10 +219,8 @@ io.on('connection', (socket) => {
             let destinationScreen = 'Game';
             if (player.isHost) {
                 destinationScreen = 'RuleWriting';
-            } else if (game.settings.numRulesPerPlayer > 0) {
+            } else if (game.settings.customRulesAndPrompts > 0) {
                 destinationScreen = 'RuleWriting';
-            } else if (game.settings.numPromptsPerPlayer > 0) {
-                destinationScreen = 'PromptWriting';
             } else {
                 player.rulesCompleted = true;
                 player.promptsCompleted = true;

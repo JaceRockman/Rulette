@@ -8,16 +8,40 @@ class SocketService {
     private gameState: GameState | null = null;
     private currentUserId: string | null = null;
 
-    connect() {
-        if (this.socket) {
-            this.socket.disconnect();
-        }
+    private onConnectionError: ((message: string) => void) | null = null;
+    setOnConnectionError(callback: ((message: string) => void) | null) {
+        this.onConnectionError = callback;
+    }
 
-        this.socket = io(SERVER_URL, {
-            transports: ['websocket', 'polling'],
+    connect(): Promise<void> {
+        return new Promise((resolve, reject) => {
+            if (this.socket) {
+                this.socket.disconnect();
+            }
+
+            this.socket = io(SERVER_URL, {
+                transports: ['websocket', 'polling'],
+            });
+
+            // Listen for connection errors
+            this.socket.once('connect_error', (err) => {
+                if (this.onConnectionError) {
+                    this.onConnectionError('Could not connect to the server.');
+                }
+                reject(new Error('Could not connect to the server.'));
+            });
+            this.socket.once('connect_timeout', () => {
+                if (this.onConnectionError) {
+                    this.onConnectionError('Connection to the server timed out. Please try again later.');
+                }
+                reject(new Error('Connection to the server timed out. Please try again later.'));
+            });
+            this.socket.once('connect', () => {
+                resolve();
+            });
+
+            this.setupEventListeners();
         });
-
-        this.setupEventListeners();
     }
 
     // Event callbacks

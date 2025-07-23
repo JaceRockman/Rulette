@@ -117,9 +117,7 @@ export const initialState: GameState = {
     currentStack: [],
     roundNumber: 0,
     settings: {
-        numSegments: 4,
-        numRulesPerPlayer: 0,
-        numPromptsPerPlayer: 0,
+        customRulesAndPrompts: 0,
         startingPoints: 20,
     },
     gameEnded: false,
@@ -215,11 +213,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
         case 'RESET_GAME':
             return initialState;
-
-        case 'SET_NUM_RULES':
-            return { ...state, settings: { ...state.settings, numSegments: action.payload } };
-        case 'SET_NUM_PROMPTS':
-            return { ...state, settings: { ...state.settings, numSegments: action.payload } };
 
         case 'REMOVE_WHEEL_LAYER':
             const updatedSegments = (state.wheelSegments || []).map((segment: WheelSegment) => {
@@ -339,7 +332,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }, [gameState?.playerInputCompleted]);
 
     const addPlaquesForSegments = () => {
-        let totalSegments = Math.max(gameState.settings.numSegments, 4);
+        let totalSegments = Math.max(gameState.players.length * 4, 4);
 
         const currentNumRules = gameState.rules.length;
         const currentNumPrompts = gameState.prompts.length;
@@ -381,15 +374,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
 
     const allPlaquesAdded = () => {
-        return gameState?.rules.length === gameState.settings.numSegments &&
-            gameState?.prompts.length === gameState.settings.numSegments &&
-            gameState?.modifiers.length === gameState.settings.numSegments &&
-            gameState?.ends.length === gameState.settings.numSegments;
+        return gameState?.rules.length === gameState.players.length * 4 &&
+            gameState?.prompts.length === gameState.players.length * 4 &&
+            gameState?.modifiers.length === gameState.players.length * 4 &&
+            gameState?.ends.length === gameState.players.length * 4;
     }
 
     // Create wheel segments once all rules and prompts are added
     React.useEffect(() => {
-        console.log('GameContext: allPlaquesAdded', allPlaquesAdded());
         if (!allPlaquesAdded()) {
             return;
         }
@@ -401,7 +393,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
         const newSegments: WheelSegment[] = [];
 
-        let totalSegments = Math.max(gameState.rules.length, gameState.prompts.length, 4);
+        let totalSegments = Math.max(gameState.players.length * 4, 4);
 
         for (let i = 0; i < totalSegments; i++) {
             const layers: Plaque[] = [];
@@ -410,8 +402,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             layers.push(gameState.prompts[i]);
             layers.push(gameState.modifiers[i]);
             layers.push(gameState.ends[i]);
-
-            console.log(`GameContext: Segment ${i} layers:`, layers.map(l => ({ type: l.type, text: l.text })));
 
             newSegments.push({
                 id: Math.random().toString(36).substring(2, 9),

@@ -18,6 +18,7 @@ import StripedBackground from '../components/Backdrop';
 import shared from '../shared/styles';
 import { PrimaryButton } from '../components/Buttons';
 import socketService from '../services/socketService';
+import { GameState } from '../types/game';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -28,7 +29,7 @@ export default function HomeScreen() {
     const [isCreating, setIsCreating] = useState(false);
     const [isJoining, setIsJoining] = useState(false);
 
-    const handleCreateLobby = () => {
+    const handleCreateLobby = async () => {
         const trimmedPlayerName = playerName.trim();
 
         if (!trimmedPlayerName) {
@@ -37,30 +38,70 @@ export default function HomeScreen() {
         }
 
         setIsCreating(true);
+
+        try {
+            await socketService.connect();
+        } catch (err) {
+            // Error alert is already shown by the connection error handler
+            setIsCreating(false);
+            return;
+        }
+
+        if (!socketService.isConnected()) {
+            Alert.alert('Connection Error', 'Could not connect to the server.');
+            setIsCreating(false);
+            return;
+        }
+
         socketService.createLobby(trimmedPlayerName);
         navigation.navigate('Lobby', {});
         setIsCreating(false);
     };
 
-    const handleJoinLobby = () => {
+    const handleJoinLobby = async () => {
         if (!playerName.trim() || !lobbyCode.trim()) {
             Alert.alert('Error', 'Please enter both your name and lobby code');
             return;
         }
 
         setIsJoining(true);
-        socketService.joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim())
-        setIsJoining(false);
+
+        try {
+            await socketService.connect();
+        } catch (err) {
+            setIsJoining(false);
+            return;
+        }
+
+        if (!socketService.isConnected()) {
+            Alert.alert('Connection Error', 'Could not connect to the server.');
+            setIsJoining(false);
+            return;
+        }
+
+        socketService.joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim());
+        // Do NOT navigate here; wait for joined_lobby event
     };
 
     useEffect(() => {
         socketService.setOnError((errorMessage) => {
             Alert.alert('Alert', errorMessage);
+            setIsJoining(false);
         });
+        socketService.setOnConnectionError((message) => {
+            Alert.alert('Connection Error', message);
+        });
+        const handleJoinedLobby = (data: { playerId: string; game: GameState }) => {
+            navigation.navigate('Lobby', { lobbyCode: data.game.lobbyCode });
+            setIsJoining(false);
+        };
+        socketService.setOnJoinedLobby(handleJoinedLobby);
         return () => {
             socketService.setOnError(null);
+            socketService.setOnConnectionError(null);
+            socketService.setOnJoinedLobby(null as any);
         };
-    }, []);
+    }, [navigation]);
 
     return (
         <StripedBackground>
