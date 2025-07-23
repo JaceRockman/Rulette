@@ -71,6 +71,16 @@ export const exampleRules: Rule[] = [
     { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot say 'yes' or 'no'", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
     { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must speak in third person", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
     { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Cannot use past tense", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must rhyme every sentence", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Can only speak in song lyrics", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must pretend to be a famous celebrity", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Can only answer questions with questions", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must use a different name for everyone", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Can only whisper", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must act as if underwater", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Can only use one-syllable words", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Must narrate everything you do", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
+    { id: Math.random().toString(36).substring(2, 9), type: 'rule', text: "Can only speak in animal noises", isActive: true, plaqueColor: randomPlaqueColor(), authorId: "system" },
 ];
 
 
@@ -82,6 +92,16 @@ export const examplePrompts: Prompt[] = [
     { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain quantum physics using only food metaphors", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
     { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your ideal vacation to a planet that doesn't exist", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
     { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that time travel is just really good planning", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Sell a pet rock as the next big thing", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain why the sky is green", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Teach someone how to ride a unicycle (without using the word ‘balance’)", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that you’re a time traveler from the year 3000", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your job as if you’re a secret agent", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Argue that breakfast should be eaten for dinner", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Explain how to brush your teeth to an alien", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Tell a bedtime story about a heroic potato", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Convince everyone that shoes are unnecessary", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
+    { id: Math.random().toString(36).substring(2, 9), type: 'prompt', text: "Describe your favorite food as if you hate it", plaqueColor: randomPlaqueColor(), authorId: "system", isActive: true },
 ];
 
 export const allModifiers: Modifier[] = [
