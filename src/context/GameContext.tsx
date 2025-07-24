@@ -36,9 +36,7 @@ interface GameContextType {
     updatePrompt: (id: string, text: string) => void;
     assignRule: (ruleId: string, playerId: string) => void;
 
-    removeWheelLayer: (segmentId: string) => void;
-
-    completeWheelSpin: (segmentId?: string) => void;
+    completeWheelSpin: (segmentId: string | null) => void;
 
     updatePoints: (playerId: string, points: number) => void;
 
@@ -665,11 +663,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.endCloneRule();
     };
 
-    const removeWheelLayer = (segmentId: string) => {
-        socketService.removeWheelLayer(segmentId);
-    };
-
-    const completeWheelSpin = (segmentId?: string) => {
+    const completeWheelSpin = (segmentId: string | null) => {
         socketService.completeWheelSpin(segmentId);
     };
 
@@ -714,8 +708,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             updateRule,
             updatePrompt,
             assignRule,
-
-            removeWheelLayer,
 
             completeWheelSpin,
 

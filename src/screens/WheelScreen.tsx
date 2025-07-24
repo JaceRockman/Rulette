@@ -31,7 +31,7 @@ export default function WheelScreen() {
 
     const currentModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
     const setCurrentModal = (modal: string | null) => {
-        socketService.setPlayerModal(currentUser?.id || '', modal);
+        socketService.setPlayerModal(currentUser!.id, modal);
     }
 
     const logSetCurrentModal = (modal: string | null) => {
@@ -48,16 +48,13 @@ export default function WheelScreen() {
         ...segments.slice(0, Math.floor(VISIBLE_ITEMS / 2)),
     ];
 
-    console.log('currentUser', currentUser);
-    const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
-
     // Update local state to current modal based on game state
-    React.useEffect(() => {
-        console.log('WheelScreen: modal updated', gameState?.players.find(player => player.id === currentUser?.id)?.currentModal);
-        const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
-        setSelectedRule(null);
-        logSetCurrentModal(playerModal || null);
-    }, [playerModal, navigation]);
+    // React.useEffect(() => {
+    //     console.log('WheelScreen: modal updated', gameState?.players.find(player => player.id === currentUser?.id)?.currentModal);
+    //     const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
+    //     setSelectedRule(null);
+    //     logSetCurrentModal(playerModal || null);
+    // }, [currentModal, navigation]);
 
     // Initiate a spin (only active player or host)
     const initiateSpin = () => {

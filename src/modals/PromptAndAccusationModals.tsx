@@ -125,7 +125,7 @@ export default function PromptAndAccusationModals(
                 }}
                 onDecline={() => {
                     socketService.endAccusation();
-                    socketService.setAllPlayerModals(null);
+                    socketService.setSelectedRule(null);
                     socketService.possiblyReturnToPrompt();
                 }}
             />

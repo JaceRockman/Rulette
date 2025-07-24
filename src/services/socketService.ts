@@ -194,22 +194,6 @@ class SocketService {
         });
     }
 
-    addPrompt(plaqueObject: { id: string; text: string; category?: string; authorId: string; plaqueColor: string }) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('add_prompt', {
-            gameId: this.gameState.id,
-            plaqueObject
-        });
-    }
-
-    addRule(plaqueObject: { id: string; text: string; isActive: boolean; authorId: string; plaqueColor: string }) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('add_rule', {
-            gameId: this.gameState.id,
-            plaqueObject
-        });
-    }
-
     updatePlaque(plaque: { id: string; type: 'rule' | 'prompt' | 'modifier' | 'end'; text: string; category?: string; authorId: string; plaqueColor: string; isActive?: boolean }) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_plaque', {
@@ -513,18 +497,7 @@ class SocketService {
         });
     }
 
-
-
-
-    removeWheelLayer(segmentId: string) {
-        if (!this.socket || !this.gameState) return;
-        this.socket.emit('remove_wheel_layer', {
-            gameId: this.gameState.id,
-            segmentId
-        });
-    }
-
-    completeWheelSpin(segmentId?: string) {
+    completeWheelSpin(segmentId: string | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('complete_wheel_spin', {
             gameId: this.gameState.id,
