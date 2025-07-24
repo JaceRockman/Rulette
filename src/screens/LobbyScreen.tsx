@@ -31,19 +31,6 @@ export default function LobbyScreen() {
 
     const lobbyCode = gameState?.lobbyCode || '';
 
-    useEffect(() => {
-        navigation.setOptions({
-            headerLeft: () => null,
-            gestureEnabled: false,
-        });
-
-        const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-            e.preventDefault();
-        });
-
-        return unsubscribe;
-    }, [navigation]);
-
     const copyLobbyCode = async () => {
         await Clipboard.setStringAsync(lobbyCode);
     };

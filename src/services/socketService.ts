@@ -1,5 +1,5 @@
 import io, { Socket } from 'socket.io-client';
-import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActivePromptDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, GameState, Plaque, Player, Prompt, Rule, WheelSpinDetails } from '../types/game';
+import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActivePromptDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, GameState, Plaque, Player, Prompt, Rule, WheelSegment, WheelSpinDetails } from '../types/game';
 
 const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
 
@@ -505,7 +505,7 @@ class SocketService {
         });
     }
 
-    syncWheelSegments(wheelSegments: any[]) {
+    syncWheelSegments(wheelSegments: WheelSegment[]) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('sync_wheel_segments', {
             gameId: this.gameState.id,

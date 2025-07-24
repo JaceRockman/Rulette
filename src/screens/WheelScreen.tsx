@@ -26,7 +26,6 @@ export default function WheelScreen() {
     const scrollY = useRef(new Animated.Value(0)).current;
     const currentScrollOffset = useRef(0);
 
-    // const [currentModal, setCurrentModal] = useState<string | null>(null);
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
 
     const currentModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
@@ -47,14 +46,6 @@ export default function WheelScreen() {
         ...segments,
         ...segments.slice(0, Math.floor(VISIBLE_ITEMS / 2)),
     ];
-
-    // Update local state to current modal based on game state
-    // React.useEffect(() => {
-    //     console.log('WheelScreen: modal updated', gameState?.players.find(player => player.id === currentUser?.id)?.currentModal);
-    //     const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
-    //     setSelectedRule(null);
-    //     logSetCurrentModal(playerModal || null);
-    // }, [currentModal, navigation]);
 
     // Initiate a spin (only active player or host)
     const initiateSpin = () => {
@@ -253,7 +244,7 @@ export default function WheelScreen() {
 
         socketService.setAllPlayerModals(null);
         socketService.broadcastNavigateToScreen('Game');
-        socketService.completeWheelSpin(gameState?.wheelSpinDetails?.spunSegmentId);
+        socketService.completeWheelSpin(gameState?.wheelSpinDetails?.spunSegmentId || null);
         setCurrentWheelIndex(0);
 
         if (typeof sideEffects === 'function') {

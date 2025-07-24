@@ -24,19 +24,6 @@ export default function RuleWritingScreen() {
     const isHost = currentUser?.isHost;
     const numRulesPerPlayer = Number(gameState?.settings?.customRulesAndPrompts) || 0;
 
-    useEffect(() => {
-        navigation.setOptions({
-            headerLeft: () => null,
-            gestureEnabled: false,
-        });
-
-        const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-            e.preventDefault();
-        });
-
-        return unsubscribe;
-    }, [navigation]);
-
     const closeRuleWritingPopup = () => {
         setInputValue('');
         setShowInputPlaque(false);

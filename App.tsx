@@ -83,6 +83,7 @@ export default function App() {
                             options={{
                                 headerTitle: () => <OutlinedText>Write Rules</OutlinedText>,
                                 headerTitleAlign: 'center',
+                                headerLeft: undefined,
                             }}
                         />
                         <Stack.Screen
@@ -99,6 +100,7 @@ export default function App() {
                             options={{
                                 headerTitle: () => <OutlinedText>Game Room</OutlinedText>,
                                 headerTitleAlign: 'center',
+                                headerLeft: undefined,
                             }}
                         />
                         <Stack.Screen
@@ -107,6 +109,7 @@ export default function App() {
                             options={{
                                 headerTitle: () => <OutlinedText>Spin the Wheel!</OutlinedText>,
                                 headerTitleAlign: 'center',
+                                headerLeft: undefined,
                             }}
                         />
                     </Stack.Navigator>

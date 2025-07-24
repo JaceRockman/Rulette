@@ -287,12 +287,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnJoinedLobby(({ playerId, game }) => {
-            console.log('GameContext: ' + game);
+            // console.log('GameContext: ' + game);
             setCurrentUserId(playerId);
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnGameUpdated((game) => {
-            console.log('GameContext: game updated', game);
+            // console.log('GameContext: game updated', game);
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnNavigateToScreen((data: { screen: string; params?: any }) => {
@@ -352,7 +352,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         for (let i = 0; i < endsNeededToFillSegment; i++) {
             console.log('GameContext: Adding end', i);
             const exampleEndToAdd: Plaque = {
-                id: ('end' + i.toString()),
+                id: ('end' + i.toString() + Math.random().toString(36).substring(2, 9)),
                 type: 'end',
                 text: "Game Over",
                 plaqueColor: "#313131",
@@ -371,14 +371,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             gameState?.ends.length === gameState.players.length * 4;
     }
 
+    const areAllPlaquesAdded = allPlaquesAdded();
+
     // Create wheel segments once all rules and prompts are added
     React.useEffect(() => {
         if (!allPlaquesAdded()) {
             return;
         }
-        const generatedWheelSegments = createWheelSegments();
+        const generatedWheelSegments: WheelSegment[] = createWheelSegments();
         socketService.syncWheelSegments(generatedWheelSegments);
-    }, [gameState.rules.length, gameState.prompts.length]);
+    }, [areAllPlaquesAdded, gameState.ends.length]);
 
     const createWheelSegments = (): WheelSegment[] => {
 
@@ -387,12 +389,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         let totalSegments = Math.max(gameState.players.length * 4, 4);
 
         for (let i = 0; i < totalSegments; i++) {
-            const layers: Plaque[] = [];
-
-            layers.push(gameState.rules[i]);
-            layers.push(gameState.prompts[i]);
-            layers.push(gameState.modifiers[i]);
-            layers.push(gameState.ends[i]);
+            let layers: Plaque[] = [
+                gameState.rules[i],
+                gameState.prompts[i],
+                gameState.modifiers[i],
+                gameState.ends[i]
+            ];
 
             newSegments.push({
                 id: Math.random().toString(36).substring(2, 9),

@@ -171,8 +171,8 @@ io.on('connection', (socket) => {
         socket.join(game.id);
 
         // Update all players in the game
+        socket.emit('joined_lobby', { playerId, updatedGame });
         io.to(game.id).emit('game_updated', updatedGame);
-        socket.emit('joined_lobby', { playerId, game });
         socket.emit('navigate_player_to_screen', { screen: 'Lobby', playerId: playerId });
     });
 
@@ -235,7 +235,6 @@ io.on('connection', (socket) => {
                 io.to(gameId).emit('game_updated', game);
                 destinationScreen = 'Game';
             }
-            console.log('destinationScreen', destinationScreen);
             io.to(gameId).emit('navigate_player_to_screen', { screen: destinationScreen, playerId: player.id });
         })
     });
@@ -244,8 +243,6 @@ io.on('connection', (socket) => {
     socket.on('add_plaque', ({ gameId, plaque }) => {
         let game = games.get(gameId);
         if (!game) return;
-
-        console.log('add_plaque', plaque);
 
         if (plaque.type === 'rule') {
             const rule = {
@@ -275,7 +272,7 @@ io.on('connection', (socket) => {
             games.set(gameId, updatedGame);
         }
 
-        io.to(gameId).emit('game_updated', game);
+        io.to(gameId).emit('game_updated', updatedGame);
     });
 
     // Update plaque (unified handler for rules and prompts)
@@ -471,10 +468,9 @@ io.on('connection', (socket) => {
         }
 
         // Set the new active player
-        game.activePlayer = game.players[nextIndex].id;
+        const updatedGame = { ...game, activePlayer: game.players[nextIndex].id };
 
-        console.log('Server: Advanced to next player:', game.activePlayer, 'for game:', gameId);
-        io.to(gameId).emit('game_updated', game);
+        io.to(gameId).emit('game_updated', updatedGame);
     });
 
 
@@ -792,8 +788,6 @@ io.on('connection', (socket) => {
 
         game.activeSwapRuleDetails = details;
 
-        console.log('game.activeSwapRuleDetails', game.activeSwapRuleDetails);
-
         if (details.swappee === null) {
             navigatePlayersForSwapeeSelection(game, details);
         } else if (details.swapperRule === null || details.swappeeRule === null) {
@@ -832,7 +826,6 @@ io.on('connection', (socket) => {
 
     // Assign rule
     socket.on('assign_rule', ({ gameId, ruleId, playerId }) => {
-        console.log('Server: Assigning rule:', ruleId, 'to player:', playerId, 'for game:', gameId);
         let game = games.get(gameId);
         if (!game) return;
 
