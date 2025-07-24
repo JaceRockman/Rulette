@@ -17,8 +17,8 @@ interface GameContextType {
     showExitGameModal: boolean;
     dispatch: React.Dispatch<GameAction>;
 
-    getNonHostPlayers: () => Player[] | null | undefined;
-    getHostPlayer: () => Player | null | undefined;
+    getNonHostPlayers: () => Player[] | null | null;
+    getHostPlayer: () => Player | null | null;
 
     setShowExitGameModal: (show: boolean) => void;
     setPlayerModal: (playerId: string, modalName?: string) => void;
@@ -47,23 +47,23 @@ interface GameContextType {
     endAccusation: () => void;
 
     givePrompt: (playerId: string, promptId: string) => void;
-    updateActivePromptDetails: (details: ActivePromptDetails | undefined) => void;
+    updateActivePromptDetails: (details: ActivePromptDetails | null) => void;
     acceptPrompt: () => void;
     shredRule: (ruleId: string) => void;
     endPrompt: () => void;
     possiblyReturnToPrompt: () => void;
 
-    triggerCloneModifier: (player: Player, rule?: Rule, modifierId?: string) => void;
-    updateActiveCloningDetails: (details: ActiveCloneRuleDetails) => void;
+    triggerCloneModifier: (player: Player, rule: Rule | null) => void;
+    updateActiveCloningDetails: (details: ActiveCloneRuleDetails | null) => void;
     cloneRuleToPlayer: (rule: Rule, targetPlayer: Player, authorId?: string) => void;
     endCloneRule: () => void;
 
-    triggerFlipModifier: (player: Player, rule?: Rule, modifierId?: string) => void;
+    triggerFlipModifier: (player: Player, rule: Rule | null) => void;
     updateActiveFlippingDetails: (details: ActiveFlipRuleDetails) => void;
     flipRule: (rule: Rule, flippedText: string) => void;
     endFlipRule: () => void;
 
-    triggerSwapModifier: (player: Player, rule?: Rule, modifierId?: string) => void;
+    triggerSwapModifier: (player: Player, rule: Rule | null) => void;
     updateActiveSwappingDetails: (details: ActiveSwapRuleDetails) => void;
     swapRules: (player1Id: string, player1RuleId: string, player2Id: string, player2RuleId: string) => void;
     endSwapRule: () => void;
@@ -86,7 +86,6 @@ type GameAction =
     | { type: 'UPDATE_RULE'; payload: Rule }
     | { type: 'UPDATE_PROMPT'; payload: Prompt }
     | { type: 'SPIN_WHEEL'; payload: StackItem[] }
-    | { type: 'SYNCHRONIZED_WHEEL_SPIN'; payload: { spinningPlayerId: string; finalIndex: number; duration: number } }
     | { type: 'UPDATE_POINTS'; payload: { playerId: string; points: number } }
     | { type: 'SET_CURRENT_USER'; payload: string }
     | { type: 'SET_ACTIVE_PLAYER'; payload: string }
@@ -183,12 +182,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
                 currentStack: action.payload,
             };
 
-        case 'SYNCHRONIZED_WHEEL_SPIN':
-            return {
-                ...state,
-                isWheelSpinning: true,
-            };
-
         case 'UPDATE_POINTS':
             return {
                 ...state,
@@ -277,7 +270,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 }
 
-const GameContext = createContext<GameContextType | undefined>(undefined);
+const GameContext = createContext<GameContextType | null>(null);
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
     const navigation = useNavigation<RuleScreenNavigationProp>();
@@ -301,16 +294,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnGameUpdated((game) => {
+            console.log('GameContext: game updated', game);
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnNavigateToScreen((data: { screen: string; params?: any }) => {
-            console.log('GameContext: Navigating to screen:', data);
             if (data.screen && navigation) {
                 navigation.navigate(data.screen as keyof RootStackParamList, data.params);
             }
         });
         socketService.setOnNavigatePlayerToScreen((data: { screen: string; playerId: string; params?: any }) => {
-            console.log('GameContext: Navigating to screen:', data);
             if (currentUser?.id !== data.playerId) {
                 if (data.screen && navigation) {
                     navigation.navigate(data.screen as keyof RootStackParamList, data.params);
@@ -366,7 +358,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 type: 'end',
                 text: "Game Over",
                 plaqueColor: "#313131",
-                authorId: "system"
+                authorId: "system",
+                isActive: true
             };
             socketService.addPlaque(exampleEndToAdd);
         }
@@ -410,8 +403,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 segmentColor: SEGMENT_COLORS[i % SEGMENT_COLORS.length],
             });
         }
-
-        console.log('GameContext: newSegments', newSegments);
 
         return newSegments;
     };
@@ -467,12 +458,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const getNonHostPlayers = (): Player[] | null | undefined => {
-        return gameState.players.filter(player => !player.isHost);
+    const getNonHostPlayers = (): Player[] | null => {
+        return gameState.players.filter(player => !player.isHost) || null;
     };
 
-    const getHostPlayer = (): Player | null | undefined => {
-        return gameState.players.find(player => player.isHost);
+    const getHostPlayer = (): Player | null => {
+        return gameState.players.find(player => player.isHost) || null;
     };
 
     const getAssignedRulesByPlayer = (playerId: string) => {
@@ -487,7 +478,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             text: text,
             authorId: authorId,
             plaqueColor: plaqueColor,
-            isActive: type === 'rule' ? true : undefined
+            isActive: true
         };
 
         socketService.addPlaque(plaque);
@@ -545,11 +536,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.givePrompt(playerId, promptId);
     };
 
-    const updateActivePromptDetails = (details: ActivePromptDetails | undefined) => {
+    const updateActivePromptDetails = (details: ActivePromptDetails | null) => {
         socketService.updateActivePromptDetails(details);
     };
 
-    const updateActiveCloningDetails = (details: ActiveCloneRuleDetails) => {
+    const updateActiveCloningDetails = (details: ActiveCloneRuleDetails | null) => {
         socketService.updateActiveCloningDetails(details);
     };
 
@@ -557,22 +548,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.cloneRuleToPlayer(rule.id, targetPlayer.id, authorId);
     };
 
-    const triggerCloneModifier = (player: Player, rule?: Rule, modifierId?: string) => {
+    const triggerCloneModifier = (player: Player, rule: Rule | null) => {
         if (!gameState) return;
         const details: ActiveCloneRuleDetails = {
             cloningPlayer: player,
             cloningCompleted: false,
-            ruleToClone: rule
+            ruleToClone: rule,
+            targetPlayer: null
         }
         updateActiveCloningDetails(details);
     };
 
 
-    const updateActiveFlippingDetails = (details: ActiveFlipRuleDetails) => {
+    const updateActiveFlippingDetails = (details: ActiveFlipRuleDetails | null) => {
         socketService.updateActiveFlippingDetails(details);
     };
 
-    const triggerFlipModifier = (player: Player, rule?: Rule, modifierId?: string) => {
+    const triggerFlipModifier = (player: Player, rule: Rule | null) => {
         if (!gameState) return;
         const details: ActiveFlipRuleDetails = {
             flippingPlayer: player,
@@ -592,15 +584,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
 
 
-    const updateActiveSwappingDetails = (details: ActiveSwapRuleDetails) => {
+    const updateActiveSwappingDetails = (details: ActiveSwapRuleDetails | null) => {
         socketService.updateActiveSwappingDetails(details);
     };
 
-    const triggerSwapModifier = (player: Player, rule?: Rule, modifierId?: string) => {
+    const triggerSwapModifier = (player: Player, rule: Rule | null) => {
         if (!gameState) return;
         const details: ActiveSwapRuleDetails = {
             swapper: player,
-            swapperRule: rule
+            swapperRule: rule,
+            swappee: null,
+            swappeeRule: null
         }
         updateActiveSwappingDetails(details);
     };
@@ -613,7 +607,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.endSwapRule();
     };
 
-    const updateActiveUpDownDetails = (details: ActiveUpDownRuleDetails | undefined) => {
+    const updateActiveUpDownDetails = (details: ActiveUpDownRuleDetails | null) => {
         socketService.updateActiveUpDownDetails(details);
     };
 
@@ -624,10 +618,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     const triggerUpDownModifier = (direction: 'up' | 'down') => {
         if (!gameState) return;
         socketService.triggerUpDownModifier(direction);
-    };
-
-    const synchronizedSpinWheel = (finalIndex: number, duration: number) => {
-        dispatch({ type: 'SYNCHRONIZED_WHEEL_SPIN', payload: { spinningPlayerId: currentUserId || '', finalIndex, duration } });
     };
 
     const initiateAccusation = (accusationDetails: ActiveAccusationDetails) => {
@@ -770,7 +760,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
 export function useGame() {
     const context = useContext(GameContext);
-    if (context === undefined) {
+    if (context === null) {
         throw new Error('useGame must be used within a GameProvider');
     }
     return context;

@@ -223,7 +223,7 @@ class SocketService {
         this.socket.emit('start_game', { gameId: this.gameState.id, settings });
     }
 
-    setPlayerModal(playerId: string, modal: string | undefined) {
+    setPlayerModal(playerId: string, modal: string | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('set_player_modal', {
             gameId: this.gameState.id,
@@ -232,7 +232,7 @@ class SocketService {
         });
     }
 
-    setAllPlayerModals(modal: string | undefined) {
+    setAllPlayerModals(modal: string | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('set_all_player_modals', {
             gameId: this.gameState.id,
@@ -265,7 +265,7 @@ class SocketService {
         });
     }
 
-    updateWheelSpinDetails(wheelSpinDetails: WheelSpinDetails | undefined) {
+    updateWheelSpinDetails(wheelSpinDetails: WheelSpinDetails | null) {
         if (!this.socket || !this.gameState || !this.currentUserId) return;
         this.socket.emit('update_wheel_spin_details', {
             gameId: this.gameState.id,
@@ -370,7 +370,7 @@ class SocketService {
         });
     }
 
-    updateActivePromptDetails(details: ActivePromptDetails | undefined) {
+    updateActivePromptDetails(details: ActivePromptDetails | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_active_prompt_details', {
             gameId: this.gameState.id,
@@ -407,7 +407,7 @@ class SocketService {
         });
     }
 
-    updateActiveCloningDetails(details: ActiveCloneRuleDetails) {
+    updateActiveCloningDetails(details: ActiveCloneRuleDetails | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_active_cloning_details', {
             gameId: this.gameState.id,
@@ -433,7 +433,7 @@ class SocketService {
     }
 
 
-    updateActiveFlippingDetails(details: ActiveFlipRuleDetails) {
+    updateActiveFlippingDetails(details: ActiveFlipRuleDetails | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_active_flipping_details', {
             gameId: this.gameState.id,
@@ -450,15 +450,18 @@ class SocketService {
 
 
 
-    triggerSwapModifier(player: Player, modifierId?: string) {
+    triggerSwapModifier(player: Player) {
         if (!this.socket || !this.gameState) return;
         const details: ActiveSwapRuleDetails = {
             swapper: player,
+            swapperRule: null,
+            swappee: null,
+            swappeeRule: null
         }
         this.updateActiveSwappingDetails(details);
     }
 
-    updateActiveSwappingDetails(details: ActiveSwapRuleDetails) {
+    updateActiveSwappingDetails(details: ActiveSwapRuleDetails | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_active_swapping_details', {
             gameId: this.gameState.id,
@@ -485,7 +488,7 @@ class SocketService {
         });
     }
 
-    updateActiveUpDownDetails(details: ActiveUpDownRuleDetails | undefined) {
+    updateActiveUpDownDetails(details: ActiveUpDownRuleDetails | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('update_active_up_down_details', {
             gameId: this.gameState.id,
@@ -495,10 +498,12 @@ class SocketService {
 
     triggerUpDownModifier(direction: 'up' | 'down') {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('trigger_up_down_modifier', {
-            gameId: this.gameState.id,
-            direction
-        });
+        const details: ActiveUpDownRuleDetails = {
+            direction,
+            selectedRules: {},
+            isComplete: false
+        }
+        this.updateActiveUpDownDetails(details);
     }
 
     endUpDownRule() {

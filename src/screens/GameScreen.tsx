@@ -35,15 +35,15 @@ export default function GameScreen() {
         setShowExitGameModal, updatePoints, endGame, dispatch, shredRule,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
 
-    const [selectedRule, setSelectedRule] = useState<Rule | undefined>(undefined);
-    const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
+    const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
+    const [currentModal, setCurrentModal] = useState<string | null>(null);
 
-    const logSetCurrentModal = (modal: string | undefined) => {
+    const logSetCurrentModal = (modal: string | null) => {
         console.log("settinging current modal", modal)
         setCurrentModal(modal)
     }
 
-    const logSetSelectedRule = (rule: Rule | undefined) => {
+    const logSetSelectedRule = (rule: Rule | null) => {
         console.log("settinging selected rule", rule)
         setSelectedRule(rule)
     }
@@ -61,7 +61,7 @@ export default function GameScreen() {
     React.useEffect(() => {
         if (!gameState) return;
         const gameStateModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
-        setCurrentModal(gameStateModal);
+        setCurrentModal(gameStateModal || null);
     }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal]);
 
     React.useEffect(() => {
@@ -70,33 +70,6 @@ export default function GameScreen() {
             setSelectedPlayerForAction(gameState.players.find(player => player.id === gameState.selectedPlayerForAction) || null);
         }
     }, [gameState?.selectedPlayerForAction]);
-
-    // React.useEffect(() => {
-    //     if (!gameState) return;
-    //     if (gameState?.activeCloneRuleDetails === undefined || gameState?.activeCloneRuleDetails?.cloningCompleted) {
-    //         setCurrentModal(undefined);
-    //         gameState.globalModal = undefined;
-    //         return;
-    //     }
-    //     const currentPlayerIsCloning = gameState?.activeCloneRuleDetails?.cloningPlayer.id === currentUser?.id;
-    //     if (currentPlayerIsCloning) {
-    //         if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
-    //             setCurrentModal('CloneActionRuleSelection');
-    //         } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
-    //             setCurrentModal('CloneActionTargetSelection');
-    //         } else {
-    //             setCurrentModal('CloneActionResolution');
-    //         }
-    //     } else {
-    //         if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
-    //             setCurrentModal('AwaitCloneRuleSelection');
-    //         } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
-    //             setCurrentModal('AwaitCloneTargetSelection');
-    //         } else {
-    //             setCurrentModal('CloneActionResolution');
-    //         }
-    //     }
-    // }, [gameState?.activeCloneRuleDetails]);
 
     const handleRuleTap = (rule: Rule) => {
         logSetSelectedRule(rule);
@@ -133,7 +106,7 @@ export default function GameScreen() {
                 setCurrentModal('GiveRule');
             } else {
                 Alert.alert('No Rules Available', 'Player has all rules assigned to them already.');
-                setCurrentModal(undefined);
+                setCurrentModal(null);
                 setSelectedPlayerForAction(null);
             }
         }
@@ -153,7 +126,7 @@ export default function GameScreen() {
             const selectedPlayer = gameState.players.find(player => player.id === gameState.selectedPlayerForAction);
             if (selectedPlayer) {
                 const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayer.id);
-                initiateClone({ cloningPlayer: selectedPlayer, playerRules, triggerCloneModifier: triggerCloneModifier });
+                initiateClone({ cloningPlayer: selectedPlayer, playerRules: playerRules || [], triggerCloneModifier: triggerCloneModifier });
                 gameState.players.forEach(player => {
                     if (player.id === selectedPlayer.id) {
                         socketService.setPlayerModal(player.id, 'CloneActionRuleSelection');
@@ -171,7 +144,7 @@ export default function GameScreen() {
             const selectedPlayer = gameState.players.find(player => player.id === gameState.selectedPlayerForAction);
             if (selectedPlayer) {
                 const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayer.id);
-                initiateFlip({ flippingPlayer: selectedPlayer, playerRules, triggerFlipModifier: triggerFlipModifier });
+                initiateFlip({ flippingPlayer: selectedPlayer, playerRules: playerRules || [], triggerFlipModifier: triggerFlipModifier });
                 gameState.players.forEach(player => {
                     if (player.id === selectedPlayer?.id) {
                         socketService.setPlayerModal(player.id, "FlipActionRuleSelection");
@@ -323,7 +296,6 @@ export default function GameScreen() {
 
     const playerCardComponent = (player: Player) => {
         const isActivePlayer = gameState?.activePlayer === player.id;
-        console.log("isActivePlayer", isActivePlayer)
 
         return (
             <TouchableOpacity
@@ -368,16 +340,16 @@ export default function GameScreen() {
     };
 
     const finishPrompt = (sideEffects?: () => void) => {
-        setCurrentModal(undefined);
+        setCurrentModal(null);
         sideEffects?.();
     }
 
     const finishModifier = (sideEffects?: () => void) => {
-        setCurrentModal(undefined);
+        setCurrentModal(null);
         sideEffects?.();
     }
 
-    const sortPlayersByTopPlayer = (nonHostPlayers: Player[], topPlayer: Player | undefined) => {
+    const sortPlayersByTopPlayer = (nonHostPlayers: Player[], topPlayer: Player | null) => {
         if (!topPlayer) return nonHostPlayers;
         const topPlayerIndex = nonHostPlayers.findIndex(player => player.id === topPlayer.id);
         return [...nonHostPlayers.slice(topPlayerIndex), ...nonHostPlayers.slice(0, topPlayerIndex)];
@@ -499,15 +471,13 @@ export default function GameScreen() {
                         {(() => {
                             const topPlayer = currentUser?.isHost ? gameState.players.find(player => player.id === gameState.activePlayer) : currentUser;
 
-                            const sortedPlayers = sortPlayersByTopPlayer(nonHostPlayers, topPlayer)
+                            const sortedPlayers = sortPlayersByTopPlayer(nonHostPlayers, topPlayer || null)
 
                             return sortedPlayers.map((player) => (
                                 playerCardComponent(player)
                             ));
                         })()}
                     </View>
-
-
                 </ScrollView>
 
 
@@ -523,7 +493,7 @@ export default function GameScreen() {
                     onDownAction={() => handleInitiateUpDown('down')}
                     onSwapAction={handleInitiateSwap}
                     onClose={() => {
-                        setCurrentModal(undefined);
+                        setCurrentModal(null);
                         setSelectedPlayerForAction(null);
                     }}
                 />
@@ -538,7 +508,7 @@ export default function GameScreen() {
                     selectedPlayerForAction={selectedPlayerForAction}
                     onShredRule={(ruleId: string) => {
                         shredRule(ruleId);
-                        socketService.setAllPlayerModals(undefined);
+                        socketService.setAllPlayerModals(null);
                         socketService.setSelectedRule(null);
                     }}
                     onFinishPrompt={finishPrompt}

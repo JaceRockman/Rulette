@@ -17,6 +17,7 @@ interface SimpleModalProps {
     cancelButtonText?: string;
     cancelButtonDisabled?: boolean;
     cancelButtonDisplayed?: boolean;
+    onRequestClose?: () => void;
 }
 
 export default function SimpleModal({
@@ -31,7 +32,8 @@ export default function SimpleModal({
     onClose,
     cancelButtonText = 'Cancel',
     cancelButtonDisabled = false,
-    cancelButtonDisplayed = true
+    cancelButtonDisplayed = true,
+    onRequestClose
 }: SimpleModalProps) {
 
     return (
@@ -39,7 +41,7 @@ export default function SimpleModal({
             visible={visible}
             transparent={true}
             animationType="fade"
-            onRequestClose={onClose}
+            onRequestClose={onRequestClose}
             statusBarTranslucent={true}
         >
             <SafeAreaView style={shared.modalOverlay}>

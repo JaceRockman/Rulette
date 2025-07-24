@@ -4,7 +4,7 @@ import { colors } from '../shared/styles';
 
 interface PrimaryButtonProps {
     title: string;
-    onPress: (() => void) | undefined;
+    onPress: (() => void) | null;
     disabled?: boolean;
     buttonStyle?: any;
     textStyle?: any
@@ -20,7 +20,7 @@ export function PrimaryButton({ title, onPress, disabled, buttonStyle, textStyle
 
 interface SecondaryButtonProps {
     title: string;
-    onPress: () => void | undefined;
+    onPress: () => void | null;
     disabled?: boolean;
     buttonStyle?: any;
     textStyle?: any

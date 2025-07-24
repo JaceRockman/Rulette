@@ -8,7 +8,7 @@ import { SecondaryButton } from '../components/Buttons';
 
 interface RuleDetailsModalProps {
     visible: boolean;
-    rule: Rule | undefined;
+    rule: Rule | null;
     viewingPlayer: Player | null;
     viewedPlayer: Player | null;
     isAccusationInProgress: boolean;

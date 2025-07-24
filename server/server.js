@@ -47,7 +47,8 @@ function createGame(hostId, hostName) {
             rules: [],
             isHost: true,
             rulesCompleted: false,
-            promptsCompleted: false
+            promptsCompleted: false,
+            currentModal: null
         }],
         settings: {
             customRulesAndPrompts: 0,
@@ -60,22 +61,22 @@ function createGame(hostId, hostName) {
         ends: [],
         playerInputCompleted: false,
         wheelSegments: [],
-        wheelSpinDetails: undefined,
+        wheelSpinDetails: null,
         currentUser: hostId, // The user ID of the person currently using the app
-        activePlayer: undefined, // The player ID of the player currently taking their turn (excludes host)
-        selectedPlayerForAction: undefined, // The player ID of the player currently being acted upon
-        selectedRule: undefined, // The rule ID of the rule currently being selected
+        activePlayer: null, // The player ID of the player currently taking their turn (excludes host)
+        selectedPlayerForAction: null, // The player ID of the player currently being acted upon
+        selectedRule: null, // The rule ID of the rule currently being selected
 
-        activeAccusationDetails: undefined,
-        activePromptDetails: undefined,
-        activeCloneRuleDetails: undefined,
-        activeFlipRuleDetails: undefined,
-        activeSwapRuleDetails: undefined,
-        activeUpDownRuleDetails: undefined,
+        activeAccusationDetails: null,
+        activePromptDetails: null,
+        activeCloneRuleDetails: null,
+        activeFlipRuleDetails: null,
+        activeSwapRuleDetails: null,
+        activeUpDownRuleDetails: null,
         currentStack: [],
         roundNumber: 0,
         gameEnded: false,
-        winner: undefined,
+        winner: null,
     }
 
 
@@ -96,18 +97,21 @@ function findGameByCode(lobbyCode) {
 }
 
 function setPlayerModal(game, playerId, modal) {
-    if (!game) return;
-    const player = game.players.find(p => p.id === playerId);
-    if (player) {
-        player.currentModal = modal;
-    }
+    if (!game) return game;
+    return {
+        ...game,
+        players: game.players.map(p =>
+            p.id === playerId ? { ...p, currentModal: modal } : p
+        )
+    };
 }
 
 function setAllPlayerModals(game, modal) {
-    if (!game) return;
-    game.players.forEach(player => {
-        player.currentModal = modal;
-    })
+    if (!game) return game;
+    return {
+        ...game,
+        players: game.players.map(p => ({ ...p, currentModal: modal }))
+    };
 }
 
 
@@ -156,7 +160,8 @@ io.on('connection', (socket) => {
             rules: [],
             isHost: false,
             rulesCompleted: false,
-            promptsCompleted: false
+            promptsCompleted: false,
+            currentModal: null
         };
 
         game.players.push(player);
@@ -171,17 +176,17 @@ io.on('connection', (socket) => {
 
     // Update game settings
     socket.on('update_game_settings', ({ gameId, settings }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         // Update the game settings
-        if (settings.customRulesAndPrompts !== undefined) {
+        if (settings.customRulesAndPrompts !== null) {
             game.settings.customRulesAndPrompts = settings.customRulesAndPrompts;
         } else {
             game.settings.customRulesAndPrompts = 0;
         }
 
-        if (settings.startingPoints !== undefined) {
+        if (settings.startingPoints !== null) {
             // Update all players' starting points
             game.players.forEach(player => {
                 player.points = settings.startingPoints;
@@ -194,7 +199,7 @@ io.on('connection', (socket) => {
 
     // Start game
     socket.on('start_game', ({ gameId, settings }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         game.settings = settings;
@@ -235,7 +240,7 @@ io.on('connection', (socket) => {
 
     // Add plaque (unified handler for rules, prompts, and modifiers)
     socket.on('add_plaque', ({ gameId, plaque }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         console.log('add_plaque', plaque);
@@ -244,7 +249,7 @@ io.on('connection', (socket) => {
             const rule = {
                 ...plaque,
                 isActive: true,
-                assignedTo: undefined
+                assignedTo: null
             };
             game.rules.push(rule);
         } else if (plaque.type === 'prompt') {
@@ -270,7 +275,7 @@ io.on('connection', (socket) => {
     // Add rule
     socket.on('add_rule', (data) => {
         const { gameId, plaqueObject } = data;
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         // Use the plaque object as the rule (it already has id, text, authorId, plaqueColor)
@@ -285,7 +290,7 @@ io.on('connection', (socket) => {
 
     // Add prompt
     socket.on('add_prompt', ({ gameId, plaqueObject }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         // Use the plaque object as the prompt (it already has id, text, category, authorId, plaqueColor)
@@ -299,7 +304,7 @@ io.on('connection', (socket) => {
 
     // Update plaque (unified handler for rules and prompts)
     socket.on('update_plaque', ({ gameId, plaque }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         if (plaque.type === 'rule') {
@@ -327,7 +332,7 @@ io.on('connection', (socket) => {
 
     // Update rule
     socket.on('update_rule', ({ gameId, plaqueObject }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const ruleIndex = game.rules.findIndex(r => r.id === plaqueObject.id);
@@ -343,7 +348,7 @@ io.on('connection', (socket) => {
 
     // Update prompt
     socket.on('update_prompt', ({ gameId, plaqueObject }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const promptIndex = game.prompts.findIndex(p => p.id === plaqueObject.id);
@@ -359,7 +364,7 @@ io.on('connection', (socket) => {
 
     // Mark rules as completed
     socket.on('rules_completed', ({ gameId, playerId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const player = game.players.find(p => p.id === playerId);
@@ -371,7 +376,7 @@ io.on('connection', (socket) => {
 
     // Mark prompts as completed
     socket.on('prompts_completed', ({ gameId, playerId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const player = game.players.find(p => p.id === playerId);
@@ -389,7 +394,7 @@ io.on('connection', (socket) => {
 
     // Sync wheel segments
     socket.on('sync_wheel_segments', ({ gameId, wheelSegments }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         game.wheelSegments = wheelSegments;
@@ -397,28 +402,34 @@ io.on('connection', (socket) => {
     });
 
     socket.on('set_player_modal', ({ gameId, playerId, modal }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
-        setPlayerModal(game, playerId, modal);
+        game = setPlayerModal(game, playerId, modal);
+        console.log('player modal set', game.players);
+        games.set(gameId, game);
         io.to(gameId).emit('game_updated', game);
     });
 
     socket.on('set_all_player_modals', ({ gameId, modal }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
-        setAllPlayerModals(game, modal);
+        game = setAllPlayerModals(game, modal);
+        games.set(gameId, game);
+        game.players.forEach(player => {
+            console.log('set_all_player_modals: setting modal for player', player.id, 'to', modal);
+        });
         io.to(gameId).emit('game_updated', game);
     });
 
     socket.on('set_selected_player_for_action', ({ gameId, playerId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
         game.selectedPlayerForAction = playerId;
         io.to(gameId).emit('game_updated', game);
     });
 
     socket.on('set_selected_rule', ({ gameId, ruleId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
         game.selectedRule = ruleId;
         io.to(gameId).emit('game_updated', game);
@@ -426,20 +437,20 @@ io.on('connection', (socket) => {
 
     // Update points
     socket.on('update_points', ({ gameId, playerId, pointChange }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const player = game.players.find(p => p.id === playerId);
         if (player) {
             player.points = Math.max(0, player.points + pointChange);
-            game.selectedRule = undefined;
+            game.selectedRule = null;
             io.to(gameId).emit('game_updated', game);
         }
     });
 
     // Spin wheel
     socket.on('spin_wheel', ({ gameId, playerId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         // Check if the spinning player is the host
@@ -500,7 +511,7 @@ io.on('connection', (socket) => {
 
     // Broadcast synchronized wheel spin
     socket.on('update_wheel_spin_details', ({ gameId, wheelSpinDetails }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         console.log('Server: Updating wheel spin details', wheelSpinDetails);
@@ -513,7 +524,7 @@ io.on('connection', (socket) => {
 
     // Complete wheel spin - handles all wheel completion logic centrally
     socket.on('complete_wheel_spin', ({ gameId, segmentId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         console.log('Server: Completing wheel spin for game:', gameId);
@@ -532,11 +543,11 @@ io.on('connection', (socket) => {
         }
 
         // Clear wheel spin details
-        game.wheelSpinDetails = undefined;
+        game.wheelSpinDetails = null;
 
         // Clear any active prompt or accusation details
-        game.activePromptDetails = undefined;
-        game.activeAccusationDetails = undefined;
+        game.activePromptDetails = null;
+        game.activeAccusationDetails = null;
 
         // Advance to next player
         const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
@@ -563,7 +574,7 @@ io.on('connection', (socket) => {
 
     // Remove wheel layer
     socket.on('remove_wheel_layer', ({ gameId, segmentId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game || !game.wheelSegments) return;
 
         const segment = game.wheelSegments.find(s => s.id === segmentId);
@@ -577,7 +588,7 @@ io.on('connection', (socket) => {
 
     // Advance to next player
     socket.on('advance_to_next_player', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         // Find the current active player
@@ -605,7 +616,7 @@ io.on('connection', (socket) => {
 
     // Start accusation
     socket.on('initiate_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const rule = game.rules.find(r => r.id === ruleId);
@@ -635,7 +646,7 @@ io.on('connection', (socket) => {
 
     // Accept accusation
     socket.on('accept_accusation', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game || !game.activeAccusationDetails) return;
 
         const rule = game.rules.find(r => r.id === game.activeAccusationDetails.rule.id);
@@ -648,19 +659,19 @@ io.on('connection', (socket) => {
         accused.points -= 1;
 
         if (accuser.isHost || game.rules.filter(r => r.assignedTo === accuser.id).length === 0) {
-            game.activeAccusationDetails = undefined;
-            if (game.activePromptDetails !== undefined) {
-                setAllPlayerModals(game, 'PromptPerformance');
+            game.activeAccusationDetails = null;
+            if (game.activePromptDetails !== null) {
+                game = setAllPlayerModals(game, 'PromptPerformance');
             } else {
-                setAllPlayerModals(game, undefined);
+                game = setAllPlayerModals(game, null);
             }
         } else {
             game.activeAccusationDetails.accusationAccepted = true;
             game.players.forEach(player => {
                 if (player.id === accuser.id) {
-                    setPlayerModal(game, player.id, 'SuccessfulAccusationRuleSelection');
+                    game = setPlayerModal(game, player.id, 'SuccessfulAccusationRuleSelection');
                 } else {
-                    setPlayerModal(game, player.id, 'WaitForRuleSelection');
+                    game = setPlayerModal(game, player.id, 'WaitForRuleSelection');
                 }
             });
         }
@@ -670,11 +681,11 @@ io.on('connection', (socket) => {
 
     // End accusation
     socket.on('end_accusation', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
-        game.activeAccusationDetails = undefined;
-        setAllPlayerModals(game, undefined);
+        game.activeAccusationDetails = null;
+        game = setAllPlayerModals(game, null);
 
         io.to(gameId).emit('game_updated', game);
     });
@@ -684,7 +695,7 @@ io.on('connection', (socket) => {
 
     // Give prompt
     socket.on('give_prompt', ({ gameId, playerId, promptId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const promptedPlayer = game.players.find(p => p.id === playerId);
@@ -694,7 +705,7 @@ io.on('connection', (socket) => {
             game.activePromptDetails = {
                 selectedPrompt: prompt,
                 selectedPlayer: promptedPlayer,
-                isPromptAccepted: undefined
+                isPromptAccepted: null
             };
             io.to(gameId).emit('game_updated', game);
         } else if (!promptedPlayer && !prompt) {
@@ -707,7 +718,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('update_active_prompt_details', ({ gameId, details }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
         game.activePromptDetails = details;
         io.to(gameId).emit('game_updated', game);
@@ -715,10 +726,10 @@ io.on('connection', (socket) => {
 
     // Accept prompt
     socket.on('accept_prompt', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
-        if (game.activePromptDetails === undefined) return;
-        if (game.activePromptDetails.selectedPlayer === undefined) return;
+        if (game.activePromptDetails === null) return;
+        if (game.activePromptDetails.selectedPlayer === null) return;
         const promptedPlayer = game.players.find(p => p.id === game.activePromptDetails.selectedPlayer.id);
         game.activePromptDetails.isPromptAccepted = true;
         promptedPlayer.points += 2;
@@ -726,23 +737,23 @@ io.on('connection', (socket) => {
     });
 
     socket.on('possibly_return_to_prompt', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
-        if (game.activePromptDetails !== undefined) {
-            setAllPlayerModals(game, 'PromptPerformance');
+        if (game.activePromptDetails !== null) {
+            game = setAllPlayerModals(game, 'PromptPerformance');
         } else {
-            setAllPlayerModals(game, undefined);
+            game = setAllPlayerModals(game, null);
         }
         io.to(gameId).emit('game_updated', game);
     });
 
     // Shred rule
     socket.on('shred_rule', ({ gameId, ruleId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
         const rule = game.rules.find(r => r.id === ruleId);
         if (rule) {
-            rule.assignedTo = undefined;
+            rule.assignedTo = null;
             rule.isActive = false;
         }
         game.rules = game.rules.filter(r => r.id !== ruleId);
@@ -751,9 +762,9 @@ io.on('connection', (socket) => {
 
     // End prompt
     socket.on('end_prompt', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
-        game.activePromptDetails = undefined;
+        game.activePromptDetails = null;
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -761,7 +772,7 @@ io.on('connection', (socket) => {
 
     // Initiate clone rule
     socket.on('update_active_cloning_details', ({ gameId, details }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
         game.activeCloneRuleDetails = details;
         io.to(gameId).emit('game_updated', game);
@@ -769,7 +780,7 @@ io.on('connection', (socket) => {
 
     // Clone rule to player
     socket.on('clone_rule_to_player', ({ gameId, ruleId, targetPlayerId, authorId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const ruleToClone = game.rules.find(r => r.id === ruleId);
@@ -786,10 +797,10 @@ io.on('connection', (socket) => {
 
     // End clone rule
     socket.on('end_clone_rule', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
-        game.activeCloneRuleDetails = undefined;
-        setAllPlayerModals(game, undefined);
+        game.activeCloneRuleDetails = null;
+        game = setAllPlayerModals(game, null);
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -797,7 +808,7 @@ io.on('connection', (socket) => {
 
     // Update active flipping details
     socket.on('update_active_flipping_details', ({ gameId, details }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
         game.activeFlipRuleDetails = details;
         io.to(gameId).emit('game_updated', game);
@@ -805,17 +816,17 @@ io.on('connection', (socket) => {
 
     // End flip rule
     socket.on('end_flip_rule', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
-        game.activeFlipRuleDetails = undefined;
-        setAllPlayerModals(game, undefined);
+        game.activeFlipRuleDetails = null;
+        game = setAllPlayerModals(game, null);
         io.to(gameId).emit('game_updated', game);
     });
 
 
 
     socket.on('trigger_up_down_modifier', ({ gameId, direction }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
         game.activeUpDownRuleDetails = {
             direction,
@@ -827,7 +838,7 @@ io.on('connection', (socket) => {
 
     // Update active up/down details
     socket.on('update_active_up_down_details', ({ gameId, details }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         game.activeUpDownRuleDetails = details;
@@ -837,10 +848,10 @@ io.on('connection', (socket) => {
 
     // End up/down rule
     socket.on('end_up_down_rule', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
-        game.activeUpDownRuleDetails = undefined;
-        setAllPlayerModals(game, undefined);
+        game.activeUpDownRuleDetails = null;
+        game = setAllPlayerModals(game, null);
         io.to(gameId).emit('game_updated', game);
     });
 
@@ -849,9 +860,9 @@ io.on('connection', (socket) => {
     function navigatePlayersForSwapeeSelection(game, details) {
         game.players.forEach(player => {
             if (player.id === details.swapper.id) {
-                setPlayerModal(game, player.id, 'SwapActionTargetSelection');
+                game = setPlayerModal(game, player.id, 'SwapActionTargetSelection');
             } else {
-                setPlayerModal(game, player.id, "AwaitSwapTargetSelection")
+                game = setPlayerModal(game, player.id, "AwaitSwapTargetSelection")
             }
         });
     }
@@ -859,9 +870,9 @@ io.on('connection', (socket) => {
     function navigatePlayersForRuleSwapSelection(game, details) {
         game.players.forEach(player => {
             if (player.id === details.swapper.id) {
-                setPlayerModal(game, player.id, 'SwapActionRuleSelection');
+                game = setPlayerModal(game, player.id, 'SwapActionRuleSelection');
             } else {
-                setPlayerModal(game, player.id, "AwaitSwapRuleSelection")
+                game = setPlayerModal(game, player.id, "AwaitSwapRuleSelection")
             }
         });
     }
@@ -869,19 +880,19 @@ io.on('connection', (socket) => {
 
     // Update active swapping details
     socket.on('update_active_swapping_details', ({ gameId, details }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         game.activeSwapRuleDetails = details;
 
         console.log('game.activeSwapRuleDetails', game.activeSwapRuleDetails);
 
-        if (details.swappee === undefined) {
+        if (details.swappee === null) {
             navigatePlayersForSwapeeSelection(game, details);
-        } else if (details.swapperRule === undefined || details.swappeeRule === undefined) {
+        } else if (details.swapperRule === null || details.swappeeRule === null) {
             navigatePlayersForRuleSwapSelection(game, details);
         } else {
-            setAllPlayerModals(game, 'SwapRuleResolution');
+            game = setAllPlayerModals(game, 'SwapRuleResolution');
         }
 
         io.to(gameId).emit('game_updated', game);
@@ -889,16 +900,16 @@ io.on('connection', (socket) => {
 
     // End swap rule
     socket.on('end_swap_rule', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
-        game.activeSwapRuleDetails = undefined;
-        setAllPlayerModals(game, undefined);
+        game.activeSwapRuleDetails = null;
+        game = setAllPlayerModals(game, null);
         io.to(gameId).emit('game_updated', game);
     });
 
     // Swap rules
     socket.on('swap_rules', ({ gameId, player1Id, player1RuleId, player2Id, player2RuleId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const player1Rule = game.rules.find(r => r.id === player1RuleId);
@@ -915,7 +926,7 @@ io.on('connection', (socket) => {
     // Assign rule
     socket.on('assign_rule', ({ gameId, ruleId, playerId }) => {
         console.log('Server: Assigning rule:', ruleId, 'to player:', playerId, 'for game:', gameId);
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         const rule = game.rules.find(r => r.id === ruleId);
@@ -931,12 +942,12 @@ io.on('connection', (socket) => {
 
     // Broadcast navigation to screen
     socket.on('broadcast_navigate_to_screen', ({ gameId, screen, params }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
-        setAllPlayerModals(game, undefined);
+        let updatedGame = setAllPlayerModals(game, null);
 
-        // Broadcast to all players in the game (including sender for consistency)
+        io.to(gameId).emit('game_updated', updatedGame);
         io.to(gameId).emit('navigate_to_screen', {
             screen,
             params
@@ -945,7 +956,7 @@ io.on('connection', (socket) => {
 
     // End game
     socket.on('end_game', ({ gameId, winner }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
         game.gameEnded = true;
         game.winner = winner;
@@ -954,7 +965,7 @@ io.on('connection', (socket) => {
 
     // Broadcast end game continue
     socket.on('broadcast_end_game_continue', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         // Broadcast to all players in the game (including sender for consistency)
@@ -963,7 +974,7 @@ io.on('connection', (socket) => {
 
     // Broadcast end game end
     socket.on('broadcast_end_game_end', ({ gameId }) => {
-        const game = games.get(gameId);
+        let game = games.get(gameId);
         if (!game) return;
 
         // Broadcast to all players in the game (including sender for consistency)

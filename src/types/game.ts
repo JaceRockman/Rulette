@@ -6,16 +6,15 @@ export interface Player {
     isHost: boolean;
     rulesCompleted?: boolean;
     promptsCompleted?: boolean;
-    currentModal?: string; // Modal identifier for this player
+    currentModal?: string | null;
 }
 
 export interface Plaque {
     id: string;
     type: 'rule' | 'prompt' | 'modifier' | 'end';
     text: string;
-    category?: string;
-    assignedTo?: string; // player id
-    isActive?: boolean;
+    assignedTo?: string | null; // player id
+    isActive: boolean | null;
     plaqueColor: string;
     authorId: string; // player id who created this plaque
 }
@@ -50,31 +49,30 @@ export interface GameState {
     id: string;
     lobbyCode: string;
     players: Player[];
-    settings: GameSettings;
+    settings: GameSettings | null;
     rules: Rule[];
     prompts: Prompt[];
     modifiers: Modifier[];
     ends: End[];
     playerInputCompleted: boolean;
     wheelSegments: WheelSegment[];
-    wheelSpinDetails?: WheelSpinDetails;
+    wheelSpinDetails?: WheelSpinDetails | null;
     currentUser?: string; // The user ID of the person currently using the app
     activePlayer?: string; // The player ID of the player currently taking their turn (excludes host)
     selectedRule?: string; // The rule ID of the rule currently being selected
     selectedPlayerForAction?: string; // The player ID of the player currently being acted upon
-    activeAccusationDetails?: ActiveAccusationDetails;
-    activePromptDetails?: ActivePromptDetails;
-    activeCloneRuleDetails?: ActiveCloneRuleDetails;
-    activeFlipRuleDetails?: ActiveFlipRuleDetails;
-    activeSwapRuleDetails?: ActiveSwapRuleDetails;
-    activeUpDownRuleDetails?: ActiveUpDownRuleDetails;
+    activeAccusationDetails?: ActiveAccusationDetails | null;
+    activePromptDetails?: ActivePromptDetails | null;
+    activeCloneRuleDetails?: ActiveCloneRuleDetails | null;
+    activeFlipRuleDetails?: ActiveFlipRuleDetails | null;
+    activeSwapRuleDetails?: ActiveSwapRuleDetails | null;
+    activeUpDownRuleDetails?: ActiveUpDownRuleDetails | null;
     isGameStarted: boolean;
     isWheelSpinning: boolean;
     currentStack: StackItem[];
     roundNumber: number;
     gameEnded: boolean;
     winner?: Player;
-    globalModal?: string;
 }
 
 export interface GameSettings {
@@ -118,21 +116,21 @@ export interface ActivePromptDetails {
 
 export interface ActiveCloneRuleDetails {
     cloningPlayer: Player;
-    ruleToClone?: Rule;
-    targetPlayer?: Player;
+    ruleToClone: Rule | null;
+    targetPlayer: Player | null;
     cloningCompleted?: boolean;
 }
 
 export interface ActiveFlipRuleDetails {
     flippingPlayer: Player;
-    ruleToFlip?: Rule;
+    ruleToFlip: Rule | null;
 }
 
 export interface ActiveSwapRuleDetails {
     swapper: Player;
-    swapperRule?: Rule;
-    swappee?: Player;
-    swappeeRule?: Rule;
+    swapperRule: Rule | null;
+    swappee: Player | null;
+    swappeeRule: Rule | null;
 }
 
 export interface ActiveUpDownRuleDetails {

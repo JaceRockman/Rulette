@@ -14,7 +14,7 @@ interface RuleSelectionModalProps {
     rules: Rule[];
     description2?: string;
     rules2?: Rule[];
-    onAccept: (rule1: Rule, rule2?: Rule) => void;
+    onAccept: (rule1: Rule, rule2: Rule | null) => void;
     onClose?: () => void;
     cancelButtonText?: string;
 }

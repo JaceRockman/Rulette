@@ -15,7 +15,7 @@ import Plaque from '../components/Plaque';
 
 interface FlipTextInputModalProps {
     visible: boolean;
-    selectedRule: Rule | undefined;
+    selectedRule: Rule | null;
     onFlipRule: (rule: Rule, flippedText: string) => void;
     onClose?: () => void;
 }

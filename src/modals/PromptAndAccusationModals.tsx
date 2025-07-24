@@ -37,10 +37,10 @@ export const handleInitiateAccusation = ({ accusedPlayer, accusedRule, initiateA
 
 
 interface PromptAndAccusationModalsProps {
-    setCurrentModal: (modal: string | undefined) => void;
-    currentModal: string;
-    setSelectedRule: (rule: Rule | undefined) => void;
-    selectedRule: Rule | undefined;
+    setCurrentModal: (modal: string | null) => void;
+    currentModal: string | null;
+    setSelectedRule: (rule: Rule | null) => void;
+    selectedRule: Rule | null;
     currentUser: Player;
     selectedPlayerForAction: Player | null;
     onShredRule: (ruleId: string) => void;
@@ -67,8 +67,8 @@ export default function PromptAndAccusationModals(
                     socketService.setSelectedRule(rule.id);
                 }}
                 onClose={() => {
-                    setSelectedRule(undefined);
-                    setCurrentModal(undefined);
+                    setSelectedRule(null);
+                    setCurrentModal(null);
                 }}
             />
 
@@ -82,7 +82,7 @@ export default function PromptAndAccusationModals(
                 }
                 onAccept={() => {
                     socketService.assignRule(gameState?.selectedRule!, selectedPlayerForAction!.id);
-                    socketService.setAllPlayerModals(undefined);
+                    socketService.setAllPlayerModals(null);
                     socketService.setSelectedRule(null);
                 }}
                 acceptButtonDisplayed={currentUser?.id === selectedPlayerForAction?.id}
@@ -93,10 +93,10 @@ export default function PromptAndAccusationModals(
             {/* Rule Details Modal */}
             <RuleDetailsModal
                 visible={currentModal === 'RuleDetails'}
-                rule={selectedRule}
+                rule={selectedRule || null}
                 viewingPlayer={currentUser}
                 viewedPlayer={gameState?.players.find(player => player.id === selectedRule?.assignedTo) || null}
-                isAccusationInProgress={gameState?.activeAccusationDetails !== undefined && gameState?.activeAccusationDetails?.accusationAccepted === undefined}
+                isAccusationInProgress={gameState?.activeAccusationDetails !== null && gameState?.activeAccusationDetails?.accusationAccepted === null}
                 onAccuse={
                     (accusationDetails: ActiveAccusationDetails) => {
                         socketService.initiateAccusation(accusationDetails);
@@ -104,11 +104,11 @@ export default function PromptAndAccusationModals(
                     }
                 }
                 onClose={() => {
-                    setSelectedRule(undefined);
-                    if (gameState?.activePromptDetails !== undefined) {
+                    setSelectedRule(null);
+                    if (gameState?.activePromptDetails !== null) {
                         setCurrentModal('PromptPerformance');
                     } else {
-                        setCurrentModal(undefined);
+                        setCurrentModal(null);
                     }
                 }}
             />
@@ -125,7 +125,7 @@ export default function PromptAndAccusationModals(
                 }}
                 onDecline={() => {
                     socketService.endAccusation();
-                    socketService.setAllPlayerModals(undefined);
+                    socketService.setAllPlayerModals(null);
                     socketService.possiblyReturnToPrompt();
                 }}
             />
@@ -138,7 +138,7 @@ export default function PromptAndAccusationModals(
                 rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeAccusationDetails?.accuser.id) || []}
                 onAccept={(rule: Rule) => {
                     socketService.assignRule(rule.id, gameState?.activeAccusationDetails?.accused.id!);
-                    // endAccusation resets players modal to undefined
+                    // endAccusation resets players modal to null
                     socketService.endAccusation();
                     socketService.possiblyReturnToPrompt();
                 }}
@@ -171,7 +171,7 @@ export default function PromptAndAccusationModals(
                     socketService.setAllPlayerModals("PromptPerformance");
                 }}
                 onClose={() => {
-                    setCurrentModal(undefined);
+                    setCurrentModal(null);
                 }}
             />
 
@@ -192,14 +192,14 @@ export default function PromptAndAccusationModals(
                     } else {
                         onFinishPrompt(() => {
                             socketService.endPrompt();
-                            socketService.setAllPlayerModals(undefined);
+                            socketService.setAllPlayerModals(null);
                         });
                     }
                 }}
                 onFailure={() => {
                     onFinishPrompt(() => {
                         socketService.endPrompt();
-                        socketService.setAllPlayerModals(undefined);
+                        socketService.setAllPlayerModals(null);
                     });
                 }}
             />
@@ -210,7 +210,7 @@ export default function PromptAndAccusationModals(
                 onShredRule={onShredRule}
             // onSkip={() => {
             //     onFinishPrompt(() => {
-            //         socketService.setAllPlayerModals(gameState?.id!, undefined);
+            //         socketService.setAllPlayerModals(gameState?.id!, null);
             //         socketService.endPrompt();
             //     });
             // }}

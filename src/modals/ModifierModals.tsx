@@ -12,8 +12,8 @@ import socketService from "../services/socketService";
 
 interface InitiateCloneProps {
     cloningPlayer: Player;
-    playerRules: Rule[] | undefined;
-    triggerCloneModifier: (cloningPlayer: Player, rule?: Rule) => void;
+    playerRules: Rule[];
+    triggerCloneModifier: (cloningPlayer: Player, rule: Rule | null) => void;
 }
 
 export const initiateClone = ({ cloningPlayer, playerRules = [], triggerCloneModifier }: InitiateCloneProps) => {
@@ -21,7 +21,7 @@ export const initiateClone = ({ cloningPlayer, playerRules = [], triggerCloneMod
     if (playerRules.length === 1) {
         triggerCloneModifier(cloningPlayer, playerRules[0]);
     } else if (playerRules.length > 0) {
-        triggerCloneModifier(cloningPlayer);
+        triggerCloneModifier(cloningPlayer, null);
     } else {
         Alert.alert('No Rules to Clone', `${cloningPlayer.name} has no assigned rules to clone.`);
         return 'failed';
@@ -30,8 +30,8 @@ export const initiateClone = ({ cloningPlayer, playerRules = [], triggerCloneMod
 
 interface InitiateFlipProps {
     flippingPlayer: Player;
-    playerRules: Rule[] | undefined;
-    triggerFlipModifier: (flippingPlayer: Player, rule?: Rule) => void;
+    playerRules: Rule[];
+    triggerFlipModifier: (flippingPlayer: Player, rule: Rule | null) => void;
 }
 
 export const initiateFlip = ({ flippingPlayer, playerRules = [], triggerFlipModifier }: InitiateFlipProps) => {
@@ -39,7 +39,7 @@ export const initiateFlip = ({ flippingPlayer, playerRules = [], triggerFlipModi
     if (playerRules.length === 1) {
         triggerFlipModifier(flippingPlayer, playerRules[0]);
     } else if (playerRules.length > 0) {
-        triggerFlipModifier(flippingPlayer);
+        triggerFlipModifier(flippingPlayer, null);
     } else {
         Alert.alert('No Rules to Flip', `${flippingPlayer.name} has no assigned rules to flip.`);
         return 'failed';
@@ -49,14 +49,14 @@ export const initiateFlip = ({ flippingPlayer, playerRules = [], triggerFlipModi
 
 interface InitiateSwapProps {
     swappingPlayer: Player;
-    playerRules: Rule[] | undefined;
-    triggerSwapModifier: (swappingPlayer: Player) => void;
+    playerRules: Rule[];
+    triggerSwapModifier: (swappingPlayer: Player, rule: Rule | null) => void;
 }
 
 export const initiateSwap = ({ swappingPlayer, playerRules = [], triggerSwapModifier }: InitiateSwapProps) => {
     // Check if player has rules to swap
     if (playerRules.length > 0) {
-        triggerSwapModifier(swappingPlayer);
+        triggerSwapModifier(swappingPlayer, playerRules[0]);
     } else {
         Alert.alert('No Rules to Swap', `${swappingPlayer.name} has no assigned rules to swap.`);
         return 'failed';
@@ -75,9 +75,9 @@ export const initiateUpDown = ({ direction, triggerUpDownModifier }: InitiateUpD
 
 
 interface ModifierModalsProps {
-    setCurrentModal: (modal: string | undefined) => void;
-    currentModal: string;
-    currentUser: Player;
+    setCurrentModal: (modal: string | null) => void;
+    currentModal: string | null;
+    currentUser: Player | null;
     onFinishModifier: (sideEffects?: () => void) => void;
 }
 
@@ -105,7 +105,7 @@ export default function ModifierModals(
         if (!gameState) return;
         updateActiveCloningDetails({
             ...gameState.activeCloneRuleDetails!,
-            ruleToClone: undefined
+            ruleToClone: null
         });
         gameState.players.forEach(player => {
             if (player.id === gameState.activeCloneRuleDetails?.cloningPlayer.id) {
@@ -136,7 +136,7 @@ export default function ModifierModals(
             if (playerRules.length === 1) {
                 triggerFlipModifier(flipper, playerRules[0]);
             } else if (playerRules.length > 0) {
-                triggerFlipModifier(flipper);
+                triggerFlipModifier(flipper, null);
             } else {
                 Alert.alert('No Rules to Flip', `${flipper.name} has no assigned rules to flip.`);
                 return 'failed';
@@ -181,7 +181,7 @@ export default function ModifierModals(
         if (!gameState) return;
         updateActiveSwappingDetails({
             ...gameState.activeSwapRuleDetails!,
-            swappee: undefined
+            swappee: null
         });
         gameState.players.forEach(player => {
             if (player.id === gameState.activeSwapRuleDetails?.swapper.id) {
@@ -192,7 +192,7 @@ export default function ModifierModals(
         })
     };
 
-    const confirmRulesForSwapping = (swapperRule: Rule, swappeeRule?: Rule) => {
+    const confirmRulesForSwapping = (swapperRule: Rule, swappeeRule: Rule | null) => {
         console.log('confirmRulesForSwapping', swapperRule, swappeeRule);
         if (!gameState) return;
         updateActiveSwappingDetails({
@@ -256,7 +256,7 @@ export default function ModifierModals(
         };
 
         updateActiveUpDownDetails(updatedDetails);
-        socketService.setPlayerModal(currentUser.id, "AwaitUpDownRuleSelection");
+        socketService.setPlayerModal(currentUser!.id, "AwaitUpDownRuleSelection");
     };
 
 
@@ -268,14 +268,14 @@ export default function ModifierModals(
             const playerHasRules = gameState?.rules.some(rule => rule.assignedTo === player.id);
             const selectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[player.id];
             const playerToPassTo = getPlayerToPassTo(player, gameState?.activeUpDownRuleDetails?.direction || 'up');
-            if (selectedRule === undefined) {
+            if (selectedRule === null) {
                 if (playerHasRules) {
                     Alert.alert('Not All Players Selected', `Player ${player.name} has not selected a rule to pass.`);
                 } else {
                     return;
                 }
             } else {
-                assignRule(selectedRule.id, playerToPassTo?.id || player.id);
+                assignRule(selectedRule!.id, playerToPassTo?.id || player.id);
             }
         });
         endUpDownRule();
@@ -288,45 +288,6 @@ export default function ModifierModals(
         }) || [];
         return Object.values(gameState?.activeUpDownRuleDetails?.selectedRules || {}).length !== playersWithRulesToPass.length;
     }
-
-    // React.useEffect(() => {
-    //     if (!gameState || gameState?.activeCloneRuleDetails === undefined || gameState?.activeCloneRuleDetails === null || gameState?.activePlayer === undefined) return;
-    //     console.log('modifier modals', gameState?.activeCloneRuleDetails);
-
-    //     const currentPlayerIsCloning = gameState?.activeCloneRuleDetails?.cloningPlayer.id === currentUser?.id;
-    //     if (currentPlayerIsCloning) {
-    //         if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
-    //             if (currentUser) setPlayerModal(currentUser.id, 'CloneActionRuleSelection');
-    //         } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
-    //             if (currentUser) setPlayerModal(currentUser.id, 'CloneActionTargetSelection');
-    //         } else {
-    //             if (currentUser) setPlayerModal(currentUser.id, 'CloneActionResolution');
-    //         }
-    //     } else {
-    //         if (gameState?.activeCloneRuleDetails?.ruleToClone === undefined) {
-    //             if (currentUser) setPlayerModal(currentUser.id, 'AwaitCloneRuleSelection');
-    //         } else if (gameState?.activeCloneRuleDetails?.targetPlayer === undefined) {
-    //             if (currentUser) setPlayerModal(currentUser.id, 'AwaitCloneTargetSelection');
-    //         } else {
-    //             if (currentUser) setPlayerModal(currentUser.id, 'CloneActionResolution');
-    //         }
-    //     }
-    // }, [gameState?.activeCloneRuleDetails]);
-
-    // React.useEffect(() => {
-    //     if (!gameState || gameState?.activeUpDownRuleDetails === undefined) return;
-
-    //     const currentPlayerHasSelectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[currentUser?.id];
-    //     const currentPlayerHasRules = gameState?.rules.filter(rule => rule.assignedTo === currentUser?.id).length > 0;
-
-    //     if (currentUser?.isHost || currentPlayerHasSelectedRule || !currentPlayerHasRules) {
-    //         setCurrentModal('AwaitUpDownSelection');
-    //     } else {
-    //         setCurrentModal('UpDownRuleSelection');
-    //     }
-    // }, [gameState?.activeUpDownRuleDetails]);
-
-
 
     return (
         <>
@@ -414,7 +375,7 @@ export default function ModifierModals(
             {/* Flip Text Input Modal */}
             <FlipTextInputModal
                 visible={currentModal === 'FlipRuleTextInput'}
-                selectedRule={gameState?.activeFlipRuleDetails?.ruleToFlip || undefined}
+                selectedRule={gameState?.activeFlipRuleDetails?.ruleToFlip || null}
                 onFlipRule={
                     (rule, flippedText) => {
                         onFinishModifier(() => {

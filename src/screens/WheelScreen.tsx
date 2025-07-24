@@ -10,6 +10,7 @@ import Backdrop from '../components/Backdrop';
 import { Modifier, Prompt, Rule, WheelSegment as WheelSegmentType, WheelSpinDetails } from '../types/game';
 import Plaque from '../components/Plaque';
 import PromptAndAccusationModals from '../modals/PromptAndAccusationModals';
+import { useNavigation } from '@react-navigation/native';
 
 const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
@@ -17,6 +18,7 @@ const VISIBLE_ITEMS = 5;
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList) as unknown as typeof FlatList<WheelSegmentType>;
 
 export default function WheelScreen() {
+    const navigation = useNavigation();
     const { gameState, currentUser, assignRule, givePrompt, endGame,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
     const [currentWheelIndex, setCurrentWheelIndex] = useState<number>(0);
@@ -24,16 +26,17 @@ export default function WheelScreen() {
     const scrollY = useRef(new Animated.Value(0)).current;
     const currentScrollOffset = useRef(0);
 
-    const [currentModal, setCurrentModal] = useState<string | undefined>(undefined);
-    const [selectedRule, setSelectedRule] = useState<Rule | undefined>(undefined);
+    // const [currentModal, setCurrentModal] = useState<string | null>(null);
+    const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
 
-    const logSetCurrentModal = (modal: string | undefined) => {
-        // console.log('WheelScreen: currentModal', modal);
-        setCurrentModal(modal);
+    const currentModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
+    const setCurrentModal = (modal: string | null) => {
+        socketService.setPlayerModal(currentUser?.id || '', modal);
     }
-    const logSetSelectedRule = (rule: Rule | undefined) => {
-        // console.log('WheelScreen: selectedRule', rule);
-        setSelectedRule(rule);
+
+    const logSetCurrentModal = (modal: string | null) => {
+        console.log('WheelScreen: currentModal', modal);
+        setCurrentModal(modal);
     }
 
 
@@ -45,13 +48,16 @@ export default function WheelScreen() {
         ...segments.slice(0, Math.floor(VISIBLE_ITEMS / 2)),
     ];
 
+    console.log('currentUser', currentUser);
+    const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
+
     // Update local state to current modal based on game state
     React.useEffect(() => {
+        console.log('WheelScreen: modal updated', gameState?.players.find(player => player.id === currentUser?.id)?.currentModal);
         const playerModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
-        const globalModal = gameState?.globalModal;
-        setSelectedRule(undefined);
-        logSetCurrentModal(playerModal || globalModal);
-    }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal, gameState?.globalModal]);
+        setSelectedRule(null);
+        logSetCurrentModal(playerModal || null);
+    }, [playerModal, navigation]);
 
     // Initiate a spin (only active player or host)
     const initiateSpin = () => {
@@ -78,15 +84,15 @@ export default function WheelScreen() {
 
     // Listen for synchronized wheel spin events
     useEffect(() => {
-        if (gameState?.wheelSpinDetails !== undefined && gameState?.wheelSpinDetails?.spinCompleted !== true) {
+        if (gameState?.wheelSpinDetails !== null && gameState?.wheelSpinDetails?.spinCompleted !== true) {
             performSynchronizedSpin();
         }
     }, [gameState?.wheelSpinDetails]);
 
     const performSynchronizedSpin = () => {
-        if (!gameState || gameState.wheelSpinDetails === undefined || gameState.wheelSpinDetails?.spinCompleted === true) return;
+        if (!gameState || gameState.wheelSpinDetails === null || gameState.wheelSpinDetails?.spinCompleted === true) return;
 
-        const { finalIndex, scrollAmount, duration } = gameState.wheelSpinDetails;
+        const { finalIndex, scrollAmount, duration } = gameState.wheelSpinDetails as WheelSpinDetails;
 
         // Animate the scroll with a "spin" effect - always go top to bottom
         Animated.timing(scrollY, {
@@ -153,7 +159,7 @@ export default function WheelScreen() {
         if (!gameState) return;
         switch (modifier?.text) {
             case 'Clone':
-                if (initiateClone({ cloningPlayer: activePlayer, playerRules, triggerCloneModifier: triggerCloneModifier }) === 'failed') {
+                if (initiateClone({ cloningPlayer: activePlayer, playerRules: playerRules || [], triggerCloneModifier: triggerCloneModifier }) === 'failed') {
                     finishWheelSpin();
                 } else if (currentUser?.id === activePlayer?.id) {
                     socketService.setPlayerModal(currentUser.id, "CloneActionRuleSelection");
@@ -162,7 +168,7 @@ export default function WheelScreen() {
                 }
                 break;
             case 'Flip':
-                if (initiateFlip({ flippingPlayer: activePlayer, playerRules, triggerFlipModifier: triggerFlipModifier }) === 'failed') {
+                if (initiateFlip({ flippingPlayer: activePlayer, playerRules: playerRules || [], triggerFlipModifier: triggerFlipModifier }) === 'failed') {
                     finishWheelSpin();
                 } else if (currentUser?.id === activePlayer?.id) {
                     socketService.setPlayerModal(currentUser.id, "FlipActionRuleSelection");
@@ -171,7 +177,7 @@ export default function WheelScreen() {
                 }
                 break;
             case 'Swap':
-                if (initiateSwap({ swappingPlayer: activePlayer, playerRules, triggerSwapModifier: triggerSwapModifier }) === 'failed') {
+                if (initiateSwap({ swappingPlayer: activePlayer, playerRules: playerRules || [], triggerSwapModifier: triggerSwapModifier }) === 'failed') {
                     finishWheelSpin();
                 } else if (currentUser?.id === activePlayer?.id) {
                     socketService.setPlayerModal(currentUser.id, "SwapActionTargetSelection");
@@ -237,7 +243,7 @@ export default function WheelScreen() {
             flatListRef.current?.scrollToOffset({ offset, animated: false });
 
             // Reset scrollY when it gets too large, but only when not spinning
-            if (gameState?.wheelSpinDetails === undefined && value > segments.length * ITEM_HEIGHT * 10) {
+            if (gameState?.wheelSpinDetails === null && value > segments.length * ITEM_HEIGHT * 10) {
                 const resetValue = value % (segments.length * ITEM_HEIGHT);
                 scrollY.setValue(resetValue);
                 currentScrollOffset.current = resetValue;
@@ -247,18 +253,11 @@ export default function WheelScreen() {
     }, [scrollY, gameState?.wheelSpinDetails?.spinCompleted]);
 
     const finishWheelSpin = (sideEffects?: () => void) => {
-        console.log('finishWheelSpin');
-        // console.log('finishWheelSpin');
-        // console.log('wheel state', { currentWheelIndex, scrollY, currentScrollOffset, currentModal, selectedRule });
 
-        // Use the centralized server-side approach
+        socketService.setAllPlayerModals(null);
+        socketService.broadcastNavigateToScreen('Game');
         socketService.completeWheelSpin(gameState?.wheelSpinDetails?.spunSegmentId);
-
-        console.log('finishWheelSpin: sideEffects', sideEffects);
-
-        // Reset local state
         setCurrentWheelIndex(0);
-        setCurrentModal(undefined);
 
         if (typeof sideEffects === 'function') {
             sideEffects();
@@ -268,39 +267,11 @@ export default function WheelScreen() {
     const shredRule = (ruleId: string) => {
         console.log('shredRule', ruleId);
         finishWheelSpin(() => {
-            socketService.setAllPlayerModals(undefined);
+            socketService.setAllPlayerModals(null);
             socketService.shredRule(ruleId);
             socketService.endPrompt();
         });
     }
-
-
-    // Interrupt prompts with accusations but be able to return to the prompt performance modal
-    // React.useEffect(() => {
-    //     // console.log('UseEffect: prompt, accusation, or rule updated', gameState?.activePromptDetails)
-    //     if (selectedRule) {
-    //         setCurrentModal('RuleDetails');
-    //         return;
-    //     }
-    //     if (gameState?.activePromptDetails !== undefined && gameState?.activeAccusationDetails === undefined) {
-    //         if (!gameState?.activePromptDetails?.isPromptAccepted) {
-    //             setCurrentModal('PromptPerformance');
-    //         } else {
-    //             setCurrentModal('PromptResolution');
-    //         }
-    //     }
-    // }, [gameState?.activePromptDetails, gameState?.activeAccusationDetails, selectedRule]);
-
-    // useEffect(() => {
-    //     // console.log('UseEffect: accusation updated')
-    //     if (gameState?.activeAccusationDetails?.accusationAccepted) {
-    //         if (gameState?.activeAccusationDetails?.accuser?.id === currentUser?.id) {
-    //             setCurrentModal('SuccessfulAccusationRuleSelection');
-    //         } else {
-    //             setCurrentModal('AwaitAccusationRuleSelection');
-    //         }
-    //     }
-    // }, [gameState?.activeAccusationDetails?.accusationAccepted]);
 
     const getPlaqueForCurrentSegment = () => {
         if (!gameState || !gameState.wheelSpinDetails || !gameState.wheelSegments) return null;
@@ -338,7 +309,7 @@ export default function WheelScreen() {
                         renderItem={({ item }) => (
                             <WheelSegment plaque={item.layers[item.currentLayerIndex]} color={item.segmentColor} />
                         )}
-                        scrollEnabled={canSpin && gameState?.wheelSpinDetails === undefined || false}
+                        scrollEnabled={canSpin && gameState?.wheelSpinDetails === null || false}
                         style={{
                             height: ITEM_HEIGHT * VISIBLE_ITEMS,
                             width: '100%',
@@ -396,8 +367,8 @@ export default function WheelScreen() {
                         endGame();
                     }}
                     onClose={() => {
-                        socketService.setAllPlayerModals(undefined);
-                        socketService.updateWheelSpinDetails(undefined);
+                        socketService.setAllPlayerModals(null);
+                        socketService.updateWheelSpinDetails(null);
                     }}
                 />
 
