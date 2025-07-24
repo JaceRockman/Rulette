@@ -74,6 +74,11 @@ export default function PromptSelectionModal({
                     </ScrollView>
 
                     <View style={shared.buttonContainer}>
+                        <SecondaryButton title={cancelButtonText} onPress={() => {
+                            setSelectedPrompt(null);
+                            onClose();
+                        }} />
+
                         <PrimaryButton title="Accept"
                             onPress={() => {
                                 onAccept(selectedPrompt || null);
@@ -81,11 +86,6 @@ export default function PromptSelectionModal({
                             }}
                             buttonStyle={{ opacity: selectedPrompt ? 1 : 0.3 }}
                             disabled={!selectedPrompt} />
-
-                        <SecondaryButton title={cancelButtonText} onPress={() => {
-                            setSelectedPrompt(null);
-                            onClose();
-                        }} />
                     </View>
                 </View>
             </SafeAreaView>

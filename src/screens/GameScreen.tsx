@@ -25,6 +25,8 @@ import ModifierModals from '../modals/ModifierModals';
 import { initiateClone, initiateFlip, initiateSwap, initiateUpDown } from '../modals/ModifierModals';
 import PromptAndAccusationModals from '../modals/PromptAndAccusationModals';
 
+import { SCREEN_WIDTH } from '../shared/styles';
+
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
@@ -320,10 +322,16 @@ export default function GameScreen() {
     };
 
     const playerCardComponent = (player: Player) => {
+        const isActivePlayer = gameState?.activePlayer === player.id;
+        console.log("isActivePlayer", isActivePlayer)
+
         return (
             <TouchableOpacity
                 key={player.id}
-                style={styles.playerCard}
+                style={[
+                    styles.playerCard,
+                    isActivePlayer && { borderColor: 'green', borderWidth: 4 }
+                ]}
                 onPress={() => handlePlayerTap(player)}
                 activeOpacity={currentUser?.isHost && player.id !== currentUser.id ? 0.7 : 1}>
                 <Text style={styles.playerName}>
@@ -367,6 +375,12 @@ export default function GameScreen() {
     const finishModifier = (sideEffects?: () => void) => {
         setCurrentModal(undefined);
         sideEffects?.();
+    }
+
+    const sortPlayersByTopPlayer = (nonHostPlayers: Player[], topPlayer: Player | undefined) => {
+        if (!topPlayer) return nonHostPlayers;
+        const topPlayerIndex = nonHostPlayers.findIndex(player => player.id === topPlayer.id);
+        return [...nonHostPlayers.slice(topPlayerIndex), ...nonHostPlayers.slice(0, topPlayerIndex)];
     }
 
     // Show game over screen if game has ended
@@ -448,58 +462,52 @@ export default function GameScreen() {
                 <ScrollView style={styles.scrollView} contentContainerStyle={{ flexGrow: 1, paddingTop: 100 }} showsVerticalScrollIndicator={false}>
 
                     {/* Host Section */}
-                    {gameState.players.find(player => player.isHost) && (
-                        <View style={shared.section}>
-                            <OutlinedText>Host</OutlinedText>
-                            {gameState.players.filter(player => player.isHost).map((player) => (
-                                <TouchableOpacity
-                                    key={player.id}
-                                    style={styles.playerCard}
-                                    onPress={() => handlePlayerTap(player)}
-                                    activeOpacity={currentUser?.isHost && player.id !== currentUser.id ? 0.7 : 1}
-                                >
-                                    <Text style={styles.playerName}>
-                                        {player.name}
-                                    </Text>
+                    <View style={shared.section}>
+                        <OutlinedText>Host</OutlinedText>
+                        {gameState.players.filter(player => player.isHost).map((player) => (
+                            <TouchableOpacity
+                                key={player.id}
+                                style={[
+                                    styles.playerCard,
+                                    (gameState?.activePlayer === player.id) && { borderColor: 'green', borderWidth: 4 }
+                                ]}
+                                onPress={() => handlePlayerTap(player)}
+                                activeOpacity={currentUser?.isHost && player.id !== currentUser.id ? 0.7 : 1}
+                            >
+                                <Text style={styles.playerName}>
+                                    {player.name}
+                                </Text>
 
-                                    {/* Player's Assigned Rules */}
-                                    {playerRulesComponent(player)}
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                                {/* Player's Assigned Rules */}
+                                {playerRulesComponent(player)}
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    {currentUser?.isHost && (
+                        <PrimaryButton
+                            buttonStyle={styles.spinWheelButton}
+                            textStyle={styles.spinWheelButtonText}
+                            title="Spin That Wheel!"
+                            onPress={() => socketService.broadcastNavigateToScreen('Wheel')}
+                        />
                     )}
 
                     {/* Players Section */}
-                    {gameState.players.filter(player => !player.isHost).length > 0 && (
-                        <View style={styles.section}>
-                            <OutlinedText>Players</OutlinedText>
-                            {(() => {
-                                // Get non-host players
-                                const nonHostPlayers = gameState.players.filter(player => !player.isHost);
-                                const currentUserIndex = nonHostPlayers.findIndex(p => p.id === currentUser?.id);
+                    <View style={styles.section}>
+                        <OutlinedText>Players</OutlinedText>
+                        {(() => {
+                            const topPlayer = currentUser?.isHost ? gameState.players.find(player => player.id === gameState.activePlayer) : currentUser;
 
-                                const sortedPlayers = currentUser?.isHost ? nonHostPlayers : [
-                                    currentUser, // Current user first
-                                    ...nonHostPlayers.slice(currentUserIndex + 1),
-                                    ...nonHostPlayers.slice(0, currentUserIndex)
-                                ];
+                            const sortedPlayers = sortPlayersByTopPlayer(nonHostPlayers, topPlayer)
 
-                                return sortedPlayers.map((player) => (
-                                    playerCardComponent(player)
-                                ));
-                            })()}
-                        </View>
-                    )}
+                            return sortedPlayers.map((player) => (
+                                playerCardComponent(player)
+                            ));
+                        })()}
+                    </View>
 
-                    {currentUser?.isHost && (
-                        <View style={{ marginTop: 20, marginBottom: 20 }}>
-                            <PrimaryButton
-                                title="Spin That Wheel!"
-                                onPress={() => socketService.broadcastNavigateToScreen('Wheel')}
-                            />
-                        </View>
-                    )
-                    }
+
                 </ScrollView>
 
 
@@ -581,6 +589,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     section: {
+        alignItems: 'center',
         marginBottom: 30,
     },
     sectionTitle: {
@@ -600,7 +609,20 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontStyle: 'italic',
     },
+    spinWheelButton: {
+        width: '50%',
+        height: 100,
+        alignSelf: 'center',
+        borderWidth: 4,
+    },
+    spinWheelButtonText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#1f2937',
+        alignSelf: 'center',
+    },
     playerCard: {
+        width: SCREEN_WIDTH * 0.85,
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 12,
         padding: 16,
@@ -613,7 +635,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     playerName: {
-        fontSize: 18,
+        fontSize: 30,
         fontWeight: 'bold',
         color: '#1f2937',
         marginBottom: 8,
