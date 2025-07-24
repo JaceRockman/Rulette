@@ -33,9 +33,6 @@ export const handleInitiateAccusation = ({ accusedPlayer, accusedRule, initiateA
     }
 };
 
-
-
-
 interface PromptAndAccusationModalsProps {
     setCurrentModal: (modal: string | null) => void;
     currentModal: string | null;
@@ -52,6 +49,8 @@ export default function PromptAndAccusationModals(
 
     const { gameState } = useGame();
 
+    const accuserHasRules = gameState?.rules.some(rule => rule.assignedTo === gameState?.activeAccusationDetails?.accuser.id);
+    console.log('accuserHasRules', accuserHasRules);
 
     return (
         <>
@@ -151,7 +150,7 @@ export default function PromptAndAccusationModals(
 
             {/* Wait For Rule Selection Modal */}
             <SimpleModal
-                visible={currentModal === 'WaitForRuleSelection'}
+                visible={currentModal === 'AwaitRuleSelection'}
                 title={`Accusation Accepted!`}
                 description={`Waiting for ${gameState?.activeAccusationDetails?.accuser.name} to select a rule to give to ${gameState?.activeAccusationDetails?.accused.name}...`}
             />

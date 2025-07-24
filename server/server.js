@@ -244,31 +244,33 @@ io.on('connection', (socket) => {
         let game = games.get(gameId);
         if (!game) return;
 
+        let updatedGame = game;
+
         if (plaque.type === 'rule') {
             const rule = {
                 ...plaque,
                 isActive: true,
                 assignedTo: null
             };
-            const updatedGame = { ...game, rules: [...game.rules, rule] };
+            updatedGame = { ...game, rules: [...game.rules, rule] };
             games.set(gameId, updatedGame);
         } else if (plaque.type === 'prompt') {
             const prompt = {
                 ...plaque
             };
-            const updatedGame = { ...game, prompts: [...game.prompts, prompt] };
+            updatedGame = { ...game, prompts: [...game.prompts, prompt] };
             games.set(gameId, updatedGame);
         } else if (plaque.type === 'modifier') {
             const modifier = {
                 ...plaque
             };
-            const updatedGame = { ...game, modifiers: [...game.modifiers, modifier] };
+            updatedGame = { ...game, modifiers: [...game.modifiers, modifier] };
             games.set(gameId, updatedGame);
         } else if (plaque.type === 'end') {
             const end = {
                 ...plaque
             };
-            const updatedGame = { ...game, ends: [...game.ends, end] };
+            updatedGame = { ...game, ends: [...game.ends, end] };
             games.set(gameId, updatedGame);
         }
 
@@ -518,7 +520,7 @@ io.on('connection', (socket) => {
         const accusedId = game.activeAccusationDetails.accused.id;
 
         // Update points immutably
-        let newPlayers = game.players.map(player => {
+        let updatedPlayers = game.players.map(player => {
             if (player.id === accuserId) {
                 return { ...player, points: player.points + 1 };
             }
@@ -530,8 +532,7 @@ io.on('connection', (socket) => {
 
         let updatedGame = {
             ...game,
-            players: newPlayers,
-            activeAccusationDetails: null
+            players: updatedPlayers
         };
 
         // Modal logic (all immutable)

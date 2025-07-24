@@ -4,6 +4,7 @@ TODOs
 - Fix player and host input workflow
 - Fix Game Over workflow
 - Fix the "X" in the navigator header
+- Improve player disconnect workflow to prevent server crash
 
 Nice to Haves
 
