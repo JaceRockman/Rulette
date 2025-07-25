@@ -13,6 +13,7 @@ export const colors = {
     gameChangerMaroon: '#b6475e',
     gameChangerWhite: '#fff',
     gameChangerBlack: '#000',
+    gameChangerGray: '#202020',
 
     // Neutral colors
     black: '#000',

@@ -5,11 +5,12 @@ TODOs
 - Fix Game Over workflow
 - Fix the "X" in the navigator header
 - Improve player disconnect workflow to prevent server crash
+- Setting for modifiers applying to the host
+- Give the host a "Host the Show" Plaque
 
 Nice to Haves
 
 - Make settings a dropdown
 - Expand the settings to include:
-    - Modifier can apply to host
     - Different Swap Logic
-    - 
+- Cooler animations, like for flip!

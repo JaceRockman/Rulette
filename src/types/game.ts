@@ -17,6 +17,7 @@ export interface Plaque {
     isActive: boolean | null;
     plaqueColor: string;
     authorId: string; // player id who created this plaque
+    isFlipped?: boolean;
 }
 
 export interface Prompt extends Plaque {

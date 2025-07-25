@@ -20,12 +20,13 @@ export default function Plaque({ plaque, concealed, style, onPress, selected }: 
                 styles.plaqueBack,
                 onPress && styles.selectablePlaque,
                 selected && styles.selectedPlaque,
-                { backgroundColor: plaque?.plaqueColor },
+                { backgroundColor: plaque.isFlipped ? colors.gameChangerGray : plaque.plaqueColor },
                 style
             ]}>
                 <Text style={[styles.plaqueText,
                 plaque?.type === 'modifier' && { color: colors.gameChangerWhite },
-                plaque?.type === 'end' && { color: colors.gameChangerWhite }
+                plaque?.type === 'end' && { color: colors.gameChangerWhite },
+                plaque?.isFlipped && { color: plaque.plaqueColor }
                 ]}
                     numberOfLines={3}>
                     {concealed ? plaque?.type.toUpperCase() : plaque?.text}
@@ -52,7 +53,7 @@ const styles = StyleSheet.create({
         margin: '2%',
     },
     plaqueBack: {
-        width: '100%',
+        minWidth: '100%',
         minHeight: 100,
         borderRadius: 15,
         borderWidth: 3,

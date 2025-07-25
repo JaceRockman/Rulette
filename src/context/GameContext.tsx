@@ -484,12 +484,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.addPlaque(plaque);
     };
 
-    const updatePlaque = (type: 'rule' | 'prompt', id: string, text: string) => {
+    const updatePlaque = (type: 'rule' | 'prompt', id: string, text: string, isGettingFlipped?: boolean) => {
         if (type === 'rule') {
             const existingRule = gameState?.rules.find(r => r.id === id);
             if (!existingRule) throw new Error('Rule not found');
 
-            const updatedPlaque = { ...existingRule, text: text };
+            const flippedState = isGettingFlipped ? !existingRule.isFlipped : existingRule.isFlipped;
+
+            const updatedPlaque = { ...existingRule, text: text, isFlipped: flippedState };
 
             socketService.updatePlaque(updatedPlaque);
         } else {
@@ -516,8 +518,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         createPlaque('rule', authorId, text, plaqueColor);
     };
 
-    const updateRule = (id: string, text: string) => {
-        updatePlaque('rule', id, text);
+    const updateRule = (id: string, text: string, isGettingFlipped?: boolean) => {
+        updatePlaque('rule', id, text, isGettingFlipped);
     };
 
     const assignRule = (ruleId: string, playerId: string) => {
@@ -575,7 +577,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const flipRule = (rule: Rule, flippedText: string) => {
-        updateRule(rule.id, flippedText);
+        const isGettingFlipped = true;
+        updateRule(rule.id, flippedText, isGettingFlipped);
         socketService.endFlipRule();
     };
 

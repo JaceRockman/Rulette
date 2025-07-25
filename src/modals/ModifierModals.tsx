@@ -434,7 +434,11 @@ export default function ModifierModals(
                         />
                         <Text style={{ fontSize: 18, fontWeight: 'bold' }}>to</Text>
                         <Plaque
-                            plaque={{ ...gameState?.activeFlipRuleDetails?.ruleToFlip!, text: gameState?.activeFlipRuleDetails?.flippedText! }}
+                            plaque={{
+                                ...gameState?.activeFlipRuleDetails?.ruleToFlip!,
+                                text: gameState?.activeFlipRuleDetails?.flippedText!,
+                                isFlipped: !gameState?.activeFlipRuleDetails?.ruleToFlip?.isFlipped
+                            }}
                         />
                     </View>
                 }
