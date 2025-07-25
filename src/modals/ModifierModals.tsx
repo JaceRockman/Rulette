@@ -366,26 +366,19 @@ export default function ModifierModals(
                 description={`Choose a Rule to flip:`}
                 rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeFlipRuleDetails?.flippingPlayer.id && rule.isActive) || []}
                 onAccept={confirmRuleForFlipping}
-            // onClose={() => {
-            //     onFinishModifier(endFlipRule);
-            // }}
-            // cancelButtonText="Back"
             />
 
             {/* Flip Text Input Modal */}
             <FlipTextInputModal
                 visible={currentModal === 'FlipRuleTextInput'}
                 selectedRule={gameState?.activeFlipRuleDetails?.ruleToFlip || null}
-                onFlipRule={
-                    (rule, flippedText) => {
-                        onFinishModifier(() => {
-                            flipRule(rule, flippedText);
-                        });
-                    }
-                }
-            // onClose={() => {
-            //     onFinishModifier(endFlipRule);
-            // }}
+                onFlipRule={(rule, flippedText) => {
+                    socketService.setAllPlayerModals('FlipRuleResolution');
+                    socketService.updateActiveFlippingDetails({
+                        ...gameState?.activeFlipRuleDetails!,
+                        flippedText: flippedText
+                    });
+                }}
             />
 
             {/* Await Flip Rule Selection Modal */}
@@ -397,7 +390,7 @@ export default function ModifierModals(
 
             {/* Await Flip Rule Execution Modal */}
             <SimpleModal
-                visible={currentModal === 'AwaitFlipRuleExecution'}
+                visible={currentModal === 'AwaitFlipRuleTextInput'}
                 title={'FLIP'}
                 description={`Waiting for Host to flip rule:`}
                 content={
@@ -407,6 +400,31 @@ export default function ModifierModals(
                         />
                     </View>
                 }
+            />
+
+            {/* Flip Rule Resolution Modal */}
+            <SimpleModal
+                visible={currentModal === 'FlipRuleResolution'}
+                title={'FLIP'}
+                description={`${gameState?.activeFlipRuleDetails?.flippingPlayer.name} has flipped:`}
+                content={
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                        <Plaque
+                            plaque={gameState?.activeFlipRuleDetails?.ruleToFlip!}
+                        />
+                        <Text style={{ fontSize: 18, fontWeight: 'bold' }}>to</Text>
+                        <Plaque
+                            plaque={{ ...gameState?.activeFlipRuleDetails?.ruleToFlip!, text: gameState?.activeFlipRuleDetails?.flippedText! }}
+                        />
+                    </View>
+                }
+                onAccept={() => {
+                    onFinishModifier(() => {
+                        flipRule(gameState?.activeFlipRuleDetails?.ruleToFlip!, gameState?.activeFlipRuleDetails?.flippedText!);
+                    });
+                }}
+                acceptButtonText="Ok"
+                acceptButtonDisplayed={currentUser?.id === gameState?.activeFlipRuleDetails?.flippingPlayer.id}
             />
 
 

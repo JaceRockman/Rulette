@@ -124,6 +124,7 @@ export interface ActiveCloneRuleDetails {
 export interface ActiveFlipRuleDetails {
     flippingPlayer: Player;
     ruleToFlip: Rule | null;
+    flippedText: string | null;
 }
 
 export interface ActiveSwapRuleDetails {
