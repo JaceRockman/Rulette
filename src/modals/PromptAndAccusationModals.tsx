@@ -78,6 +78,8 @@ export default function PromptAndAccusationModals(
                 }
                 onAccept={() => {
                     socketService.assignRule(gameState?.selectedRule!, selectedPlayerForAction!.id);
+                    socketService.removeWheelLayerForRule(gameState?.selectedRule!);
+                    console.log('gameState?.wheelSegments', gameState?.wheelSegments);
                     socketService.setAllPlayerModals(null);
                     socketService.setSelectedRule(null);
                 }}

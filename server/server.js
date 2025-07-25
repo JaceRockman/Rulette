@@ -466,6 +466,25 @@ io.on('connection', (socket) => {
         });
     });
 
+    // Remove wheel layer for rule if it exists
+    socket.on('remove_wheel_layer_for_rule', ({ gameId, ruleId }) => {
+        console.log('SERVER: remove_wheel_layer_for_rule');
+        let game = games.get(gameId);
+        if (!game) return;
+        const newSegments = game.wheelSegments.map(segment => {
+            if (segment.layers[segment.currentLayerIndex].id === ruleId) {
+                return {
+                    ...segment,
+                    currentLayerIndex: segment.currentLayerIndex + 1
+                };
+            }
+            return segment;
+        });
+        const updatedGame = { ...game, wheelSegments: newSegments };
+        games.set(gameId, updatedGame);
+        io.to(gameId).emit('game_updated', updatedGame);
+    });
+
     // Advance to next player
     socket.on('advance_to_next_player', ({ gameId }) => {
         console.log('SERVER: advance_to_next_player');

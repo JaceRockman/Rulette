@@ -513,6 +513,14 @@ class SocketService {
         });
     }
 
+    removeWheelLayerForRule(ruleId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('remove_wheel_layer_for_rule', {
+            gameId: this.gameState.id,
+            ruleId
+        });
+    }
+
     syncWheelSegments(wheelSegments: WheelSegment[]) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('sync_wheel_segments', {

@@ -382,8 +382,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         socketService.syncWheelSegments(generatedWheelSegments);
     }, [areAllPlaquesAdded, gameState.ends.length]);
 
-    const createWheelSegments = (): WheelSegment[] => {
 
+    const createWheelSegments = (): WheelSegment[] => {
         const newSegments: WheelSegment[] = [];
 
         let totalSegments = Math.max(gameState.players.length * 4, 4);
