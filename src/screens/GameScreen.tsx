@@ -8,7 +8,7 @@ import {
     Alert,
     SafeAreaView,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
 import { useGame } from '../context/GameContext';
@@ -31,12 +31,20 @@ type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
     const navigation = useNavigation<GameScreenNavigationProp>();
+    const isFocused = useIsFocused();
+
+    // if (!isFocused) return null;
+
     const { gameState, currentUser, showExitGameModal,
         setShowExitGameModal, updatePoints, endGame, dispatch, shredRule,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
 
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
-    const [currentModal, setCurrentModal] = useState<string | null>(null);
+
+    const currentModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
+    const setCurrentModal = (modal: string | null) => {
+        socketService.setPlayerModal(currentUser!.id, modal);
+    }
 
     const logSetCurrentModal = (modal: string | null) => {
         console.log("settinging current modal", modal)
@@ -57,19 +65,14 @@ export default function GameScreen() {
         player.rulesCompleted && player.promptsCompleted
     ) || false;
 
-    // Update local state to current modal based on game state
-    React.useEffect(() => {
-        if (!gameState) return;
-        const gameStateModal = gameState?.players.find(player => player.id === currentUser?.id)?.currentModal;
-        setCurrentModal(gameStateModal || null);
-    }, [gameState?.players.find(player => player.id === currentUser?.id)?.currentModal]);
-
     React.useEffect(() => {
         if (!gameState) return;
         if (gameState?.selectedPlayerForAction) {
             setSelectedPlayerForAction(gameState.players.find(player => player.id === gameState.selectedPlayerForAction) || null);
         }
     }, [gameState?.selectedPlayerForAction]);
+
+    console.log('currentModal', currentModal);
 
     const handleRuleTap = (rule: Rule) => {
         logSetSelectedRule(rule);
@@ -93,7 +96,7 @@ export default function GameScreen() {
                 return;
             }
             socketService.setSelectedPlayerForAction(player.id);
-            setCurrentModal('HostAction');
+            socketService.setPlayerModal(currentUser!.id, 'HostAction');
         }
     };
 
@@ -103,17 +106,17 @@ export default function GameScreen() {
 
             const availableRules = gameState?.rules.filter(rule => rule.assignedTo !== gameState?.selectedPlayerForAction);
             if (availableRules && availableRules.length > 0) {
-                setCurrentModal('GiveRule');
+                socketService.setPlayerModal(currentUser!.id, 'GiveRule');
             } else {
                 Alert.alert('No Rules Available', 'Player has all rules assigned to them already.');
-                setCurrentModal(null);
+                socketService.setPlayerModal(currentUser!.id, null);
                 setSelectedPlayerForAction(null);
             }
         }
     };
 
     const handleGivePromptAction = () => {
-        setCurrentModal('GivePrompt');
+        socketService.setPlayerModal(currentUser!.id, 'GivePrompt');
     };
 
 

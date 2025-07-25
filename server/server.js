@@ -120,6 +120,7 @@ io.on('connection', (socket) => {
 
     // Create lobby
     socket.on('create_lobby', ({ playerName }) => {
+        console.log('SERVER: create_lobby');
         const playerId = uuidv4();
         const game = createGame(playerId, playerName);
 
@@ -131,6 +132,7 @@ io.on('connection', (socket) => {
 
     // Join lobby
     socket.on('join_lobby', ({ lobbyCode, playerName }) => {
+        console.log('SERVER: join_lobby');
         const game = findGameByCode(lobbyCode);
 
         if (!game) {
@@ -178,6 +180,7 @@ io.on('connection', (socket) => {
 
     // Update game settings
     socket.on('update_game_settings', ({ gameId, settings }) => {
+        console.log('SERVER: update_game_settings');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -201,6 +204,7 @@ io.on('connection', (socket) => {
 
     // Start game
     socket.on('start_game', ({ gameId, settings }) => {
+        console.log('SERVER: start_game');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -241,6 +245,7 @@ io.on('connection', (socket) => {
 
     // Add plaque (unified handler for rules, prompts, and modifiers)
     socket.on('add_plaque', ({ gameId, plaque }) => {
+        console.log('SERVER: add_plaque');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -279,6 +284,7 @@ io.on('connection', (socket) => {
 
     // Update plaque (unified handler for rules and prompts)
     socket.on('update_plaque', ({ gameId, plaque }) => {
+        console.log('SERVER: update_plaque');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -301,6 +307,7 @@ io.on('connection', (socket) => {
 
     // Mark rules as completed
     socket.on('rules_completed', ({ gameId, playerId }) => {
+        console.log('SERVER: rules_completed');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -316,6 +323,7 @@ io.on('connection', (socket) => {
 
     // Mark prompts as completed
     socket.on('prompts_completed', ({ gameId, playerId }) => {
+        console.log('SERVER: prompts_completed');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -336,6 +344,7 @@ io.on('connection', (socket) => {
 
     // Sync wheel segments
     socket.on('sync_wheel_segments', ({ gameId, wheelSegments }) => {
+        console.log('SERVER: sync_wheel_segments');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -345,6 +354,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('set_player_modal', ({ gameId, playerId, modal }) => {
+        console.log('SERVER: set_player_modal');
         let game = games.get(gameId);
         if (!game) return;
         const updatedGame = setPlayerModal(game, playerId, modal);
@@ -353,6 +363,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('set_all_player_modals', ({ gameId, modal }) => {
+        console.log('SERVER: set_all_player_modals');
         let game = games.get(gameId);
         if (!game) return;
         const updatedGame = setAllPlayerModals(game, modal);
@@ -361,6 +372,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('set_selected_player_for_action', ({ gameId, playerId }) => {
+        console.log('SERVER: set_selected_player_for_action');
         let game = games.get(gameId);
         if (!game) return;
         const updatedGame = { ...game, selectedPlayerForAction: playerId };
@@ -369,6 +381,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('set_selected_rule', ({ gameId, ruleId }) => {
+        console.log('SERVER: set_selected_rule');
         let game = games.get(gameId);
         if (!game) return;
         const updatedGame = { ...game, selectedRule: ruleId };
@@ -378,6 +391,7 @@ io.on('connection', (socket) => {
 
     // Update points
     socket.on('update_points', ({ gameId, playerId, pointChange }) => {
+        console.log('SERVER: update_points');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -393,6 +407,7 @@ io.on('connection', (socket) => {
 
     // Broadcast synchronized wheel spin
     socket.on('update_wheel_spin_details', ({ gameId, wheelSpinDetails }) => {
+        console.log('SERVER: update_wheel_spin_details');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -403,6 +418,7 @@ io.on('connection', (socket) => {
 
     // Complete wheel spin - handles all wheel completion logic centrally
     socket.on('complete_wheel_spin', ({ gameId, segmentId }) => {
+        console.log('SERVER: complete_wheel_spin');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -452,6 +468,7 @@ io.on('connection', (socket) => {
 
     // Advance to next player
     socket.on('advance_to_next_player', ({ gameId }) => {
+        console.log('SERVER: advance_to_next_player');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -479,6 +496,7 @@ io.on('connection', (socket) => {
 
     // Start accusation
     socket.on('initiate_accusation', ({ gameId, ruleId, accuserId, accusedId }) => {
+        console.log('SERVER: initiate_accusation');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -498,8 +516,7 @@ io.on('connection', (socket) => {
                 rule,
                 accuser,
                 accused
-            },
-            isAccusationInProgress: true
+            }
         };
 
         updatedGame = setAllPlayerModals(updatedGame, 'AccusationJudgement');
@@ -508,8 +525,18 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('game_updated', updatedGame);
     });
 
+    socket.on('update_active_accusation_details', ({ gameId, details }) => {
+        console.log('SERVER: update_active_accusation_details');
+        let game = games.get(gameId);
+        if (!game) return;
+        const updatedGame = { ...game, activeAccusationDetails: details };
+        games.set(gameId, updatedGame);
+        io.to(gameId).emit('game_updated', updatedGame);
+    });
+
     // Accept accusation
     socket.on('accept_accusation', ({ gameId }) => {
+        console.log('SERVER: accept_accusation');
         let game = games.get(gameId);
         if (!game || !game.activeAccusationDetails) return;
 
@@ -547,8 +574,10 @@ io.on('connection', (socket) => {
                 )
             };
         } else if (updatedGame.activePromptDetails !== null) {
+            updatedGame.activeAccusationDetails = null;
             updatedGame = setAllPlayerModals(updatedGame, 'PromptPerformance');
         } else {
+            updatedGame.activeAccusationDetails = null;
             updatedGame = setAllPlayerModals(updatedGame, null);
         }
 
@@ -558,18 +587,20 @@ io.on('connection', (socket) => {
 
     // End accusation
     socket.on('end_accusation', ({ gameId }) => {
+        console.log('SERVER: end_accusation');
         let game = games.get(gameId);
         if (!game) return;
 
-        game.activeAccusationDetails = null;
+        let updatedGame = { ...game, activeAccusationDetails: null };
 
-        if (game.activePromptDetails !== null) {
-            game = setAllPlayerModals(game, 'PromptPerformance');
+        if (updatedGame.activePromptDetails !== null) {
+            updatedGame = setAllPlayerModals(updatedGame, 'PromptPerformance');
         } else {
-            game = setAllPlayerModals(game, null);
+            updatedGame = setAllPlayerModals(updatedGame, null);
         }
 
-        io.to(gameId).emit('game_updated', game);
+        games.set(gameId, updatedGame);
+        io.to(gameId).emit('game_updated', updatedGame);
     });
 
 
@@ -577,6 +608,7 @@ io.on('connection', (socket) => {
 
     // Give prompt
     socket.on('give_prompt', ({ gameId, playerId, promptId }) => {
+        console.log('SERVER: give_prompt');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -607,6 +639,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('update_active_prompt_details', ({ gameId, details }) => {
+        console.log('SERVER: update_active_prompt_details');
         let game = games.get(gameId);
         if (!game) return;
         game.activePromptDetails = details;
@@ -615,6 +648,7 @@ io.on('connection', (socket) => {
 
     // Accept prompt
     socket.on('accept_prompt', ({ gameId }) => {
+        console.log('SERVER: accept_prompt');
         let game = games.get(gameId);
         if (!game) return;
         if (game.activePromptDetails === null) return;
@@ -638,6 +672,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('possibly_return_to_prompt', ({ gameId }) => {
+        console.log('SERVER: possibly_return_to_prompt');
         let game = games.get(gameId);
         if (!game) return;
         if (game.activePromptDetails !== null) {
@@ -650,6 +685,7 @@ io.on('connection', (socket) => {
 
     // Shred rule
     socket.on('shred_rule', ({ gameId, ruleId }) => {
+        console.log('SERVER: shred_rule');
         let game = games.get(gameId);
         if (!game) return;
         let rule = game.rules.find(r => r.id === ruleId);
@@ -664,6 +700,7 @@ io.on('connection', (socket) => {
 
     // End prompt
     socket.on('end_prompt', ({ gameId }) => {
+        console.log('SERVER: end_prompt');
         let game = games.get(gameId);
         if (!game) return;
         const updatedGame = { ...game, activePromptDetails: null };
@@ -675,6 +712,7 @@ io.on('connection', (socket) => {
 
     // Initiate clone rule
     socket.on('update_active_cloning_details', ({ gameId, details }) => {
+        console.log('SERVER: update_active_cloning_details');
         let game = games.get(gameId);
         if (!game) return;
         game.activeCloneRuleDetails = details;
@@ -683,6 +721,7 @@ io.on('connection', (socket) => {
 
     // Clone rule to player
     socket.on('clone_rule_to_player', ({ gameId, ruleId, targetPlayerId, authorId }) => {
+        console.log('SERVER: clone_rule_to_player');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -701,6 +740,7 @@ io.on('connection', (socket) => {
 
     // End clone rule
     socket.on('end_clone_rule', ({ gameId }) => {
+        console.log('SERVER: end_clone_rule');
         let game = games.get(gameId);
         if (!game) return;
         game.activeCloneRuleDetails = null;
@@ -712,6 +752,7 @@ io.on('connection', (socket) => {
 
     // Update active flipping details
     socket.on('update_active_flipping_details', ({ gameId, details }) => {
+        console.log('SERVER: update_active_flipping_details');
         let game = games.get(gameId);
         if (!game) return;
         game.activeFlipRuleDetails = details;
@@ -720,6 +761,7 @@ io.on('connection', (socket) => {
 
     // End flip rule
     socket.on('end_flip_rule', ({ gameId }) => {
+        console.log('SERVER: end_flip_rule');
         let game = games.get(gameId);
         if (!game) return;
         game.activeFlipRuleDetails = null;
@@ -730,6 +772,7 @@ io.on('connection', (socket) => {
 
 
     socket.on('trigger_up_down_modifier', ({ gameId, direction }) => {
+        console.log('SERVER: trigger_up_down_modifier');
         let game = games.get(gameId);
         if (!game) return;
         game.activeUpDownRuleDetails = {
@@ -742,6 +785,7 @@ io.on('connection', (socket) => {
 
     // Update active up/down details
     socket.on('update_active_up_down_details', ({ gameId, details }) => {
+        console.log('SERVER: update_active_up_down_details');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -752,6 +796,7 @@ io.on('connection', (socket) => {
 
     // End up/down rule
     socket.on('end_up_down_rule', ({ gameId }) => {
+        console.log('SERVER: end_up_down_rule');
         let game = games.get(gameId);
         if (!game) return;
         game.activeUpDownRuleDetails = null;
@@ -784,6 +829,7 @@ io.on('connection', (socket) => {
 
     // Update active swapping details
     socket.on('update_active_swapping_details', ({ gameId, details }) => {
+        console.log('SERVER: update_active_swapping_details');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -802,6 +848,7 @@ io.on('connection', (socket) => {
 
     // End swap rule
     socket.on('end_swap_rule', ({ gameId }) => {
+        console.log('SERVER: end_swap_rule');
         let game = games.get(gameId);
         if (!game) return;
         game.activeSwapRuleDetails = null;
@@ -811,6 +858,7 @@ io.on('connection', (socket) => {
 
     // Swap rules
     socket.on('swap_rules', ({ gameId, player1Id, player1RuleId, player2Id, player2RuleId }) => {
+        console.log('SERVER: swap_rules');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -827,6 +875,7 @@ io.on('connection', (socket) => {
 
     // Assign rule
     socket.on('assign_rule', ({ gameId, ruleId, playerId }) => {
+        console.log('SERVER: assign_rule');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -843,6 +892,7 @@ io.on('connection', (socket) => {
 
     // Broadcast navigation to screen
     socket.on('broadcast_navigate_to_screen', ({ gameId, screen, params }) => {
+        console.log('SERVER: broadcast_navigate_to_screen');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -857,6 +907,7 @@ io.on('connection', (socket) => {
 
     // End game
     socket.on('end_game', ({ gameId, winner }) => {
+        console.log('SERVER: end_game');
         let game = games.get(gameId);
         if (!game) return;
         game.gameEnded = true;
@@ -866,6 +917,7 @@ io.on('connection', (socket) => {
 
     // Broadcast end game continue
     socket.on('broadcast_end_game_continue', ({ gameId }) => {
+        console.log('SERVER: broadcast_end_game_continue');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -875,6 +927,7 @@ io.on('connection', (socket) => {
 
     // Broadcast end game end
     socket.on('broadcast_end_game_end', ({ gameId }) => {
+        console.log('SERVER: broadcast_end_game_end');
         let game = games.get(gameId);
         if (!game) return;
 
@@ -884,7 +937,7 @@ io.on('connection', (socket) => {
 
     // Disconnect handling
     socket.on('disconnect', () => {
-
+        console.log('SERVER: disconnect');
         // Find and remove player
         for (const [playerId, playerData] of players.entries()) {
             console.log('disconnecting playerData', playerData);

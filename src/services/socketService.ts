@@ -270,6 +270,14 @@ class SocketService {
         });
     }
 
+    updateActiveAccusationDetails(details: ActiveAccusationDetails | null) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('update_active_accusation_details', {
+            gameId: this.gameState.id,
+            details
+        });
+    }
+
     acceptAccusation() {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('accept_accusation', {

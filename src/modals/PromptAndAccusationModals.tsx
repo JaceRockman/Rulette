@@ -49,9 +49,6 @@ export default function PromptAndAccusationModals(
 
     const { gameState } = useGame();
 
-    const accuserHasRules = gameState?.rules.some(rule => rule.assignedTo === gameState?.activeAccusationDetails?.accuser.id);
-    console.log('accuserHasRules', accuserHasRules);
-
     return (
         <>
             {/* Rule Modals */}
@@ -123,9 +120,9 @@ export default function PromptAndAccusationModals(
                     socketService.setSelectedRule(null);
                 }}
                 onDecline={() => {
+                    // socketService.updateActiveAccusationDetails(null);
                     socketService.endAccusation();
                     socketService.setSelectedRule(null);
-                    socketService.possiblyReturnToPrompt();
                 }}
             />
 
@@ -139,11 +136,19 @@ export default function PromptAndAccusationModals(
                     socketService.assignRule(rule.id, gameState?.activeAccusationDetails?.accused.id!);
                     // endAccusation resets players modal to null
                     socketService.endAccusation();
-                    socketService.possiblyReturnToPrompt();
+                    if (gameState?.activePromptDetails !== null) {
+                        socketService.setAllPlayerModals('PromptPerformance');
+                    } else {
+                        socketService.setAllPlayerModals(null);
+                    }
                 }}
                 onClose={() => {
                     socketService.endAccusation();
-                    socketService.possiblyReturnToPrompt();
+                    if (gameState?.activePromptDetails !== null) {
+                        socketService.setAllPlayerModals('PromptPerformance');
+                    } else {
+                        socketService.setAllPlayerModals(null);
+                    }
                 }}
                 cancelButtonText="Skip"
             />
@@ -170,7 +175,7 @@ export default function PromptAndAccusationModals(
                     socketService.setAllPlayerModals("PromptPerformance");
                 }}
                 onClose={() => {
-                    setCurrentModal(null);
+                    socketService.setPlayerModal(currentUser!.id, null);
                 }}
             />
 

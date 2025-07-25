@@ -10,7 +10,7 @@ import Backdrop from '../components/Backdrop';
 import { Modifier, Prompt, Rule, WheelSegment as WheelSegmentType, WheelSpinDetails } from '../types/game';
 import Plaque from '../components/Plaque';
 import PromptAndAccusationModals from '../modals/PromptAndAccusationModals';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 
 const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
@@ -19,6 +19,10 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList) as unknown a
 
 export default function WheelScreen() {
     const navigation = useNavigation();
+    const isFocused = useIsFocused();
+
+    // if (!isFocused) return null;
+
     const { gameState, currentUser, assignRule, givePrompt, endGame,
         triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
     const [currentWheelIndex, setCurrentWheelIndex] = useState<number>(0);
