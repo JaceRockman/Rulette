@@ -172,9 +172,9 @@ export default function GameScreen() {
 
                 gameState.players.forEach(player => {
                     if (player.id === selectedPlayer?.id) {
-                        socketService.setPlayerModal(player.id, "SwapActionTargetSelection");
+                        socketService.setPlayerModal(player.id, "SwapperRuleSelection");
                     } else {
-                        socketService.setPlayerModal(player.id, "AwaitSwapTargetSelection");
+                        socketService.setPlayerModal(player.id, "AwaitSwapRuleSelection");
                     }
                 })
             }

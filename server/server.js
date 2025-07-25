@@ -805,44 +805,12 @@ io.on('connection', (socket) => {
     });
 
 
-
-    function navigatePlayersForSwapeeSelection(game, details) {
-        game.players.forEach(player => {
-            if (player.id === details.swapper.id) {
-                game = setPlayerModal(game, player.id, 'SwapActionTargetSelection');
-            } else {
-                game = setPlayerModal(game, player.id, "AwaitSwapTargetSelection")
-            }
-        });
-    }
-
-    function navigatePlayersForRuleSwapSelection(game, details) {
-        game.players.forEach(player => {
-            if (player.id === details.swapper.id) {
-                game = setPlayerModal(game, player.id, 'SwapActionRuleSelection');
-            } else {
-                game = setPlayerModal(game, player.id, "AwaitSwapRuleSelection")
-            }
-        });
-    }
-
-
     // Update active swapping details
     socket.on('update_active_swapping_details', ({ gameId, details }) => {
         console.log('SERVER: update_active_swapping_details');
         let game = games.get(gameId);
         if (!game) return;
-
         game.activeSwapRuleDetails = details;
-
-        if (details.swappee === null) {
-            navigatePlayersForSwapeeSelection(game, details);
-        } else if (details.swapperRule === null || details.swappeeRule === null) {
-            navigatePlayersForRuleSwapSelection(game, details);
-        } else {
-            game = setAllPlayerModals(game, 'SwapRuleResolution');
-        }
-
         io.to(gameId).emit('game_updated', game);
     });
 

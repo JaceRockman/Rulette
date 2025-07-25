@@ -10,3 +10,4 @@ export { default as EndGameConfirmationModal } from './EndGameConfirmationModal'
 export { default as PromptSelectionModal } from './PromptSelectionModal';
 export { default as PromptPerformanceModal } from './PromptPerformanceModal';
 export { default as PromptResolutionModal } from './PromptResolutionModal';
+export { default as SwapSelectionModal } from './SwapSelectionModal';

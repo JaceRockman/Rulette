@@ -8,6 +8,7 @@ import RuleSelectionModal from "./RuleSelectionModal";
 import { useGame } from "../context/GameContext";
 import FlipTextInputModal from "./FlipTextInputModal";
 import socketService from "../services/socketService";
+import SwapSelectionModal from "./SwapSelectionModal";
 
 
 interface InitiateCloneProps {
@@ -84,7 +85,7 @@ interface ModifierModalsProps {
 export default function ModifierModals(
     { setCurrentModal, currentModal, currentUser, onFinishModifier }: ModifierModalsProps) {
 
-    const { gameState, updateActiveCloningDetails, updateActiveFlippingDetails, updateActiveSwappingDetails, updateActiveUpDownDetails, setPlayerModal, cloneRuleToPlayer, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier, assignRule, endUpDownRule, endCloneRule, endFlipRule, endSwapRule, flipRule } = useGame();
+    const { gameState, updateActiveCloningDetails, updateActiveFlippingDetails, updateActiveSwappingDetails, cloneRuleToPlayer, triggerFlipModifier, assignRule, endUpDownRule, endCloneRule, endSwapRule, flipRule } = useGame();
 
     const confirmRuleForCloning = (rule: Rule) => {
         if (!gameState) return;
@@ -192,16 +193,33 @@ export default function ModifierModals(
         })
     };
 
-    const confirmRulesForSwapping = (swapperRule: Rule, swappeeRule: Rule | null) => {
-        console.log('confirmRulesForSwapping', swapperRule, swappeeRule);
+    const confirmRulesForSwapping = () => {
+        if (!gameState) return;
+        const swapperRule = gameState.activeSwapRuleDetails!.swapperRule;
+        const swappeeRule = gameState.activeSwapRuleDetails!.swappeeRule;
+        if (swapperRule && swappeeRule) {
+            assignRule(swapperRule.id, gameState.activeSwapRuleDetails!.swappee!.id);
+            assignRule(swappeeRule.id, gameState.activeSwapRuleDetails!.swapper!.id);
+        }
+        socketService.setAllPlayerModals(null);
+    };
+
+    const confirmSwapperRuleForSwapping = (rule: Rule) => {
         if (!gameState) return;
         updateActiveSwappingDetails({
             ...gameState.activeSwapRuleDetails!,
-            swapperRule: swapperRule,
-            swappeeRule: swappeeRule
+            swapperRule: rule
         });
-        assignRule(swapperRule.id, gameState.activeSwapRuleDetails!.swappee!.id);
-        assignRule(swappeeRule!.id, gameState.activeSwapRuleDetails!.swapper!.id);
+        socketService.setPlayerModal(gameState.activeSwapRuleDetails!.swapper!.id, "SwapActionSelection");
+    };
+
+    const confirmSwapeeDetailsForSwapping = (player: Player, rule: Rule) => {
+        if (!gameState) return;
+        updateActiveSwappingDetails({
+            ...gameState.activeSwapRuleDetails!,
+            swappee: player,
+            swappeeRule: rule
+        });
         socketService.setAllPlayerModals("SwapRuleResolution");
     };
 
@@ -460,7 +478,7 @@ export default function ModifierModals(
 
             {/* Swap Rule Modals */}
             {/* Swap Target Selection Modal */}
-            <PlayerSelectionModal
+            {/* <PlayerSelectionModal
                 visible={currentModal === 'SwapActionTargetSelection'}
                 title={`SWAP`}
                 description={`Choose a player to swap rules with:`}
@@ -470,10 +488,10 @@ export default function ModifierModals(
                         && gameState?.rules.some(rule => rule.assignedTo === player.id && rule.isActive)
                 }) || []}
                 onSelectPlayer={confirmTargetForSwapping}
-            />
+            /> */}
 
             {/* Swap Rule Selection Modal */}
-            <RuleSelectionModal
+            {/* <RuleSelectionModal
                 visible={currentModal === 'SwapActionRuleSelection'}
                 title={`SWAP`}
                 description={`Choose one of your rules to give to ${gameState?.activeSwapRuleDetails?.swappee?.name}:`}
@@ -482,24 +500,21 @@ export default function ModifierModals(
                 rules2={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeSwapRuleDetails?.swappee?.id && rule.isActive) || []}
                 onAccept={confirmRulesForSwapping}
                 onClose={deselectTargetForSwapping}
+            /> */}
+
+            {/* Swapper Rule Selection Modal */}
+            <RuleSelectionModal
+                visible={currentModal === 'SwapperRuleSelection'}
+                title={`SWAP`}
+                description={`Choose a rule to give to another player:`}
+                rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeSwapRuleDetails?.swapper.id) || []}
+                onAccept={confirmSwapperRuleForSwapping}
             />
 
-            {/* Swap Target Rule Selection Modal */}
-            {/* <RuleSelectionModal
-                    visible={currentModal === 'SwapActionTargetRuleSelection'}
-                    title={`SWAP`}
-                    description={`Choose a rule to take from ${gameState?.activeSwapRuleDetails?.swappee?.name}:`}
-                    rules={gameState?.rules.filter(rule => rule.assignedTo === gameState?.activeSwapRuleDetails?.swappee?.id && rule.isActive) || []}
-                    onAccept={confirmTargetRuleForSwapping}
-                    onClose={deselectTargetForSwapping}
-                    cancelButtonText="Back"
-                /> */}
-
-            {/* Await Swap Target Selection Modal */}
-            <SimpleModal
-                visible={currentModal === 'AwaitSwapTargetSelection'}
-                title={'SWAP'}
-                description={`Waiting for ${gameState?.activeSwapRuleDetails?.swapper.name} to select a player to swap with...`}
+            {/* Swap Selection Modal */}
+            <SwapSelectionModal
+                visible={currentModal === 'SwapActionSelection'}
+                onAccept={(player: Player, rule: Rule) => confirmSwapeeDetailsForSwapping(player, rule)}
             />
 
             {/* Await Swap Rule Selection Modal */}
@@ -528,7 +543,10 @@ export default function ModifierModals(
                     </View>
                 }
                 onAccept={() => {
-                    onFinishModifier(endSwapRule);
+                    onFinishModifier(() => {
+                        confirmRulesForSwapping();
+                        endSwapRule();
+                    });
                 }}
                 acceptButtonText="Ok"
                 acceptButtonDisplayed={currentUser?.id === gameState?.activeSwapRuleDetails?.swappee?.id || currentUser?.isHost}

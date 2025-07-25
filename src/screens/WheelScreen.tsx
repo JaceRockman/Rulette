@@ -172,9 +172,9 @@ export default function WheelScreen() {
                 if (initiateSwap({ swappingPlayer: activePlayer, playerRules: playerRules || [], triggerSwapModifier: triggerSwapModifier }) === 'failed') {
                     finishWheelSpin();
                 } else if (currentUser?.id === activePlayer?.id) {
-                    socketService.setPlayerModal(currentUser.id, "SwapActionTargetSelection");
+                    socketService.setPlayerModal(currentUser.id, "SwapperRuleSelection");
                 } else {
-                    socketService.setPlayerModal(currentUser.id, "AwaitSwapTargetSelection");
+                    socketService.setPlayerModal(currentUser.id, "AwaitSwapRuleSelection");
                 }
                 break;
             case 'Up':
