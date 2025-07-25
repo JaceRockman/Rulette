@@ -568,7 +568,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (!gameState) return;
         const details: ActiveFlipRuleDetails = {
             flippingPlayer: player,
-            ruleToFlip: rule
+            ruleToFlip: rule,
+            flippedText: null
         }
         updateActiveFlippingDetails(details);
     };
