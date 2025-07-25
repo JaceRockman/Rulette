@@ -356,65 +356,6 @@ export default function GameScreen() {
         return [...nonHostPlayers.slice(topPlayerIndex), ...nonHostPlayers.slice(0, topPlayerIndex)];
     }
 
-    // Show game over screen if game has ended
-    if (gameState?.gameEnded && gameState?.winner) {
-        return (
-            <Backdrop>
-                <View style={[shared.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                    <OutlinedText style={{ fontSize: 48, marginBottom: 20, textAlign: 'center' }}>
-                        GAME OVER!
-                    </OutlinedText>
-
-                    <View style={{
-                        backgroundColor: '#fff',
-                        borderRadius: 20,
-                        padding: 40,
-                        margin: 20,
-                        borderWidth: 4,
-                        borderColor: '#000',
-                        shadowColor: '#000',
-                        shadowOffset: { width: 0, height: 4 },
-                        shadowOpacity: 0.3,
-                        shadowRadius: 8,
-                    }}>
-                        <Text style={{
-                            fontSize: 32,
-                            fontWeight: 'bold',
-                            textAlign: 'center',
-                            marginBottom: 10,
-                            color: '#000',
-                        }}>
-                            🏆 WINNER! 🏆
-                        </Text>
-                        <Text style={{
-                            fontSize: 24,
-                            textAlign: 'center',
-                            marginBottom: 10,
-                            color: '#000',
-                        }}>
-                            {gameState.winner.name}
-                        </Text>
-                        <Text style={{
-                            fontSize: 20,
-                            textAlign: 'center',
-                            color: '#000',
-                        }}>
-                            {gameState.winner.points} points
-                        </Text>
-                    </View>
-
-                    {currentUser?.isHost &&
-                        <TouchableOpacity
-                            style={[shared.button, { marginTop: 30 }]}
-                            onPress={() => socketService.broadcastNavigateToScreen('Home')}
-                        >
-                            <Text style={shared.buttonText}>Back to Home</Text>
-                        </TouchableOpacity>}
-                </View>
-            </Backdrop>
-        );
-    }
-
     if (!gameState || !currentUser) {
         return (
             <Backdrop>

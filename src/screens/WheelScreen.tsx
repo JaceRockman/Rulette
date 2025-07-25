@@ -355,8 +355,7 @@ export default function WheelScreen() {
                     title={`End Game?`}
                     description={`Would you like to end the game?`}
                     onAccept={() => {
-                        finishWheelSpin();
-                        endGame();
+                        socketService.broadcastNavigateToScreen('GameOver');
                     }}
                     onClose={() => {
                         socketService.setAllPlayerModals(null);

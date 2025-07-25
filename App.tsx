@@ -14,6 +14,7 @@ import StripedBackground from './src/components/Backdrop';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { colors } from './src/shared/styles';
 import WheelScreen from './src/screens/WheelScreen';
+import GameOverScreen from './src/screens/GameOverScreen';
 
 export type RootStackParamList = {
     Home: undefined;
@@ -22,6 +23,7 @@ export type RootStackParamList = {
     Wheel: { playerId?: string };
     RuleWriting: undefined;
     PromptWriting: undefined;
+    GameOver: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -110,6 +112,16 @@ export default function App() {
                                 headerTitle: () => <OutlinedText>Spin the Wheel!</OutlinedText>,
                                 headerTitleAlign: 'center',
                                 headerLeft: undefined,
+                            }}
+                        />
+                        <Stack.Screen
+                            name="GameOver"
+                            component={GameOverScreen}
+                            options={{
+                                headerTitle: () => <OutlinedText>Game Over</OutlinedText>,
+                                headerTitleAlign: 'center',
+                                headerLeft: undefined,
+                                headerRight: undefined,
                             }}
                         />
                     </Stack.Navigator>
