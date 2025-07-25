@@ -47,12 +47,12 @@ export default function GameScreen() {
     }
 
     const logSetCurrentModal = (modal: string | null) => {
-        console.log("settinging current modal", modal)
+        console.log("setting current modal", modal)
         setCurrentModal(modal)
     }
 
     const logSetSelectedRule = (rule: Rule | null) => {
-        console.log("settinging selected rule", rule)
+        console.log("setting selected rule", rule)
         setSelectedRule(rule)
     }
 
@@ -71,8 +71,6 @@ export default function GameScreen() {
             setSelectedPlayerForAction(gameState.players.find(player => player.id === gameState.selectedPlayerForAction) || null);
         }
     }, [gameState?.selectedPlayerForAction]);
-
-    console.log('currentModal', currentModal);
 
     const handleRuleTap = (rule: Rule) => {
         logSetSelectedRule(rule);

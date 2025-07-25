@@ -255,7 +255,7 @@ export default function ModifierModals(
             }
         };
 
-        updateActiveUpDownDetails(updatedDetails);
+        socketService.updateActiveUpDownDetails(updatedDetails);
         socketService.setPlayerModal(currentUser!.id, "AwaitUpDownRuleSelection");
     };
 
@@ -263,22 +263,24 @@ export default function ModifierModals(
 
     const handleUpDownConfirmation = () => {
         if (!gameState?.activeUpDownRuleDetails) return;
-        const nonHostPlayers = gameState.players.filter(p => !p.isHost);
-        nonHostPlayers.forEach(player => {
-            const playerHasRules = gameState?.rules.some(rule => rule.assignedTo === player.id);
-            const selectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[player.id];
-            const playerToPassTo = getPlayerToPassTo(player, gameState?.activeUpDownRuleDetails?.direction || 'up');
-            if (selectedRule === null) {
-                if (playerHasRules) {
-                    Alert.alert('Not All Players Selected', `Player ${player.name} has not selected a rule to pass.`);
+        const nonHostPlayers: Player[] = gameState.players.filter(p => !p.isHost);
+        if (nonHostPlayers.length > 0) {
+            nonHostPlayers.forEach(player => {
+                const playerHasRules = gameState?.rules.some(rule => rule.assignedTo === player.id);
+                const selectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[player.id];
+                const playerToPassTo = getPlayerToPassTo(player, gameState?.activeUpDownRuleDetails?.direction || 'up');
+                if (selectedRule === undefined) {
+                    if (playerHasRules) {
+                        Alert.alert('Not All Players Selected', `Player ${player.name} has not selected a rule to pass.`);
+                    } else {
+                        return;
+                    }
                 } else {
-                    return;
+                    assignRule(selectedRule!.id, playerToPassTo!.id);
                 }
-            } else {
-                assignRule(selectedRule!.id, playerToPassTo?.id || player.id);
-            }
-        });
-        endUpDownRule();
+            });
+            endUpDownRule();
+        }
     };
 
     const allPlayersHaveSelectedRules = () => {
@@ -429,6 +431,33 @@ export default function ModifierModals(
 
 
 
+
+
+            {/* Up/Down Simultaneous Selection Modal */}
+            <RuleSelectionModal
+                visible={currentModal === 'UpDownRuleSelection'}
+                title={`PASS RULES`}
+                description={`Choose a rule to pass to ${getPlayerToPassTo(currentUser!, gameState?.activeUpDownRuleDetails?.direction || 'up')?.name || 'your neighbor'}...`}
+                rules={gameState?.rules.filter(rule => rule.assignedTo === currentUser?.id) || []}
+                onAccept={handleUpDownRuleSelect}
+            />
+
+            {/* Await Up/Down Selection Modal */}
+            <SimpleModal
+                visible={currentModal === 'AwaitUpDownRuleSelection'}
+                title={'PASS RULES'}
+                description={`Waiting for all players to select their rules to pass ${gameState?.activeUpDownRuleDetails?.direction === 'up' ? 'up' : 'down'}...`}
+                onAccept={() => {
+                    onFinishModifier(handleUpDownConfirmation);
+                }}
+                acceptButtonDisplayed={currentUser?.isHost}
+                acceptButtonDisabled={allPlayersHaveSelectedRules()}
+            />
+
+
+
+
+
             {/* Swap Rule Modals */}
             {/* Swap Target Selection Modal */}
             <PlayerSelectionModal
@@ -503,30 +532,6 @@ export default function ModifierModals(
                 }}
                 acceptButtonText="Ok"
                 acceptButtonDisplayed={currentUser?.id === gameState?.activeSwapRuleDetails?.swappee?.id || currentUser?.isHost}
-            />
-
-
-
-
-            {/* Up/Down Simultaneous Selection Modal */}
-            <RuleSelectionModal
-                visible={currentModal === 'UpDownRuleSelection'}
-                title={`PASS RULES`}
-                description={`Choose a rule to pass to ${getPlayerToPassTo(currentUser!, gameState?.activeUpDownRuleDetails?.direction || 'up')?.name || 'your neighbor'}...`}
-                rules={gameState?.rules.filter(rule => rule.assignedTo === currentUser?.id) || []}
-                onAccept={handleUpDownRuleSelect}
-            />
-
-            {/* Await Up/Down Selection Modal */}
-            <SimpleModal
-                visible={currentModal === 'AwaitUpDownRuleSelection'}
-                title={'PASS RULES'}
-                description={`Waiting for all players to select their rules to pass ${gameState?.activeUpDownRuleDetails?.direction === 'up' ? 'up' : 'down'}...`}
-                onAccept={() => {
-                    onFinishModifier(handleUpDownConfirmation);
-                }}
-                acceptButtonDisplayed={currentUser?.isHost}
-                acceptButtonDisabled={allPlayersHaveSelectedRules()}
             />
         </>
     );
