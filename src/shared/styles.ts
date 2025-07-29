@@ -165,7 +165,7 @@ export const shared = StyleSheet.create({
         paddingHorizontal: 8,
         marginBottom: 8,
         alignItems: 'center',
-        width: '50%',
+        width: '47%',
     },
     listedUserText: {
         fontSize: 18,
