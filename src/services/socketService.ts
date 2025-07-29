@@ -1,7 +1,9 @@
 import io, { Socket } from 'socket.io-client';
 import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActivePromptDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, GameState, Plaque, Player, Prompt, Rule, WheelSegment, WheelSpinDetails } from '../types/game';
+import { SERVER_CONFIG } from '../config/server';
 
-const SERVER_URL = 'http://192.168.1.201:3001'; // Your computer's IP address
+const SERVER_URL = SERVER_CONFIG.getUrl();
+console.log('SERVER_URL', SERVER_URL);
 
 class SocketService {
     private socket: Socket | null = null;

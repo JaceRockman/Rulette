@@ -3,6 +3,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const os = require('os');
 
 const app = express();
 const server = http.createServer(app);
@@ -971,10 +972,25 @@ app.get('/games', (req, res) => {
     res.json(gameList);
 });
 
+// Function to get local IP address
+function getLocalIPAddress() {
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const interface of interfaces[name]) {
+            // Skip over non-IPv4 and internal (i.e. 127.0.0.1) addresses
+            if (interface.family === 'IPv4' && !interface.internal) {
+                return interface.address;
+            }
+        }
+    }
+    return 'localhost'; // fallback
+}
+
 const PORT = process.env.PORT || 3001;
+const LOCAL_IP = getLocalIPAddress();
 
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/health`);
-    console.log(`Network access: http://192.168.1.201:${PORT}/health`);
-}); 
+    console.log(`Network access: http://${LOCAL_IP}:${PORT}/health`);
+});
