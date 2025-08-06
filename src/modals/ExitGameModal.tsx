@@ -1,122 +1,53 @@
 import React from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    Modal,
-    Alert,
-} from 'react-native';
+import { Modal, View, Text, SafeAreaView } from 'react-native';
+
+import { shared } from '../shared/styles';
+import { PrimaryButton, SecondaryButton } from '../components/Buttons';
+import { useNavigation } from '@react-navigation/native';
 
 interface ExitGameModalProps {
     visible: boolean;
+    onAccept: () => void;
     onClose: () => void;
-    onEndGame: () => void;
-    onSelectNewHost: () => void;
+    onRequestClose?: () => void;
 }
 
 export default function ExitGameModal({
     visible,
+    onAccept,
     onClose,
-    onEndGame,
-    onSelectNewHost,
+    onRequestClose
 }: ExitGameModalProps) {
-    const handleEndGame = () => {
-        Alert.alert(
-            'End Game',
-            'Are you sure you want to end the game?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'End Game', style: 'destructive', onPress: onEndGame }
-            ]
-        );
-        onClose();
-    };
-
-    const handleSelectNewHost = () => {
-        onSelectNewHost();
-        onClose();
-    };
+    const navigation = useNavigation<any>();
 
     return (
         <Modal
             visible={visible}
             transparent={true}
             animationType="fade"
-            onRequestClose={onClose}
+            onRequestClose={onRequestClose}
+            statusBarTranslucent={true}
         >
-            <View style={styles.overlay}>
-                <View style={styles.modalContainer}>
-                    <Text style={styles.title}>Host Options</Text>
+            <SafeAreaView style={shared.modalOverlay}>
+                <View style={shared.modalContent}>
+                    <Text style={shared.modalTitle}>Exit Game</Text>
+                    <Text style={shared.modalDescription}>Are you sure you want to exit the game?</Text>
 
-                    <TouchableOpacity
-                        style={[styles.button, styles.endGameButton]}
-                        onPress={handleEndGame}
-                    >
-                        <Text style={styles.buttonText}>End Game</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.button, styles.selectHostButton]}
-                        onPress={handleSelectNewHost}
-                    >
-                        <Text style={styles.buttonText}>Select New Host</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.button, styles.cancelButton]}
-                        onPress={onClose}
-                    >
-                        <Text style={styles.buttonText}>Cancel</Text>
-                    </TouchableOpacity>
+                    <View style={shared.buttonContainer}>
+                        <SecondaryButton
+                            title="No"
+                            onPress={onClose}
+                        />
+                        <PrimaryButton
+                            title="Yes"
+                            onPress={() => {
+                                onAccept()
+                                navigation.navigate('Home')
+                            }}
+                        />
+                    </View>
                 </View>
-            </View>
+            </SafeAreaView>
         </Modal>
     );
 }
-
-const styles = StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    modalContainer: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 24,
-        margin: 20,
-        alignItems: 'center',
-        minWidth: 280,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 24,
-        textAlign: 'center',
-    },
-    button: {
-        borderRadius: 8,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        marginBottom: 12,
-        minWidth: 200,
-        alignItems: 'center',
-    },
-    endGameButton: {
-        backgroundColor: '#ed5c5d',
-    },
-    selectHostButton: {
-        backgroundColor: '#3b82f6',
-    },
-    cancelButton: {
-        backgroundColor: '#6b7280',
-    },
-    buttonText: {
-        color: '#ffffff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-}); 

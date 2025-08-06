@@ -97,6 +97,31 @@ function findGameByCode(lobbyCode) {
     return games.get(lobbyCode.toUpperCase());
 }
 
+// Helper function to find the next active player in rotation
+function findNextActivePlayer(game, currentActivePlayerId) {
+    if (!game.players || game.players.length === 0) return null;
+
+    // If no current active player, return the first non-host player
+    if (!currentActivePlayerId) {
+        const firstNonHostPlayer = game.players.find(p => !p.isHost);
+        return firstNonHostPlayer ? firstNonHostPlayer.id : null;
+    }
+
+    // Find the index of the current active player
+    const currentIndex = game.players.findIndex(p => p.id === currentActivePlayerId);
+    if (currentIndex === -1) return null;
+
+    // Find the next non-host player in rotation
+    let nextIndex = (currentIndex + 1) % game.players.length;
+    while (game.players[nextIndex].isHost) {
+        nextIndex = (nextIndex + 1) % game.players.length;
+        // Prevent infinite loop if all players are hosts
+        if (nextIndex === currentIndex) break;
+    }
+
+    return game.players[nextIndex].id;
+}
+
 function setPlayerModal(game, playerId, modal) {
     if (!game) return game;
     return {
@@ -492,22 +517,12 @@ io.on('connection', (socket) => {
         let game = games.get(gameId);
         if (!game) return;
 
-        // Find the current active player
-        const currentActivePlayer = game.players.find(p => p.id === game.activePlayer);
-        if (!currentActivePlayer) return;
-
-        // Find the index of the current active player
-        const currentIndex = game.players.findIndex(p => p.id === game.activePlayer);
-        if (currentIndex === -1) return;
-
-        // Find the next non-host player
-        let nextIndex = (currentIndex + 1) % game.players.length;
-        while (game.players[nextIndex].isHost) {
-            nextIndex = (nextIndex + 1) % game.players.length;
-        }
+        // Find the next active player in rotation
+        const nextActivePlayerId = findNextActivePlayer(game, game.activePlayer);
+        if (!nextActivePlayerId) return;
 
         // Set the new active player
-        const updatedGame = { ...game, activePlayer: game.players[nextIndex].id };
+        const updatedGame = { ...game, activePlayer: nextActivePlayerId };
 
         io.to(gameId).emit('game_updated', updatedGame);
     });
@@ -923,6 +938,68 @@ io.on('connection', (socket) => {
         io.to(gameId).emit('end_game_end');
     });
 
+    // Remove player
+    socket.on('remove_player', ({ gameId, playerId }) => {
+        console.log('SERVER: remove_player');
+        let game = games.get(gameId);
+        if (!game) return;
+
+        // Remove the player from the game
+        const updatedPlayers = game.players.filter(p => p.id !== playerId);
+        players.delete(playerId);
+
+        // Remove the player's socket from the game room
+        socket.leave(gameId);
+
+        // If no players left, end the game and remove it
+        if (updatedPlayers.length === 0) {
+            // End the game properly
+            const endedGame = {
+                ...game,
+                gameEnded: true,
+                winner: null,
+                players: []
+            };
+
+            // Broadcast game ended to any remaining connected players
+            io.to(gameId).emit('game_updated', endedGame);
+            io.to(gameId).emit('end_game_end');
+
+            // Remove the game from storage
+            games.delete(game.id);
+            games.delete(game.lobbyCode);
+            return;
+        }
+
+        // Create updated game state
+        let updatedGame = {
+            ...game,
+            players: updatedPlayers
+        };
+
+        // Assign host to first remaining player if host left
+        if (!updatedGame.players.some(p => p.isHost)) {
+            updatedGame = {
+                ...updatedGame,
+                players: updatedGame.players.map((p, index) =>
+                    index === 0 ? { ...p, isHost: true } : p
+                )
+            };
+        }
+
+        // If the removed player was the active player, find the next player in rotation
+        if (game.activePlayer === playerId) {
+            updatedGame.activePlayer = findNextActivePlayer(updatedGame, null);
+            console.log('Server: Updated activePlayer after removal to:', updatedGame.activePlayer, 'for game:', gameId);
+        }
+
+        // Update the game in storage
+        games.set(gameId, updatedGame);
+        games.set(updatedGame.lobbyCode, updatedGame);
+
+        io.to(gameId).emit('game_updated', updatedGame);
+    });
+
     // Disconnect handling
     socket.on('disconnect', () => {
         console.log('SERVER: disconnect');
@@ -944,16 +1021,17 @@ io.on('connection', (socket) => {
                             game.players[0].isHost = true;
                         }
 
-                        // If the disconnected player was the active player, set active player to null or first non-host player
+                        // If the disconnected player was the active player, find the next player in rotation
                         if (game.activePlayer === playerId) {
-                            const nonHostPlayers = game.players.filter(p => !p.isHost);
-                            game.activePlayer = nonHostPlayers.length > 0 ? nonHostPlayers[0].id : null;
+                            game.activePlayer = findNextActivePlayer(game, playerId);
                             console.log('Server: Updated activePlayer after disconnect to:', game.activePlayer, 'for game:', game.id);
                         }
 
                         io.to(game.id).emit('game_updated', game);
                     }
                 }
+                // Remove the player's socket from the game room
+                socket.leave(playerData.gameId);
                 players.delete(playerId);
                 break;
             }

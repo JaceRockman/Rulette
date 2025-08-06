@@ -469,8 +469,7 @@ export default function GameScreen() {
                 <ExitGameModal
                     visible={showExitGameModal}
                     onClose={() => setShowExitGameModal(false)}
-                    onEndGame={handleEndGame}
-                    onSelectNewHost={handleSelectNewHost}
+                    onAccept={() => { socketService.removePlayer(socketService.getCurrentUserId()!) }}
                 />
 
                 {/* New Host Selection Modal */}

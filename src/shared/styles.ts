@@ -174,4 +174,4 @@ export const shared = StyleSheet.create({
     },
 });
 
-export default shared; 
+export default shared;

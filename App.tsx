@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -11,10 +11,12 @@ import PromptWritingScreen from './src/screens/PromptWritingScreen';
 import { GameProvider } from './src/context/GameContext';
 import OutlinedText from './src/components/OutlinedText';
 import StripedBackground from './src/components/Backdrop';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from './src/shared/styles';
 import WheelScreen from './src/screens/WheelScreen';
 import GameOverScreen from './src/screens/GameOverScreen';
+import { ExitGameModal } from './src/modals';
+import { socketService } from './src/services/socketService';
 
 export type RootStackParamList = {
     Home: undefined;
@@ -125,6 +127,15 @@ export default function App() {
                             }}
                         />
                     </Stack.Navigator>
+                    <ExitGameModal
+                        visible={showExitGameModal}
+                        onAccept={() => {
+                            console.log('socketService.getCurrentUserId()', socketService.getCurrentUserId())
+                            socketService.removePlayer(socketService.getCurrentUserId()!)
+                            setShowExitGameModal(false)
+                        }}
+                        onClose={() => { setShowExitGameModal(false) }}
+                    />
                 </GameProvider>
             </NavigationContainer>
         </GestureHandlerRootView>

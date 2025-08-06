@@ -176,6 +176,13 @@ class SocketService {
         this.socket.emit('join_lobby', { lobbyCode, playerName });
     }
 
+    removePlayer(playerId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('remove_player', {
+            gameId: this.gameState.id,
+            playerId
+        });
+    }
 
 
     markRulesCompletedForUser(userId: string) {
