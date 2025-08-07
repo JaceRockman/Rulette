@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test": "jest",
+    "heroku-postbuild": "cd server && npm install --legacy-peer-deps"
   },
   "dependencies": {
     "@expo/cli": "^0.20.0",
@@ -47,5 +48,9 @@
     "rimraf": "^4.0.0",
     "@xmldom/xmldom": "^0.8.0"
   },
-  "private": true
+  "private": true,
+  "engines": {
+    "node": "18.17.0",
+    "npm": "9.6.7"
+  }
 }
