@@ -324,6 +324,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }, [gameState?.playerInputCompleted]);
 
     const addPlaquesForSegments = () => {
+        if (!gameState || !gameState.players || !gameState.rules || !gameState.prompts || !gameState.modifiers || !gameState.ends) return;
+
         let totalSegments = Math.max(gameState.players.length * 4, 4);
 
         const currentNumRules = gameState.rules.length;
@@ -366,18 +368,20 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
 
-    const allPlaquesAdded = () => {
-        return gameState?.rules.length === gameState.players.length * 4 &&
-            gameState?.prompts.length === gameState.players.length * 4 &&
-            gameState?.modifiers.length === gameState.players.length * 4 &&
-            gameState?.ends.length === gameState.players.length * 4;
-    }
-
-    const areAllPlaquesAdded = allPlaquesAdded();
+    const areAllPlaquesAdded = React.useMemo(() => {
+        console.log('GameContext: areAllPlaquesAdded');
+        if (!gameState || !gameState.players || !gameState.rules || !gameState.prompts || !gameState.modifiers || !gameState.ends) return false;
+        const playerCount = gameState.players.length;
+        return gameState.rules.length === playerCount * 4 &&
+            gameState.prompts.length === playerCount * 4 &&
+            gameState.modifiers.length === playerCount * 4 &&
+            gameState.ends.length === playerCount * 4;
+    }, [gameState, gameState?.players, gameState?.rules, gameState?.prompts, gameState?.modifiers, gameState?.ends]);
 
     // Create wheel segments once all rules and prompts are added
     React.useEffect(() => {
-        if (!allPlaquesAdded() || gameState.wheelSegments.length > 0) {
+        console.log('GameContext: check plaques');
+        if (!currentUser?.isHost || !areAllPlaquesAdded || gameState.wheelSegments.length > 0) {
             return;
         }
         const generatedWheelSegments: WheelSegment[] = createWheelSegments();
@@ -395,11 +399,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
                 assignedTo: gameState.players.find(p => p.isHost)?.id
             });
         }
-    }, [areAllPlaquesAdded, gameState.ends.length]);
+    }, [areAllPlaquesAdded]);
 
 
     const createWheelSegments = (): WheelSegment[] => {
+        console.log('GameContext: createWheelSegments');
         const newSegments: WheelSegment[] = [];
+
+        if (!gameState || !gameState.players || !gameState.rules || !gameState.prompts || !gameState.modifiers || !gameState.ends) return newSegments;
 
         let totalSegments = Math.max(gameState.players.length * 4, 4);
 
@@ -481,6 +488,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const getHostPlayer = (): Player | null => {
+        if (!gameState?.players) return null;
         return gameState.players.find(player => player.isHost) || null;
     };
 
@@ -492,6 +500,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     const getAssignedRulesByPlayer = (playerId: string) => {
+        if (!gameState?.rules) return [];
         return gameState.rules.filter(rule => rule.assignedTo === playerId);
     };
 
