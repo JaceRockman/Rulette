@@ -19,6 +19,7 @@ interface GameContextType {
 
     getNonHostPlayers: () => Player[] | null | null;
     getHostPlayer: () => Player | null | null;
+    getAllPlayers: () => Player[];
 
     setShowExitGameModal: (show: boolean) => void;
     setPlayerModal: (playerId: string, modalName?: string) => void;
@@ -116,6 +117,7 @@ export const initialState: GameState = {
     settings: {
         customRulesAndPrompts: 0,
         startingPoints: 20,
+        hostIsValidTarget: true,
     },
     gameEnded: false,
 };
@@ -375,11 +377,24 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     // Create wheel segments once all rules and prompts are added
     React.useEffect(() => {
-        if (!allPlaquesAdded()) {
+        if (!allPlaquesAdded() || gameState.wheelSegments.length > 0) {
             return;
         }
         const generatedWheelSegments: WheelSegment[] = createWheelSegments();
         socketService.syncWheelSegments(generatedWheelSegments);
+
+        if (gameState.settings?.hostIsValidTarget && currentUser?.isHost) {
+            console.log("GameContext: Adding hostTheShow Plaque")
+            socketService.addPlaque({
+                id: 'hostTheShow',
+                type: 'rule',
+                text: 'Host the Show',
+                plaqueColor: colors.gameChangerYellow,
+                authorId: 'system',
+                isActive: true,
+                assignedTo: gameState.players.find(p => p.isHost)?.id
+            });
+        }
     }, [areAllPlaquesAdded, gameState.ends.length]);
 
 
@@ -458,12 +473,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
-    const getNonHostPlayers = (): Player[] | null => {
-        return gameState.players.filter(player => !player.isHost) || null;
+    const getNonHostPlayers = (): Player[] => {
+        if (!gameState?.players) return [];
+        return gameState.players
+            .filter(player => !player.isHost)
+            .sort((a, b) => (a.playerOrderPosition || 0) - (b.playerOrderPosition || 0));
     };
 
     const getHostPlayer = (): Player | null => {
         return gameState.players.find(player => player.isHost) || null;
+    };
+
+    const getAllPlayers = (): Player[] => {
+        if (!gameState?.players) return [];
+        const hosts = gameState.players.filter(p => p.isHost);
+        const nonHostPlayers = getNonHostPlayers() || [];
+        return [...hosts, ...nonHostPlayers];
     };
 
     const getAssignedRulesByPlayer = (playerId: string) => {
@@ -698,6 +723,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
             getNonHostPlayers,
             getHostPlayer,
+            getAllPlayers,
 
             setShowExitGameModal,
             setPlayerModal,

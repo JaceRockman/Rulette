@@ -85,7 +85,7 @@ interface ModifierModalsProps {
 export default function ModifierModals(
     { setCurrentModal, currentModal, currentUser, onFinishModifier }: ModifierModalsProps) {
 
-    const { gameState, updateActiveCloningDetails, updateActiveFlippingDetails, updateActiveSwappingDetails, cloneRuleToPlayer, triggerFlipModifier, assignRule, endUpDownRule, endCloneRule, endSwapRule, flipRule } = useGame();
+    const { gameState, updateActiveCloningDetails, updateActiveFlippingDetails, updateActiveSwappingDetails, cloneRuleToPlayer, triggerFlipModifier, assignRule, endUpDownRule, endCloneRule, endSwapRule, flipRule, getNonHostPlayers } = useGame();
 
     const confirmRuleForCloning = (rule: Rule) => {
         if (!gameState) return;
@@ -194,12 +194,15 @@ export default function ModifierModals(
     };
 
     const confirmRulesForSwapping = () => {
-        if (!gameState) return;
-        const swapperRule = gameState.activeSwapRuleDetails!.swapperRule;
-        const swappeeRule = gameState.activeSwapRuleDetails!.swappeeRule;
+        if (!gameState || !gameState.activeSwapRuleDetails || !gameState.activeSwapRuleDetails.swappee || !gameState.activeSwapRuleDetails.swapper) return;
+        const swapperRule = gameState.activeSwapRuleDetails.swapperRule;
+        const swappeeRule = gameState.activeSwapRuleDetails.swappeeRule;
         if (swapperRule && swappeeRule) {
-            assignRule(swapperRule.id, gameState.activeSwapRuleDetails!.swappee!.id);
-            assignRule(swappeeRule.id, gameState.activeSwapRuleDetails!.swapper!.id);
+            assignRule(swapperRule.id, gameState.activeSwapRuleDetails.swappee.id);
+            assignRule(swappeeRule.id, gameState.activeSwapRuleDetails.swapper.id);
+        }
+        if (gameState.settings?.hostIsValidTarget && gameState.activeSwapRuleDetails.swappeeRule?.id === "hostTheShow") {
+            socketService.setPlayerAsHost(gameState.activeSwapRuleDetails.swapper.id);
         }
         socketService.setAllPlayerModals(null);
     };
@@ -227,38 +230,25 @@ export default function ModifierModals(
     const getPlayerToPassTo = (player: Player, direction: 'up' | 'down') => {
         if (!gameState?.players) return;
 
-        const sourceIndex = gameState.players.findIndex(p => p.id === player.id);
-        if (sourceIndex === -1) return;
+        // Get non-host players sorted by playerOrderPosition
+        const nonHostPlayers = getNonHostPlayers() || [];
+
+        if (nonHostPlayers.length === 0) return player;
 
         let targetIndex: number;
         if (direction === 'up') {
-            targetIndex = sourceIndex - 1;
-            while (targetIndex >= 0 && gameState.players[targetIndex].isHost) {
-                targetIndex--;
-            }
+            targetIndex = player.playerOrderPosition! - 1;
             if (targetIndex < 0) {
-                targetIndex = gameState.players.length - 1;
-                while (targetIndex >= 0 && gameState.players[targetIndex].isHost) {
-                    targetIndex--;
-                }
+                targetIndex = nonHostPlayers.length - 1;
             }
         } else {
-            targetIndex = sourceIndex + 1;
-            while (targetIndex < gameState.players.length && gameState.players[targetIndex].isHost) {
-                targetIndex++;
-            }
-            if (targetIndex >= gameState.players.length) {
+            targetIndex = player.playerOrderPosition! + 1;
+            if (targetIndex >= nonHostPlayers.length) {
                 targetIndex = 0;
-                while (targetIndex < gameState.players.length && gameState.players[targetIndex].isHost) {
-                    targetIndex++;
-                }
             }
         }
 
-        if (targetIndex >= 0 && targetIndex < gameState.players.length) {
-            return gameState.players[targetIndex];
-        }
-        return player; // fallback to self if no valid target found
+        return nonHostPlayers[targetIndex];
     }
 
     // Handle rule selection for up/down workflow
@@ -281,7 +271,7 @@ export default function ModifierModals(
 
     const handleUpDownConfirmation = () => {
         if (!gameState?.activeUpDownRuleDetails) return;
-        const nonHostPlayers: Player[] = gameState.players.filter(p => !p.isHost);
+        const nonHostPlayers: Player[] = getNonHostPlayers() || [];
         if (nonHostPlayers.length > 0) {
             nonHostPlayers.forEach(player => {
                 const playerHasRules = gameState?.rules.some(rule => rule.assignedTo === player.id);
@@ -302,7 +292,7 @@ export default function ModifierModals(
     };
 
     const allPlayersHaveSelectedRules = () => {
-        const nonHostPlayers = gameState?.players.filter(p => !p.isHost) || [];
+        const nonHostPlayers = getNonHostPlayers() || [];
         const playersWithRulesToPass = nonHostPlayers.filter(player => {
             return gameState?.rules.some(rule => rule.assignedTo === player.id)
         }) || [];

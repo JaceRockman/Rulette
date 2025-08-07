@@ -37,7 +37,7 @@ export default function GameScreen() {
 
     const { gameState, currentUser, showExitGameModal,
         setShowExitGameModal, updatePoints, endGame, dispatch, shredRule,
-        triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier } = useGame();
+        triggerCloneModifier, triggerFlipModifier, triggerSwapModifier, triggerUpDownModifier, getNonHostPlayers } = useGame();
 
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
 
@@ -60,10 +60,7 @@ export default function GameScreen() {
     const [showNewHostSelectionModal, setShowNewHostSelectionModal] = useState(false);
 
     // Check if all non-host players have completed both phases
-    const nonHostPlayers = gameState?.players.filter(player => !player.isHost) || [];
-    const allNonHostPlayersCompleted = nonHostPlayers.every(player =>
-        player.rulesCompleted && player.promptsCompleted
-    ) || false;
+    const nonHostPlayers = getNonHostPlayers();
 
     React.useEffect(() => {
         if (!gameState) return;
@@ -85,7 +82,7 @@ export default function GameScreen() {
     const handlePlayerTap = (player: Player) => {
         if (currentUser?.isHost) {
             // Check if all non-host players have completed both phases
-            if (!allNonHostPlayersCompleted) {
+            if (!gameState?.playerInputCompleted) {
                 Alert.alert(
                     'Actions Disabled',
                     'All players must complete rules and prompts before host actions are available.',
@@ -222,25 +219,6 @@ export default function GameScreen() {
         }
     };
 
-
-
-    // Host action handlers
-    const handleEndGame = () => {
-        if (!gameState) return;
-
-        // Find player with most points
-        const winner = gameState.players.reduce((prev, current) =>
-            (prev.points > current.points) ? prev : current
-        );
-        if (winner) {
-            endGame();
-        }
-    };
-
-    const handleSelectNewHost = () => {
-        setShowNewHostSelectionModal(true);
-    };
-
     const handleNewHostSelected = (newHost: Player) => {
         // Check if current player is being removed (they are the current host)
         const isCurrentPlayerRemoved = currentUser?.isHost;
@@ -296,6 +274,7 @@ export default function GameScreen() {
     };
 
     const playerCardComponent = (player: Player) => {
+        console.log("gameState?.activePlayer", gameState?.activePlayer)
         const isActivePlayer = gameState?.activePlayer === player.id;
 
         return (
@@ -328,13 +307,14 @@ export default function GameScreen() {
 
     const playerRulesComponent = (player: Player) => {
         const playerRules = gameState?.rules.filter(rule => rule.assignedTo === player.id);
+        console.log("playerRules", playerRules)
 
         return playerRules && playerRules.length > 0 ? (
             <View style={styles.playerRulesContainer}>
                 <Text style={styles.playerRulesTitle}>Assigned Rules:</Text>
                 {render2ColumnPlaqueList({
                     plaques: playerRules,
-                    onPress: (plaque: PlaqueType) => handleRuleTap(plaque as Rule),
+                    onPress: !player.isHost ? (plaque: PlaqueType) => handleRuleTap(plaque as Rule) : undefined,
                 })}
             </View>
         ) : null;
@@ -413,7 +393,7 @@ export default function GameScreen() {
                         {(() => {
                             const topPlayer = currentUser?.isHost ? gameState.players.find(player => player.id === gameState.activePlayer) : currentUser;
 
-                            const sortedPlayers = sortPlayersByTopPlayer(nonHostPlayers, topPlayer || null)
+                            const sortedPlayers = sortPlayersByTopPlayer(nonHostPlayers || [], topPlayer || null)
 
                             return sortedPlayers.map((player) => (
                                 playerCardComponent(player)

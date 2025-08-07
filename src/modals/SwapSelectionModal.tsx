@@ -20,9 +20,10 @@ export default function SwapSelectionModal({
 
     const { gameState } = useGame();
 
-    const otherNonHostPlayers = gameState?.players.filter(player => !player.isHost &&
-        player.id !== gameState?.activeSwapRuleDetails?.swapper.id);
-    const playersWithRules = otherNonHostPlayers?.filter(player => gameState?.rules.some(rule => rule.assignedTo === player.id));
+    const swappablePlayers = gameState?.settings?.hostIsValidTarget ?
+        gameState?.players.filter(player => player.id !== gameState?.activeSwapRuleDetails?.swapper.id) :
+        gameState?.players.filter(player => player.id !== gameState?.activeSwapRuleDetails?.swapper.id && !player.isHost);
+    const playersWithRules = swappablePlayers?.filter(player => gameState?.rules.some(rule => rule.assignedTo === player.id));
 
     const [selectedRule, setSelectedRule] = useState<Rule | null>(null);
     const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);

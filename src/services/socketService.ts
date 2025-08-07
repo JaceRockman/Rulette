@@ -216,6 +216,14 @@ class SocketService {
         this.socket.emit('start_game', { gameId: this.gameState.id, settings });
     }
 
+    setPlayerAsHost(playerId: string) {
+        if (!this.socket || !this.gameState) return;
+        this.socket.emit('set_player_as_host', {
+            gameId: this.gameState.id,
+            playerId
+        });
+    }
+
     setPlayerModal(playerId: string, modal: string | null) {
         if (!this.socket || !this.gameState) return;
         this.socket.emit('set_player_modal', {

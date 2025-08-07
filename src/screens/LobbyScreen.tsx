@@ -7,14 +7,16 @@ import {
     ScrollView,
     Alert,
     SafeAreaView,
+    Switch,
 } from 'react-native';
+import { CheckBox } from '@rneui/themed';
 import { useGame } from '../context/GameContext';
 import * as Clipboard from 'expo-clipboard';
 import StripedBackground from '../components/Backdrop';
 import OutlinedText from '../components/OutlinedText';
 import { PrimaryButton } from '../components/Buttons';
 import { Player } from '../types/game';
-import shared from '../shared/styles';
+import shared, { colors } from '../shared/styles';
 import socketService from '../services/socketService';
 import { useNavigation } from '@react-navigation/native';
 
@@ -24,6 +26,7 @@ export default function LobbyScreen() {
 
     const [startingPoints, setStartingPoints] = useState('20');
     const [numRulesAndPrompts, setNumRulesAndPrompts] = useState('0');
+    const [hostIsValidTarget, setHostIsValidTarget] = useState(true);
 
     const host = getHostPlayer();
     const nonHostPlayers = getNonHostPlayers();
@@ -44,7 +47,8 @@ export default function LobbyScreen() {
         // Get the game settings from the UI
         const settings = {
             customRulesAndPrompts: parseInt(numRulesAndPrompts) || 0,
-            startingPoints: parseInt(startingPoints) || 20
+            startingPoints: parseInt(startingPoints) || 20,
+            hostIsValidTarget: hostIsValidTarget
         };
 
         // Start the game with settings - this will update settings on server and start the game
@@ -125,6 +129,17 @@ export default function LobbyScreen() {
                                     placeholderTextColor="#9ca3af"
                                 />
                             </View>
+
+                            <View style={styles.settingContainer}>
+                                <OutlinedText style={styles.settingLabel}>Modifiers Can Target Host</OutlinedText>
+                                <CheckBox
+                                    checked={hostIsValidTarget}
+                                    checkedColor={colors.gameChangerWhite}
+                                    size={30}
+                                    containerStyle={styles.checkboxContainer}
+                                    onPress={() => setHostIsValidTarget(!hostIsValidTarget)}
+                                />
+                            </View>
                         </View>
                     )}
 
@@ -174,5 +189,9 @@ const styles = StyleSheet.create({
         color: '#1f2937',
         width: 200,
         textAlign: 'center',
+    },
+    checkboxContainer: {
+        backgroundColor: 'transparent',
+        borderWidth: 0,
     },
 }); 

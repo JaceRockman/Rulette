@@ -1,6 +1,5 @@
 TODOs
 - Setting for modifiers applying to the host
-- Give the host a "Host the Show" Plaque
 
 Nice to Haves
 - Improve player card visuals in lobby screen and game screen

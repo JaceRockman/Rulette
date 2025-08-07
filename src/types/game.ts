@@ -4,6 +4,7 @@ export interface Player {
     points: number;
     rules: Rule[];
     isHost: boolean;
+    playerOrderPosition?: number | null; // null for hosts, 1+ for players
     rulesCompleted?: boolean;
     promptsCompleted?: boolean;
     currentModal?: string | null;
@@ -79,6 +80,7 @@ export interface GameState {
 export interface GameSettings {
     customRulesAndPrompts: number;
     startingPoints: number;
+    hostIsValidTarget: boolean;
 }
 
 export interface StackItem {

@@ -47,13 +47,15 @@ function createGame(hostId, hostName) {
             points: 20,
             rules: [],
             isHost: true,
+            playerOrderPosition: null, // Hosts have null position
             rulesCompleted: false,
             promptsCompleted: false,
             currentModal: null
         }],
         settings: {
             customRulesAndPrompts: 0,
-            startingPoints: 20
+            startingPoints: 20,
+            hostIsValidTarget: true
         },
         isGameStarted: false,
         rules: [],
@@ -101,32 +103,35 @@ function findGameByCode(lobbyCode) {
 function findNextActivePlayer(game, currentActivePlayerId) {
     if (!game.players || game.players.length === 0) return null;
 
+    // Get all non-host players sorted by playerOrderPosition
+    const nonHostPlayers = game.players
+        .filter(p => !p.isHost)
+        .sort((a, b) => (a.playerOrderPosition || 0) - (b.playerOrderPosition || 0));
+
+    if (nonHostPlayers.length === 0) return null;
+
     // If no current active player, return the first non-host player
     if (!currentActivePlayerId) {
-        const firstNonHostPlayer = game.players.find(p => !p.isHost);
-        return firstNonHostPlayer ? firstNonHostPlayer.id : null;
+        return nonHostPlayers[0].id;
     }
 
-    // Find the index of the current active player
-    const currentIndex = game.players.findIndex(p => p.id === currentActivePlayerId);
-    if (currentIndex === -1) return null;
+    // Find the current active player
+    const currentPlayer = nonHostPlayers.find(p => p.id === currentActivePlayerId);
+    if (!currentPlayer) return nonHostPlayers[0].id;
 
-    // Find the next non-host player in rotation
-    let nextIndex = (currentIndex + 1) % game.players.length;
-    while (game.players[nextIndex].isHost) {
-        nextIndex = (nextIndex + 1) % game.players.length;
-        // Prevent infinite loop if all players are hosts
-        if (nextIndex === currentIndex) break;
-    }
+    // Find the next player in rotation
+    const currentPosition = currentPlayer.playerOrderPosition;
+    const nextPlayer = nonHostPlayers.find(p => p.playerOrderPosition === currentPosition + 1);
 
-    return game.players[nextIndex].id;
+    // If no next player, wrap around to the first player
+    return nextPlayer ? nextPlayer.id : nonHostPlayers[0].id;
 }
 
 // Helper function to assign host to first player if no host exists
 function assignHostIfNeeded(players) {
     if (!players.some(p => p.isHost)) {
         return players.map((p, index) =>
-            index === 0 ? { ...p, isHost: true } : p
+            index === 0 ? { ...p, isHost: true, playerOrderPosition: null } : p
         );
     }
     return players;
@@ -145,10 +150,30 @@ function removePlayerFromGame(game, playerId) {
     // Assign host to first remaining player if host left
     const playersWithHost = assignHostIfNeeded(updatedPlayers);
 
+    // Reassign player order positions for non-host players
+    const reassignedPlayers = playersWithHost.map(player => {
+        if (player.isHost) {
+            return { ...player, playerOrderPosition: null };
+        } else {
+            // For non-host players, we'll reassign positions based on their current order
+            return player; // Keep current position for now, will be reassigned below
+        }
+    });
+
+    // Reassign positions for non-host players in order
+    let positionCounter = 1;
+    const finalPlayers = reassignedPlayers.map(player => {
+        if (player.isHost) {
+            return player;
+        } else {
+            return { ...player, playerOrderPosition: positionCounter++ };
+        }
+    });
+
     // Create updated game state
     let updatedGame = {
         ...game,
-        players: playersWithHost
+        players: finalPlayers
     };
 
     // If the removed player was the active player, find the next player in rotation
@@ -176,6 +201,25 @@ function setAllPlayerModals(game, modal) {
         ...game,
         players: game.players.map(p => ({ ...p, currentModal: modal }))
     };
+}
+
+// Helper function to get players in order (hosts first, then non-host players by position)
+function getAllPlayersInOrder(game) {
+    if (!game || !game.players) return [];
+
+    const hosts = game.players.filter(p => p.isHost);
+    const nonHostPlayers = game.players
+        .filter(p => !p.isHost)
+        .sort((a, b) => (a.playerOrderPosition || 0) - (b.playerOrderPosition || 0));
+
+    return [...hosts, ...nonHostPlayers];
+}
+
+function getNonHostPlayersInOrder(game) {
+    if (!game || !game.players) return [];
+    return game.players
+        .filter(p => !p.isHost)
+        .sort((a, b) => (a.playerOrderPosition || 0) - (b.playerOrderPosition || 0));
 }
 
 
@@ -219,12 +263,17 @@ io.on('connection', (socket) => {
         }
 
         const playerId = uuidv4();
+        // Calculate the next player order position (exclude hosts)
+        const nonHostPlayers = game.players.filter(p => !p.isHost);
+        const nextPosition = nonHostPlayers.length + 1;
+
         const player = {
             id: playerId,
             name: playerName,
             points: 20,
             rules: [],
             isHost: false,
+            playerOrderPosition: nextPosition,
             rulesCompleted: false,
             promptsCompleted: false,
             currentModal: null
@@ -282,7 +331,7 @@ io.on('connection', (socket) => {
         game.roundNumber = 1;
 
         // Set the first non-host player as the initial active player
-        const nonHostPlayers = game.players.filter(player => !player.isHost);
+        const nonHostPlayers = getNonHostPlayersInOrder(game);
         if (nonHostPlayers.length > 0) {
             game.activePlayer = nonHostPlayers[0].id;
             console.log('Server: Setting initial activePlayer to:', game.activePlayer, 'for game:', gameId);
@@ -307,6 +356,29 @@ io.on('connection', (socket) => {
         })
     });
 
+    socket.on('set_player_as_host', ({ gameId, playerId }) => {
+        console.log('SERVER: set_player_as_host');
+        let game = games.get(gameId);
+        if (!game) return;
+
+        const relevantOrderPosition = game.players.find(p => p.id === playerId)?.playerOrderPosition;
+
+        let updatedGame = { ...game, activePlayer: game.players.find(p => p.isHost)?.id };
+
+        let updatedPlayers = updatedGame.players.map(p => {
+            if (p.id === playerId) {
+                return { ...p, isHost: true, playerOrderPosition: null };
+            } else if (p.isHost) {
+                return { ...p, isHost: false, playerOrderPosition: relevantOrderPosition };
+            }
+            return p;
+        });
+
+        updatedGame = { ...updatedGame, players: updatedPlayers };
+        games.set(gameId, updatedGame);
+        io.to(gameId).emit('game_updated', updatedGame);
+    });
+
     // Add plaque (unified handler for rules, prompts, and modifiers)
     socket.on('add_plaque', ({ gameId, plaque }) => {
         console.log('SERVER: add_plaque');
@@ -318,8 +390,7 @@ io.on('connection', (socket) => {
         if (plaque.type === 'rule') {
             const rule = {
                 ...plaque,
-                isActive: true,
-                assignedTo: null
+                isActive: true
             };
             updatedGame = { ...game, rules: [...game.rules, rule] };
             games.set(gameId, updatedGame);

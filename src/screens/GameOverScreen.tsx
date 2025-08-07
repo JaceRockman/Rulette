@@ -10,10 +10,12 @@ import { useGame } from '../context/GameContext';
 
 // Use StackScreenProps to get navigation and route
 export default function GameOverScreen() {
-    const { gameState, currentUser } = useGame();
+    const { gameState, currentUser, getNonHostPlayers } = useGame();
 
-    const winner = gameState?.players.find(player => player.points === Math.max(...gameState?.players.map(player => player.points) || [0]))?.name;
-    const points = gameState?.players.find(player => player.points === Math.max(...gameState?.players.map(player => player.points) || [0]))?.points;
+    const nonHostPlayers = getNonHostPlayers();
+    const winner = nonHostPlayers?.find(player => player.points === Math.max(...nonHostPlayers.map(player => player.points) || [0]));
+    const winnerName = winner?.name;
+    const winnerPoints = winner?.points;
 
     return (
         <Backdrop>
@@ -49,14 +51,14 @@ export default function GameOverScreen() {
                         marginBottom: 10,
                         color: '#000',
                     }}>
-                        {winner}
+                        {winnerName}
                     </Text>
                     <Text style={{
                         fontSize: 20,
                         textAlign: 'center',
                         color: '#000',
                     }}>
-                        {points} points
+                        {winnerPoints} points
                     </Text>
                 </View>
 

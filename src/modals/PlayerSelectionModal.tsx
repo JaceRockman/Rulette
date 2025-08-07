@@ -86,6 +86,7 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         padding: 12,
         marginBottom: 8,
+        width: '100%',
     },
     modalPlayerName: {
         fontSize: 16,

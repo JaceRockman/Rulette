@@ -6,7 +6,7 @@ import { colors } from "../shared/styles";
 interface PlaqueListProps {
     plaques: PlaqueType[];
     selectedPlaque?: PlaqueType | null;
-    onPress: (plaque: PlaqueType) => void;
+    onPress?: (plaque: PlaqueType) => void;
 }
 
 export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: PlaqueListProps) => {
@@ -21,7 +21,7 @@ export const render2ColumnPlaqueList = ({ plaques, selectedPlaque, onPress }: Pl
                 <Plaque
                     key={plaque.id}
                     plaque={plaque}
-                    onPress={() => onPress(plaque)}
+                    onPress={onPress ? () => onPress(plaque) : undefined}
                     selected={selectedPlaque?.id === plaque.id}
                 />
             ))}
