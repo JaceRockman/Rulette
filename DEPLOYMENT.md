@@ -96,6 +96,7 @@ export const SERVER_CONFIG = {
 2. **App crashes**: Check Heroku logs with `heroku logs --tail`
 3. **Socket connection fails**: Ensure you're using HTTPS
 4. **Domain not working**: Check DNS propagation with `nslookup avisindustries.net`
+5. **npm dependency conflicts**: The server has its own `.npmrc` file to handle peer dependency issues
 
 ### Useful Commands:
 
