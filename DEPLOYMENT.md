@@ -1,270 +1,151 @@
-# Deployment Guide
+# Deployment Guide for Spin-That-Wheel
 
-This guide will help you deploy both the mobile app and backend server for Spin That Wheel.
+This guide will help you deploy your Spin-That-Wheel app to Heroku with your custom domain `avisindustries.net`.
 
-## Backend Server Deployment
+## Prerequisites
 
-### Option 1: Local Development
+1. Install the Heroku CLI: https://devcenter.heroku.com/articles/heroku-cli
+2. Create a Heroku account: https://signup.heroku.com/
+3. Make sure you have Git installed
+4. Own the domain `avisindustries.net` (✅ You already have this!)
 
-1. **Navigate to server directory**
+## Step 1: Prepare Your App
+
+1. **Update Server Configuration**
+   - The server is already configured to use Heroku's PORT environment variable
+   - The Procfile tells Heroku to run the server from the `server/` directory
+
+2. **Update Client Configuration**
+   - After deployment, you'll need to update `src/config/server.ts` with your custom domain
+
+## Step 2: Deploy to Heroku
+
+1. **Login to Heroku**
    ```bash
-   cd server
+   heroku login
    ```
 
-2. **Install dependencies**
+2. **Create a new Heroku app**
    ```bash
-   npm install
+   heroku create spin-wheel-game
    ```
+   (You can choose any name, but `spin-wheel-game` is descriptive)
 
-3. **Start the server**
-   ```bash
-   npm start
-   # or for development with auto-restart:
-   npm run dev
-   ```
-
-4. **Verify server is running**
-   - Visit `http://localhost:3001/health`
-   - You should see: `{"status":"ok","games":0,"players":0}`
-
-### Option 2: Deploy to Cloud (Heroku)
-
-1. **Create Heroku account and install CLI**
-
-2. **Create new Heroku app**
-   ```bash
-   heroku create your-app-name
-   ```
-
-3. **Set up environment variables**
-   ```bash
-   heroku config:set NODE_ENV=production
-   ```
-
-4. **Deploy to Heroku**
+3. **Deploy to Heroku**
    ```bash
    git add .
-   git commit -m "Deploy backend server"
+   git commit -m "Prepare for Heroku deployment"
    git push heroku main
    ```
 
-5. **Update mobile app server URL**
-   - In `src/services/socketService.ts`, change `SERVER_URL` to your Heroku app URL
-
-### Option 3: Deploy to VPS (DigitalOcean, AWS, etc.)
-
-1. **Set up your VPS with Node.js**
-
-2. **Clone and install**
+4. **Add your custom domain**
    ```bash
-   git clone <your-repo>
-   cd server
-   npm install
+   heroku domains:add avisindustries.net
+   heroku domains:add www.avisindustries.net
    ```
 
-3. **Set up PM2 for process management**
+5. **Get the DNS target**
    ```bash
-   npm install -g pm2
-   pm2 start server.js --name "spin-wheel-server"
-   pm2 startup
-   pm2 save
+   heroku domains
    ```
+   This will show you the DNS target (something like `avisindustries.net.herokudns.com`)
 
-4. **Set up Nginx reverse proxy (optional)**
-   ```nginx
-   server {
-       listen 80;
-       server_name your-domain.com;
-       
-       location / {
-           proxy_pass http://localhost:3001;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
-           proxy_set_header Host $host;
-           proxy_cache_bypass $http_upgrade;
-       }
-   }
-   ```
+## Step 3: Configure DNS
 
-## Mobile App Deployment
+You'll need to update your domain's DNS settings with your domain registrar:
 
-### Option 1: Development Testing
+1. **Add a CNAME record:**
+   - Name: `avisindustries.net`
+   - Value: `[your-heroku-dns-target]` (from the `heroku domains` command)
 
-1. **Install Expo CLI**
-   ```bash
-   npm install -g @expo/cli
-   ```
+2. **Add a CNAME record for www:**
+   - Name: `www.avisindustries.net`
+   - Value: `[your-heroku-dns-target]`
 
-2. **Start development server**
-   ```bash
-   npm start
-   ```
+3. **Wait for DNS propagation** (can take up to 24 hours, usually much faster)
 
-3. **Test on device**
-   - Install Expo Go app on your phone
-   - Scan QR code from terminal
-   - Or press `i` for iOS simulator, `a` for Android emulator
+## Step 4: Update Client Configuration
 
-### Option 2: Build for Production
+After DNS is configured, update your app configuration:
 
-1. **Install EAS CLI**
-   ```bash
-   npm install -g @expo/eas-cli
-   ```
-
-2. **Login to Expo**
-   ```bash
-   eas login
-   ```
-
-3. **Configure build**
-   ```bash
-   eas build:configure
-   ```
-
-4. **Build for platforms**
-   ```bash
-   # For iOS
-   eas build --platform ios
-   
-   # For Android
-   eas build --platform android
-   
-   # For both
-   eas build --platform all
-   ```
-
-5. **Submit to app stores**
-   ```bash
-   # iOS App Store
-   eas submit --platform ios
-   
-   # Google Play Store
-   eas submit --platform android
-   ```
-
-### Option 3: Web Deployment
-
-1. **Build for web**
-   ```bash
-   npm run web
-   ```
-
-2. **Deploy to Vercel**
-   ```bash
-   npm install -g vercel
-   vercel
-   ```
-
-3. **Deploy to Netlify**
-   - Build the web version
-   - Upload `web-build` folder to Netlify
-
-## Environment Configuration
-
-### Backend Environment Variables
-
-Create a `.env` file in the server directory:
-
-```env
-PORT=3001
-NODE_ENV=production
-CORS_ORIGIN=*
+```bash
+node scripts/update-custom-domain.js avisindustries.net
 ```
 
-### Mobile App Configuration
-
-Update `src/services/socketService.ts`:
+Or manually update `src/config/server.ts`:
 
 ```typescript
-// For local development
-const SERVER_URL = 'http://localhost:3001';
-
-// For production (replace with your server URL)
-const SERVER_URL = 'https://your-server-domain.com';
+export const SERVER_CONFIG = {
+    HOST: 'avisindustries.net',
+    PORT: 443,
+    getUrl: () => 'https://avisindustries.net'
+};
 ```
 
-## SSL/HTTPS Setup
+## Step 5: Test Your Deployment
 
-For production, ensure your server uses HTTPS:
-
-1. **Get SSL certificate** (Let's Encrypt is free)
-2. **Configure your server** to use HTTPS
-3. **Update mobile app** to use `wss://` for WebSocket connections
-
-## Monitoring and Logs
-
-### Backend Monitoring
-
-1. **Health check endpoint**: `GET /health`
-2. **Active games**: `GET /games`
-3. **Logs**: Check server console or PM2 logs
-
-### Mobile App Monitoring
-
-1. **Expo Analytics**: Built-in with Expo
-2. **Crash reporting**: Configure in `app.json`
-3. **Performance monitoring**: Use Expo Performance
+1. Visit `https://avisindustries.net/health` to see the health check endpoint
+2. Test the socket connection from your React Native app
+3. Make sure all multiplayer features work correctly
 
 ## Troubleshooting
 
-### Common Issues
+### Common Issues:
 
-1. **Connection refused**
-   - Check if server is running
-   - Verify port is not blocked
-   - Check firewall settings
+1. **Build fails**: Make sure all dependencies are in `server/package.json`
+2. **App crashes**: Check Heroku logs with `heroku logs --tail`
+3. **Socket connection fails**: Ensure you're using HTTPS
+4. **Domain not working**: Check DNS propagation with `nslookup avisindustries.net`
 
-2. **CORS errors**
-   - Update CORS configuration in server
-   - Check origin settings
+### Useful Commands:
 
-3. **Socket connection issues**
-   - Verify WebSocket support
-   - Check network connectivity
-   - Update server URL in mobile app
+- View logs: `heroku logs --tail`
+- Restart app: `heroku restart`
+- Check app status: `heroku ps`
+- Check domains: `heroku domains`
+- Open app: `heroku open`
 
-4. **Build failures**
-   - Check Expo SDK version compatibility
-   - Verify all dependencies are installed
-   - Check TypeScript errors
+## Environment Variables (Optional)
 
-### Debug Commands
+If you need to set environment variables:
 
 ```bash
-# Check server status
-curl http://localhost:3001/health
-
-# View server logs
-pm2 logs spin-wheel-server
-
-# Check mobile app logs
-expo logs
-
-# Test WebSocket connection
-wscat -c ws://localhost:3001
+heroku config:set NODE_ENV=production
 ```
 
-## Security Considerations
+## Scaling (Optional)
 
-1. **Input validation**: Validate all user inputs
-2. **Rate limiting**: Implement rate limiting for API endpoints
-3. **Authentication**: Consider adding user authentication
-4. **Data sanitization**: Sanitize all data before processing
-5. **HTTPS**: Always use HTTPS in production
+For production use, consider scaling your app:
 
-## Performance Optimization
+```bash
+heroku ps:scale web=1
+```
 
-1. **Database**: Consider using Redis for session storage
-2. **Caching**: Implement caching for frequently accessed data
-3. **Load balancing**: Use multiple server instances
-4. **CDN**: Use CDN for static assets
-5. **Compression**: Enable gzip compression
+## Monitoring
 
-## Backup and Recovery
+Monitor your app's performance:
 
-1. **Regular backups**: Backup game data regularly
-2. **Database backups**: If using a database, set up automated backups
-3. **Configuration backups**: Backup server configuration files
-4. **Disaster recovery**: Have a recovery plan in place 
+```bash
+heroku addons:create papertrail:choklad
+```
+
+This will give you detailed logging and monitoring capabilities.
+
+## Benefits of Using Your Custom Domain
+
+✅ **Professional appearance** - `avisindustries.net` looks much better than `random-app.herokuapp.com`  
+✅ **Brand recognition** - Users will remember your domain  
+✅ **SSL certificate** - Automatic HTTPS with your domain  
+✅ **Easy sharing** - Simple URL to share with friends  
+✅ **Future flexibility** - Easy to move to other hosting if needed  
+
+## Next Steps
+
+1. Set up subdomains if needed (e.g., `game.avisindustries.net`)
+2. Configure SSL certificates (automatic with Heroku)
+3. Set up monitoring and alerts
+4. Consider using Heroku's add-ons for databases if needed
+
+## Local Development
+
+For local development, you can still use your local server by updating `src/config/server.ts` to point to your local IP address. 

@@ -1138,5 +1138,7 @@ const LOCAL_IP = getLocalIPAddress();
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Health check: http://localhost:${PORT}/health`);
-    console.log(`Network access: http://${LOCAL_IP}:${PORT}/health`);
+    if (process.env.NODE_ENV !== 'production') {
+        console.log(`Network access: http://${LOCAL_IP}:${PORT}/health`);
+    }
 });
