@@ -80,6 +80,9 @@ export default function HomeScreen() {
         }
 
         socketService.joinLobby(lobbyCode.trim().toUpperCase(), playerName.trim());
+        setTimeout(() => {
+            setIsJoining(false);
+        }, 2000);
         // Do NOT navigate here; wait for joined_lobby or targeted navigate event
     };
 

@@ -11,11 +11,13 @@ import { Modifier, Prompt, Rule, WheelSegment as WheelSegmentType, WheelSpinDeta
 import Plaque from '../components/Plaque';
 import PromptAndAccusationModals from '../modals/PromptAndAccusationModals';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { PrimaryButton } from '../components/Buttons';
 
 const ITEM_HEIGHT = 120;
 const VISIBLE_ITEMS = 5;
 
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList) as unknown as typeof FlatList<WheelSegmentType>;
+const ListComponent = Platform.OS === 'web' ? (FlatList as unknown as typeof FlatList<WheelSegmentType>) : AnimatedFlatList;
 
 export default function WheelScreen() {
     const navigation = useNavigation();
@@ -280,6 +282,12 @@ export default function WheelScreen() {
     // Only allow spin if current user is host or active player
     const canSpin = currentUser && (currentUser.isHost || gameState?.activePlayer === currentUser.id);
 
+    const handleScroll = () => {
+        if (Platform.OS !== 'web') return;
+        if (!canSpin || gameState?.wheelSpinDetails !== null) return;
+        initiateSpin();
+    };
+
     if (!gameState || !currentUser) {
         return (
             <Backdrop>
@@ -299,28 +307,35 @@ export default function WheelScreen() {
             <SafeAreaView style={styles.mainContainer}>
                 <View style={styles.wheelContainer}>
                     {/* Wheel */}
-                    <AnimatedFlatList
+                    <ListComponent
                         ref={flatListRef}
                         data={paddedSegments as WheelSegmentType[]}
                         keyExtractor={(_, idx) => idx.toString()}
                         renderItem={({ item }) => (
                             <WheelSegment plaque={item.layers[item.currentLayerIndex]} color={item.segmentColor} />
                         )}
-                        scrollEnabled={canSpin && gameState?.wheelSpinDetails === null || false}
+                        scrollEnabled={(canSpin && gameState?.wheelSpinDetails === null) ? true : false}
                         style={{
                             height: ITEM_HEIGHT * VISIBLE_ITEMS,
-                            width: '100%',
-                            overflow: 'hidden',
+                            width: '100%'
                         }}
                         contentContainerStyle={{ alignItems: 'stretch', padding: 0, margin: 0, paddingHorizontal: 0 }}
                         showsVerticalScrollIndicator={false}
                         getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
                         onScrollEndDrag={initiateSpin}
-                        // RN Web doesn't always fire onScrollEndDrag reliably; provide a fallback
-                        onMomentumScrollEnd={Platform.OS === 'web' ? initiateSpin : undefined}
+                        scrollEventThrottle={16}
                     />
-                    {/* No spin button! */}
                 </View>
+
+                {canSpin && gameState?.wheelSpinDetails === null && (
+                    <View style={{ marginTop: 16, alignItems: 'center' }}>
+                        <PrimaryButton
+                            title="Spin"
+                            onPress={initiateSpin}
+                            buttonStyle={{ width: '150%' }}
+                        />
+                    </View>
+                )}
 
                 <SimpleModal
                     visible={currentModal === 'RuleModal'}
@@ -392,7 +407,6 @@ const styles = StyleSheet.create({
     },
     wheelContainer: {
         backgroundColor: 'black',
-        overflow: 'hidden',
         marginVertical: 32,
         width: '70%',
         position: 'relative',
