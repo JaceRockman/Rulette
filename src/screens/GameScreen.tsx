@@ -272,7 +272,6 @@ export default function GameScreen() {
     };
 
     const playerCardComponent = (player: Player) => {
-        console.log("gameState?.activePlayer", gameState?.activePlayer)
         const isActivePlayer = gameState?.activePlayer === player.id;
 
         return (
@@ -305,7 +304,7 @@ export default function GameScreen() {
 
     const playerRulesComponent = (player: Player) => {
         const playerRules = gameState?.rules.filter(rule => rule.assignedTo === player.id);
-        console.log("playerRules", playerRules)
+        console.log("player info", player)
 
         return playerRules && playerRules.length > 0 ? (
             <View style={styles.playerRulesContainer}>

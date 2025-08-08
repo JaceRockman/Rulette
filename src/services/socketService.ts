@@ -41,8 +41,8 @@ class SocketService {
             });
             this.socket.once('connect', () => {
                 // Establish a stable app-level user id independent of socket reconnections
-                const persistedId = this.getOrCreatePersistentUserId();
-                this.currentUserId = persistedId;
+                const compositeId = this.getOrCreateSessionScopedUserId();
+                this.currentUserId = compositeId;
                 resolve();
             });
 
@@ -66,6 +66,24 @@ class SocketService {
             this.currentUserId = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
         }
         return this.currentUserId as string;
+    }
+
+    private getOrCreateSessionScopedUserId(): string {
+        const base = this.getOrCreatePersistentUserId();
+        // Per-tab/session component to avoid collisions when multiple tabs use same localStorage
+        try {
+            if (typeof window !== 'undefined' && (window as any).sessionStorage) {
+                let sessionId = window.sessionStorage.getItem('stw_session_id');
+                if (!sessionId) {
+                    sessionId = Math.random().toString(36).substring(2, 8);
+                    window.sessionStorage.setItem('stw_session_id', sessionId);
+                }
+                return `${base}-${sessionId}`;
+            }
+        } catch { /* ignore */ }
+        // Fallback for native or if sessionStorage unavailable
+        const ephemeral = Math.random().toString(36).substring(2, 8);
+        return `${base}-${ephemeral}`;
     }
 
     // Event callbacks
