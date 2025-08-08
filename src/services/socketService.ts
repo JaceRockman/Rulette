@@ -39,6 +39,16 @@ class SocketService {
                 reject(new Error('Connection to the server timed out. Please try again later.'));
             });
             this.socket.once('connect', () => {
+                // Establish a stable currentUserId as early as possible
+                try {
+                    // Prefer socket.id; fallback to existing id
+                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                    // @ts-ignore - socket.id is available at runtime
+                    const socketId = (this.socket as any)?.id as string | undefined;
+                    if (socketId) {
+                        this.currentUserId = socketId;
+                    }
+                } catch { /* noop */ }
                 resolve();
             });
 
@@ -168,12 +178,12 @@ class SocketService {
     // Game actions
     createLobby(playerName: string) {
         if (!this.socket) return;
-        this.socket.emit('create_lobby', { playerName });
+        this.socket.emit('create_lobby', { playerName, userId: this.currentUserId });
     }
 
     joinLobby(lobbyCode: string, playerName: string) {
         if (!this.socket) return;
-        this.socket.emit('join_lobby', { lobbyCode, playerName });
+        this.socket.emit('join_lobby', { lobbyCode, playerName, userId: this.currentUserId });
     }
 
     removePlayer(playerId: string) {

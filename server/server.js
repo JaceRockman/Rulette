@@ -233,9 +233,9 @@ function getNonHostPlayersInOrder(game) {
 io.on('connection', (socket) => {
 
     // Create lobby
-    socket.on('create_lobby', ({ playerName }) => {
+    socket.on('create_lobby', ({ playerName, userId }) => {
         console.log('SERVER: create_lobby');
-        const playerId = uuidv4();
+        const playerId = userId || uuidv4();
         const game = createGame(playerId, playerName);
 
         players.set(playerId, { gameId: game.id, socketId: socket.id });
@@ -245,7 +245,7 @@ io.on('connection', (socket) => {
     });
 
     // Join lobby
-    socket.on('join_lobby', ({ lobbyCode, playerName }) => {
+    socket.on('join_lobby', ({ lobbyCode, playerName, userId }) => {
         console.log('SERVER: join_lobby');
         const game = findGameByCode(lobbyCode);
 
@@ -268,7 +268,7 @@ io.on('connection', (socket) => {
             return;
         }
 
-        const playerId = uuidv4();
+        const playerId = userId || uuidv4();
         // Calculate the next player order position (exclude hosts)
         const nonHostPlayers = game.players.filter(p => !p.isHost);
         const nextPosition = nonHostPlayers.length + 1;
