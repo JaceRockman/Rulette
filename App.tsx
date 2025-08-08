@@ -44,13 +44,20 @@ export default function App() {
                                 <StripedBackground>
                                     <View style={{
                                         backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                                        height: 107,
+                                        height: 96,
                                         width: '100%',
                                         borderBottomWidth: 1,
                                         borderColor: '#000000',
                                     }} />
                                 </StripedBackground>
                             ),
+                            headerStyle: {
+                                height: 96,
+                            },
+                            headerTitleStyle: {
+                                fontSize: 20,
+                                fontWeight: 'bold',
+                            },
                             headerRight: () => (
                                 <TouchableOpacity
                                     onPress={() => setShowExitGameModal(true)}

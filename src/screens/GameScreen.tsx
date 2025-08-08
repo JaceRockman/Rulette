@@ -25,8 +25,6 @@ import ModifierModals from '../modals/ModifierModals';
 import { initiateClone, initiateFlip, initiateSwap, initiateUpDown } from '../modals/ModifierModals';
 import PromptAndAccusationModals from '../modals/PromptAndAccusationModals';
 
-import { SCREEN_WIDTH } from '../shared/styles';
-
 type GameScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
 export default function GameScreen() {
@@ -350,6 +348,8 @@ export default function GameScreen() {
         );
     }
 
+    // Responsive layout: avoid relying on static SCREEN_WIDTH
+
     return (
         <Backdrop>
             <SafeAreaView style={shared.container}>
@@ -513,7 +513,9 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     playerCard: {
-        width: SCREEN_WIDTH * 0.85,
+        width: '90%',
+        maxWidth: 720,
+        alignSelf: 'center',
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         borderRadius: 12,
         padding: 16,

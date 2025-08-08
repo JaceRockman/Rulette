@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
 import { useGame } from '../context/GameContext';
 import WheelSegment from '../components/WheelSegment';
 import socketService from '../services/socketService';
@@ -45,11 +45,13 @@ export default function WheelScreen() {
 
     // Wheel segments from game state
     const segments = gameState?.wheelSegments || [];
-    const paddedSegments = [
-        ...segments.slice(-Math.floor(VISIBLE_ITEMS / 2)),
-        ...segments,
-        ...segments.slice(0, Math.floor(VISIBLE_ITEMS / 2)),
-    ];
+    const paddedSegments = segments.length > 0
+        ? [
+            ...segments.slice(-Math.floor(VISIBLE_ITEMS / 2)),
+            ...segments,
+            ...segments.slice(0, Math.floor(VISIBLE_ITEMS / 2)),
+        ]
+        : [];
 
     // Initiate a spin (only active player or host)
     const initiateSpin = () => {
@@ -77,9 +79,11 @@ export default function WheelScreen() {
     // Listen for synchronized wheel spin events
     useEffect(() => {
         if (gameState?.wheelSpinDetails !== null && gameState?.wheelSpinDetails?.spinCompleted !== true) {
+            // Ensure we only run when visible on web to avoid stale offsets
+            if (Platform.OS === 'web' && !isFocused) return;
             performSynchronizedSpin();
         }
-    }, [gameState?.wheelSpinDetails]);
+    }, [gameState?.wheelSpinDetails, isFocused]);
 
     const performSynchronizedSpin = () => {
         if (!gameState || gameState.wheelSpinDetails === null || gameState.wheelSpinDetails?.spinCompleted === true) return;
@@ -90,7 +94,8 @@ export default function WheelScreen() {
         Animated.timing(scrollY, {
             toValue: currentScrollOffset.current + scrollAmount,
             duration: duration,
-            useNativeDriver: true,
+            // Must be false on web because we read the value in JS to drive scroll
+            useNativeDriver: Platform.OS !== 'web' ? true : false,
             easing: t => 1 - Math.pow(1 - t, 3), // ease out
         }).start(() => {
             console.log('performSynchronizedSpin');
@@ -311,6 +316,8 @@ export default function WheelScreen() {
                         showsVerticalScrollIndicator={false}
                         getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
                         onScrollEndDrag={initiateSpin}
+                        // RN Web doesn't always fire onScrollEndDrag reliably; provide a fallback
+                        onMomentumScrollEnd={Platform.OS === 'web' ? initiateSpin : undefined}
                     />
                     {/* No spin button! */}
                 </View>

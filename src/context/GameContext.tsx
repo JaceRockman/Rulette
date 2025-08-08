@@ -289,7 +289,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
         socketService.setOnJoinedLobby(({ playerId, game }) => {
-            // console.log('GameContext: ' + game);
+            if (!game) {
+                console.warn('GameContext: joined_lobby missing game payload');
+                return;
+            }
             setCurrentUserId(playerId);
             dispatch({ type: 'SET_GAME_STATE', payload: game });
         });
@@ -303,7 +306,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             }
         });
         socketService.setOnNavigatePlayerToScreen((data: { screen: string; playerId: string; params?: any }) => {
-            if (currentUser?.id !== data.playerId) {
+            if (data.playerId && currentUserId && currentUserId === data.playerId) {
                 if (data.screen && navigation) {
                     navigation.navigate(data.screen as keyof RootStackParamList, data.params);
                 }

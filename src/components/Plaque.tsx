@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, SCREEN_WIDTH } from '../shared/styles';
+import { colors } from '../shared/styles';
 import { Plaque as PlaqueType } from '../types/game';
 
 interface PlaqueProps {
@@ -40,11 +40,19 @@ export default function Plaque({ plaque, concealed, style, onPress, selected }: 
 
 const styles = StyleSheet.create({
     selectedPlaque: {
-        boxShadow: '8px 8px 8px 0 rgba(0, 0, 0, 0.5)',
+        shadowColor: '#000',
+        shadowOffset: { width: 8, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
         transform: [{ translateY: -4 }],
     },
     selectablePlaque: {
-        boxShadow: '3px 3px 3px 0 rgba(0, 0, 0, 0.5)',
+        shadowColor: '#000',
+        shadowOffset: { width: 3, height: 3 },
+        shadowOpacity: 0.25,
+        shadowRadius: 3,
+        elevation: 3,
     },
     plaquePress: {
         width: '46%',

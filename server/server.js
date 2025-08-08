@@ -292,7 +292,10 @@ io.on('connection', (socket) => {
         socket.join(game.id);
 
         // Update all players in the game
-        socket.emit('joined_lobby', { playerId, updatedGame });
+        // Emit payload with a 'game' key to match client expectations
+        socket.emit('joined_lobby', { playerId, game: updatedGame });
+        // Ensure the joining player also receives the latest game state immediately
+        socket.emit('game_updated', updatedGame);
         io.to(game.id).emit('game_updated', updatedGame);
         socket.emit('navigate_player_to_screen', { screen: 'Lobby', playerId: playerId });
     });
