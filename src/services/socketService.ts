@@ -132,7 +132,12 @@ class SocketService {
         });
 
         this.socket.on('navigate_player_to_screen', (data: { screen: string; playerId: string; params?: any }) => {
+            // Try the targeted handler first
             this.onNavigatePlayerToScreen?.(data);
+            // Fallback for early events before handler registration
+            if ((!this.onNavigatePlayerToScreen || typeof this.onNavigatePlayerToScreen !== 'function') && data.playerId && this.currentUserId === data.playerId) {
+                this.onNavigateToScreen?.({ screen: data.screen, params: data.params });
+            }
         });
 
         this.socket.on('end_game_continue', () => {
@@ -235,9 +240,9 @@ class SocketService {
         });
     }
 
-    startGame(settings?: { numRules?: number; numPrompts?: number; startingPoints?: number }) {
+    startGame(settings?: { customRulesAndPrompts?: number; startingPoints?: number; hostIsValidTarget?: boolean }) {
         if (!this.socket || !this.gameState) return;
-        this.socket.emit('start_game', { gameId: this.gameState.id, settings });
+        this.socket.emit('start_game', { gameId: this.gameState.id, settings, userId: this.currentUserId });
     }
 
     setPlayerAsHost(playerId: string) {
