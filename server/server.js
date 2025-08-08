@@ -238,10 +238,10 @@ io.on('connection', (socket) => {
         const playerId = userId || uuidv4();
         const game = createGame(playerId, playerName);
 
-        players.set(playerId, { gameId: game.id, socketId: socket.id });
+        players.set(playerId, { gameId: game.id, socketId: socket.id, userId: userId || null });
         socket.join(game.id);
 
-        socket.emit('lobby_created', { playerId, game });
+        socket.emit('lobby_created', { playerId, userId: userId || null, game });
     });
 
     // Join lobby
@@ -288,12 +288,12 @@ io.on('connection', (socket) => {
         const updatedGame = { ...game, players: [...game.players, player] };
         games.set(game.id, updatedGame);
         games.set(game.lobbyCode, updatedGame);
-        players.set(playerId, { gameId: game.id, socketId: socket.id });
+        players.set(playerId, { gameId: game.id, socketId: socket.id, userId: userId || null });
         socket.join(game.id);
 
         // Update all players in the game
         // Emit payload with a 'game' key to match client expectations
-        socket.emit('joined_lobby', { playerId, game: updatedGame });
+        socket.emit('joined_lobby', { playerId, userId: userId || null, game: updatedGame });
         // Ensure the joining player also receives the latest game state immediately
         socket.emit('game_updated', updatedGame);
         io.to(game.id).emit('game_updated', updatedGame);
