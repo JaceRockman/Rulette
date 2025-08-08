@@ -172,7 +172,7 @@ export default function GameScreen() {
                 const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayer.id);
                 const otherPlayersWithRules = gameState.players.filter(player => player.id !== selectedPlayer.id && gameState.rules.some(rule => rule.assignedTo === player.id));
                 if (otherPlayersWithRules.length > 0) {
-                    const result = initiateSwap({ swappingPlayer: selectedPlayer, playerRules, triggerSwapModifier: triggerSwapModifier });
+                    const result = initiateSwap({ swappingPlayer: selectedPlayer, playerRules, swappeesWithRules: otherPlayersWithRules, triggerSwapModifier: triggerSwapModifier });
                     if (result === 'failed') {
                         // Do not open any swap modals if the player has no rules to swap
                         return;

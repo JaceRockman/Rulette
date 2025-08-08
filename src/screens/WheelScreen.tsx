@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView, Platform } from 'react-native';
+import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView, Platform, Modal } from 'react-native';
 import { showAlert } from '../shared/alert';
 import { useGame } from '../context/GameContext';
 import WheelSegment from '../components/WheelSegment';
@@ -160,7 +160,7 @@ export default function WheelScreen() {
         switch (modifier?.text) {
             case 'Clone':
                 if (initiateClone({ cloningPlayer: activePlayer, playerRules: playerRules || [], triggerCloneModifier: triggerCloneModifier }) === 'failed') {
-                    finishWheelSpin();
+                    if (currentUser?.isHost) finishWheelSpin();
                 } else if (currentUser?.id === activePlayer?.id) {
                     socketService.setPlayerModal(currentUser.id, "CloneActionRuleSelection");
                 } else {
@@ -169,7 +169,7 @@ export default function WheelScreen() {
                 break;
             case 'Flip':
                 if (initiateFlip({ flippingPlayer: activePlayer, playerRules: playerRules || [], triggerFlipModifier: triggerFlipModifier }) === 'failed') {
-                    finishWheelSpin();
+                    if (currentUser?.isHost) finishWheelSpin();
                 } else if (currentUser?.id === activePlayer?.id) {
                     socketService.setPlayerModal(currentUser.id, "FlipActionRuleSelection");
                 } else {
@@ -177,8 +177,10 @@ export default function WheelScreen() {
                 }
                 break;
             case 'Swap':
-                if (initiateSwap({ swappingPlayer: activePlayer, playerRules: playerRules || [], triggerSwapModifier: triggerSwapModifier }) === 'failed') {
-                    finishWheelSpin();
+                const swappeesWithRules = gameState?.players.filter(player => player.id !== activePlayer.id && gameState?.rules.some(rule => rule.assignedTo === player.id));
+
+                if (initiateSwap({ swappingPlayer: activePlayer, playerRules: playerRules || [], swappeesWithRules: swappeesWithRules || [], triggerSwapModifier: triggerSwapModifier }) === 'failed') {
+                    if (currentUser?.isHost) finishWheelSpin();
                 } else if (currentUser?.id === activePlayer?.id) {
                     socketService.setPlayerModal(currentUser.id, "SwapperRuleSelection");
                 } else {
@@ -190,7 +192,7 @@ export default function WheelScreen() {
                 const nonHostPlayersWithRules = nonHostPlayers.filter(player => gameState.rules.some(rule => rule.assignedTo === player.id));
                 if (nonHostPlayersWithRules.length === 0) {
                     showAlert('Not Enough Players with rules', `Need at least 1 player with rules for up action.`);
-                    finishWheelSpin();
+                    if (currentUser?.isHost) finishWheelSpin();
                 } else {
                     initiateUpDown({ direction: 'up', triggerUpDownModifier: triggerUpDownModifier });
                     const playerHasRules = gameState.rules.some(rule => rule.assignedTo === currentUser?.id);
@@ -206,7 +208,7 @@ export default function WheelScreen() {
                 const nonHostPlayersWithRulesDown = nonHostPlayersDown.filter(player => gameState.rules.some(rule => rule.assignedTo === player.id));
                 if (nonHostPlayersWithRulesDown.length < 1) {
                     showAlert('Not Enough Players with rules', `Need at least 1 player with rules for down action.`);
-                    finishWheelSpin();
+                    if (currentUser?.isHost) finishWheelSpin();
                 } else {
                     initiateUpDown({ direction: 'down', triggerUpDownModifier: triggerUpDownModifier });
                     const playerHasRules = gameState.rules.some(rule => rule.assignedTo === currentUser?.id);
@@ -253,6 +255,7 @@ export default function WheelScreen() {
     }, [scrollY, gameState?.wheelSpinDetails?.spinCompleted]);
 
     const finishWheelSpin = (sideEffects?: () => void) => {
+        console.log('finishWheelSpin by player', currentUser?.name);
 
         socketService.setAllPlayerModals(null);
         socketService.broadcastNavigateToScreen('Game');
@@ -337,6 +340,26 @@ export default function WheelScreen() {
                         />
                     </View>
                 )}
+
+                {/* Host override: allow host to force-complete the spin at any time during a spin */}
+                {/* Floating modal so it sits above all overlays */}
+                <Modal
+                    visible={!!(currentUser?.isHost && gameState?.wheelSpinDetails !== null)}
+                    transparent
+                    animationType="none"
+                    onRequestClose={() => { }}
+                >
+                    <SafeAreaView pointerEvents="box-none" style={{ flex: 1 }}>
+                        <View pointerEvents="box-none" style={{ flex: 1 }}>
+                            <View style={{ position: 'absolute', bottom: 12, right: 12 }}>
+                                <PrimaryButton
+                                    title="Complete Spin (Host)"
+                                    onPress={() => finishWheelSpin()}
+                                />
+                            </View>
+                        </View>
+                    </SafeAreaView>
+                </Modal>
 
                 <SimpleModal
                     visible={currentModal === 'RuleModal'}

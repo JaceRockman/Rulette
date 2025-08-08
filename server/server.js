@@ -601,6 +601,12 @@ io.on('connection', (socket) => {
             wheelSpinDetails: null,
             activePromptDetails: null,
             activeAccusationDetails: null,
+            activeCloneRuleDetails: null,
+            activeFlipRuleDetails: null,
+            activeSwapRuleDetails: null,
+            activeUpDownRuleDetails: null,
+            selectedPlayerForAction: null,
+            selectedRule: null,
             activePlayer: nextActivePlayer
         };
         games.set(gameId, updatedGame);

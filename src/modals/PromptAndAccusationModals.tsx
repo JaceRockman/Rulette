@@ -185,7 +185,6 @@ export default function PromptAndAccusationModals(
             <PromptPerformanceModal
                 visible={currentModal === 'PromptPerformance'}
                 onPressRule={(rule: Rule) => {
-                    console.log('PromptPerformanceModal: onPressRule', rule);
                     setSelectedRule(rule);
                     setCurrentModal('RuleDetails');
                 }}

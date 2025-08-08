@@ -52,15 +52,18 @@ export const initiateFlip = ({ flippingPlayer, playerRules = [], triggerFlipModi
 interface InitiateSwapProps {
     swappingPlayer: Player;
     playerRules: Rule[];
+    swappeesWithRules: Player[];
     triggerSwapModifier: (swappingPlayer: Player, rule: Rule | null) => void;
 }
 
-export const initiateSwap = ({ swappingPlayer, playerRules = [], triggerSwapModifier }: InitiateSwapProps) => {
-    // Check if player has rules to swap
-    if (playerRules.length > 0) {
+export const initiateSwap = ({ swappingPlayer, playerRules = [], swappeesWithRules = [], triggerSwapModifier }: InitiateSwapProps) => {
+    const swapperHasRules = playerRules.length > 0;
+    const swappeesHaveRules = swappeesWithRules.length > 0;
+
+    if (swapperHasRules && swappeesHaveRules) {
         triggerSwapModifier(swappingPlayer, playerRules[0]);
     } else {
-        showAlert('No Rules to Swap', `${swappingPlayer.name} has no assigned rules to swap.`);
+        showAlert('No Rules to Swap', `${swappingPlayer.name} has no assigned rules to swap or no players with rules to swap with.`);
         return 'failed';
     }
 };
