@@ -5,9 +5,9 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
-    Alert,
     SafeAreaView,
 } from 'react-native';
+import { showAlert } from '../shared/alert';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
@@ -81,13 +81,11 @@ export default function GameScreen() {
         if (currentUser?.isHost) {
             // Check if all non-host players have completed both phases
             if (!gameState?.playerInputCompleted) {
-                Alert.alert(
-                    'Actions Disabled',
-                    'All players must complete rules and prompts before host actions are available.',
-                    [{ text: 'OK' }]
-                );
+                showAlert('Actions Disabled', 'All players must complete rules and prompts before host actions are available.');
                 return;
             }
+            // Defensive: clear any lingering modals from previous actions
+            socketService.setAllPlayerModals(null);
             socketService.setSelectedPlayerForAction(player.id);
             socketService.setPlayerModal(currentUser!.id, 'HostAction');
         }
@@ -101,7 +99,7 @@ export default function GameScreen() {
             if (availableRules && availableRules.length > 0) {
                 socketService.setPlayerModal(currentUser!.id, 'GiveRule');
             } else {
-                Alert.alert('No Rules Available', 'Player has all rules assigned to them already.');
+                showAlert('No Rules Available', 'Player has all rules assigned to them already.');
                 socketService.setPlayerModal(currentUser!.id, null);
                 setSelectedPlayerForAction(null);
             }
@@ -119,10 +117,16 @@ export default function GameScreen() {
 
     const handleInitiateClone = () => {
         if (gameState?.selectedPlayerForAction !== null && gameState) {
+            // Ensure no stale modals linger from previous actions
+            socketService.setAllPlayerModals(null);
             const selectedPlayer = gameState.players.find(player => player.id === gameState.selectedPlayerForAction);
             if (selectedPlayer) {
                 const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayer.id);
-                initiateClone({ cloningPlayer: selectedPlayer, playerRules: playerRules || [], triggerCloneModifier: triggerCloneModifier });
+                const result = initiateClone({ cloningPlayer: selectedPlayer, playerRules: playerRules || [], triggerCloneModifier: triggerCloneModifier });
+                if (result === 'failed') {
+                    // Do not open any clone modals if the player has no rules to clone
+                    return;
+                }
                 gameState.players.forEach(player => {
                     if (player.id === selectedPlayer.id) {
                         socketService.setPlayerModal(player.id, 'CloneActionRuleSelection');
@@ -137,10 +141,16 @@ export default function GameScreen() {
 
     const handleInitiateFlip = () => {
         if (gameState?.selectedPlayerForAction !== null && gameState) {
+            // Ensure no stale modals linger from previous actions
+            socketService.setAllPlayerModals(null);
             const selectedPlayer = gameState.players.find(player => player.id === gameState.selectedPlayerForAction);
             if (selectedPlayer) {
                 const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayer.id);
-                initiateFlip({ flippingPlayer: selectedPlayer, playerRules: playerRules || [], triggerFlipModifier: triggerFlipModifier });
+                const result = initiateFlip({ flippingPlayer: selectedPlayer, playerRules: playerRules || [], triggerFlipModifier: triggerFlipModifier });
+                if (result === 'failed') {
+                    // Do not open any flip modals if the player has no rules to flip
+                    return;
+                }
                 gameState.players.forEach(player => {
                     if (player.id === selectedPlayer?.id) {
                         socketService.setPlayerModal(player.id, "FlipActionRuleSelection");
@@ -155,14 +165,21 @@ export default function GameScreen() {
 
     const handleInitiateSwap = () => {
         if (gameState?.selectedPlayerForAction !== null && gameState) {
+            // Ensure no stale modals linger from previous actions
+            socketService.setAllPlayerModals(null);
             const selectedPlayer = gameState.players.find(player => player.id === gameState.selectedPlayerForAction);
             if (selectedPlayer) {
                 const playerRules = gameState.rules.filter(rule => rule.assignedTo === selectedPlayer.id);
                 const otherPlayersWithRules = gameState.players.filter(player => player.id !== selectedPlayer.id && gameState.rules.some(rule => rule.assignedTo === player.id));
                 if (otherPlayersWithRules.length > 0) {
-                    initiateSwap({ swappingPlayer: selectedPlayer, playerRules, triggerSwapModifier: triggerSwapModifier });
+                    const result = initiateSwap({ swappingPlayer: selectedPlayer, playerRules, triggerSwapModifier: triggerSwapModifier });
+                    if (result === 'failed') {
+                        // Do not open any swap modals if the player has no rules to swap
+                        return;
+                    }
                 } else {
-                    Alert.alert('No Other Players With Rules', `No other players have rules to swap with ${selectedPlayer.name}.`);
+                    showAlert('No Other Players With Rules', `No other players have rules to swap with ${selectedPlayer.name}.`);
+                    return;
                 }
 
                 gameState.players.forEach(player => {
@@ -183,9 +200,12 @@ export default function GameScreen() {
 
         if (!gameState?.players) return;
 
+        // Ensure no stale modals linger from previous actions
+        socketService.setAllPlayerModals(null);
+
         const nonHostPlayers = gameState.players.filter(p => !p.isHost);
         if (nonHostPlayers.length < 2) {
-            Alert.alert('Not Enough Players', `Need at least 2 non-host players for ${direction} action.`);
+            showAlert('Not Enough Players', `Need at least 2 non-host players for ${direction} action.`);
             return;
         }
 
@@ -196,7 +216,7 @@ export default function GameScreen() {
         });
 
         if (playersWithRules.length === 0) {
-            Alert.alert('No Rules to Pass', `No players have rules to pass ${direction}.`);
+            showAlert('No Rules to Pass', `No players have rules to pass ${direction}.`);
             return;
         }
 
@@ -227,11 +247,10 @@ export default function GameScreen() {
 
         if (isCurrentPlayerRemoved) {
             // If current player was removed, navigate to home screen
-            Alert.alert('Host Changed', `${newHost.name} is now the host! You have been removed from the game.`, [
-                { text: 'OK', onPress: () => navigation.navigate('Home') }
-            ]);
+            showAlert('Host Changed', `${newHost.name} is now the host! You have been removed from the game.`);
+            navigation.navigate('Home');
         } else {
-            Alert.alert('Host Changed', `${newHost.name} is now the host!`);
+            showAlert('Host Changed', `${newHost.name} is now the host!`);
         }
     };
 
@@ -304,7 +323,6 @@ export default function GameScreen() {
 
     const playerRulesComponent = (player: Player) => {
         const playerRules = gameState?.rules.filter(rule => rule.assignedTo === player.id);
-        console.log("player info", player)
 
         return playerRules && playerRules.length > 0 ? (
             <View style={styles.playerRulesContainer}>
@@ -414,6 +432,8 @@ export default function GameScreen() {
                     onDownAction={() => handleInitiateUpDown('down')}
                     onSwapAction={handleInitiateSwap}
                     onClose={() => {
+                        // Defensive: ensure all player modals are cleared when closing host actions
+                        socketService.setAllPlayerModals(null);
                         setCurrentModal(null);
                         setSelectedPlayerForAction(null);
                     }}

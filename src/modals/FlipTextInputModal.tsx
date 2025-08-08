@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
     Modal,
     TextInput,
     SafeAreaView,
@@ -70,6 +69,10 @@ export default function FlipTextInputModal({
                             multiline={true}
                             numberOfLines={3}
                             textAlignVertical="top"
+                            autoFocus
+                            nativeID="flipRuleInput"
+                            // @ts-ignore - RN Web supports name
+                            name="flipRuleInput"
                         />
                     </View>
 

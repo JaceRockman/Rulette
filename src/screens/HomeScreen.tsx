@@ -5,11 +5,11 @@ import {
     StyleSheet,
     TouchableOpacity,
     TextInput,
-    Alert,
     SafeAreaView,
     KeyboardAvoidingView,
     Platform,
 } from 'react-native';
+import { showAlert } from '../shared/alert';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../App';
@@ -33,7 +33,7 @@ export default function HomeScreen() {
         const trimmedPlayerName = playerName.trim();
 
         if (!trimmedPlayerName) {
-            Alert.alert('Error', 'Please enter your name');
+            showAlert('Error', 'Please enter your name');
             return;
         }
 
@@ -48,7 +48,7 @@ export default function HomeScreen() {
         }
 
         if (!socketService.isConnected()) {
-            Alert.alert('Connection Error', 'Could not connect to the server.');
+            showAlert('Connection Error', 'Could not connect to the server.');
             setIsCreating(false);
             return;
         }
@@ -60,7 +60,7 @@ export default function HomeScreen() {
 
     const handleJoinLobby = async () => {
         if (!playerName.trim() || !lobbyCode.trim()) {
-            Alert.alert('Error', 'Please enter both your name and lobby code');
+            showAlert('Error', 'Please enter both your name and lobby code');
             return;
         }
 
@@ -74,7 +74,7 @@ export default function HomeScreen() {
         }
 
         if (!socketService.isConnected()) {
-            Alert.alert('Connection Error', 'Could not connect to the server.');
+            showAlert('Connection Error', 'Could not connect to the server.');
             setIsJoining(false);
             return;
         }
@@ -88,11 +88,11 @@ export default function HomeScreen() {
 
     useEffect(() => {
         socketService.setOnError((errorMessage) => {
-            Alert.alert('Alert', errorMessage);
+            showAlert('Alert', errorMessage);
             setIsJoining(false);
         });
         socketService.setOnConnectionError((message) => {
-            Alert.alert('Connection Error', message);
+            showAlert('Connection Error', message);
         });
         const handleJoinedLobby = (data: { playerId: string; game: GameState }) => {
             navigation.navigate('Lobby', { lobbyCode: data.game.lobbyCode });

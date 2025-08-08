@@ -13,6 +13,7 @@ import { CheckBox } from '@rneui/themed';
 import { useGame } from '../context/GameContext';
 import * as Clipboard from 'expo-clipboard';
 import StripedBackground from '../components/Backdrop';
+import { showAlert } from '../shared/alert';
 import OutlinedText from '../components/OutlinedText';
 import { PrimaryButton } from '../components/Buttons';
 import { Player } from '../types/game';
@@ -40,7 +41,7 @@ export default function LobbyScreen() {
 
     const handleStartGame = () => {
         if (nonHostPlayers?.length === 0) {
-            Alert.alert('Error', 'Need at least one player to start');
+            showAlert('Error', 'Need at least one player to start');
             return;
         }
 

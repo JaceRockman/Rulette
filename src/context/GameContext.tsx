@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { RootStackParamList } from '../../App';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Alert } from 'react-native';
+import { showAlert } from '../shared/alert';
 
 type RuleScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Game'>;
 
@@ -663,7 +664,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (!gameState) return;
 
         if (gameState.activeAccusationDetails) {
-            Alert.alert('Accusation already in progress');
+            showAlert('Accusation already in progress');
             return;
         }
 

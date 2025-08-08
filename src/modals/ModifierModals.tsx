@@ -3,7 +3,8 @@ import { GameState, Player, Rule } from "../types/game";
 import Plaque from "../components/Plaque";
 import SimpleModal from "./SimpleModal";
 import PlayerSelectionModal from "./PlayerSelectionModal";
-import { Alert, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { showAlert } from "../shared/alert";
 import RuleSelectionModal from "./RuleSelectionModal";
 import { useGame } from "../context/GameContext";
 import FlipTextInputModal from "./FlipTextInputModal";
@@ -24,7 +25,7 @@ export const initiateClone = ({ cloningPlayer, playerRules = [], triggerCloneMod
     } else if (playerRules.length > 0) {
         triggerCloneModifier(cloningPlayer, null);
     } else {
-        Alert.alert('No Rules to Clone', `${cloningPlayer.name} has no assigned rules to clone.`);
+        showAlert('No Rules to Clone', `${cloningPlayer.name} has no assigned rules to clone.`);
         return 'failed';
     }
 };
@@ -42,7 +43,7 @@ export const initiateFlip = ({ flippingPlayer, playerRules = [], triggerFlipModi
     } else if (playerRules.length > 0) {
         triggerFlipModifier(flippingPlayer, null);
     } else {
-        Alert.alert('No Rules to Flip', `${flippingPlayer.name} has no assigned rules to flip.`);
+        showAlert('No Rules to Flip', `${flippingPlayer.name} has no assigned rules to flip.`);
         return 'failed';
     }
     return 'success';
@@ -59,7 +60,7 @@ export const initiateSwap = ({ swappingPlayer, playerRules = [], triggerSwapModi
     if (playerRules.length > 0) {
         triggerSwapModifier(swappingPlayer, playerRules[0]);
     } else {
-        Alert.alert('No Rules to Swap', `${swappingPlayer.name} has no assigned rules to swap.`);
+        showAlert('No Rules to Swap', `${swappingPlayer.name} has no assigned rules to swap.`);
         return 'failed';
     }
 };
@@ -139,7 +140,7 @@ export default function ModifierModals(
             } else if (playerRules.length > 0) {
                 triggerFlipModifier(flipper, null);
             } else {
-                Alert.alert('No Rules to Flip', `${flipper.name} has no assigned rules to flip.`);
+                showAlert('No Rules to Flip', `${flipper.name} has no assigned rules to flip.`);
                 return 'failed';
             }
         }
@@ -283,7 +284,7 @@ export default function ModifierModals(
         // If any required selection is missing, alert and do nothing
         const missing = playersWithRulesToPass.find(p => !gameState.activeUpDownRuleDetails?.selectedRules[p.id]);
         if (missing) {
-            Alert.alert('Not All Players Selected', `Player ${missing.name} has not selected a rule to pass.`);
+            showAlert('Not All Players Selected', `Player ${missing.name} has not selected a rule to pass.`);
             return;
         }
 
@@ -444,6 +445,7 @@ export default function ModifierModals(
                 onAccept={() => {
                     onFinishModifier(() => {
                         flipRule(gameState?.activeFlipRuleDetails?.ruleToFlip!, gameState?.activeFlipRuleDetails?.flippedText!);
+                        socketService.setAllPlayerModals(null);
                     });
                 }}
                 acceptButtonText="Ok"
@@ -549,6 +551,7 @@ export default function ModifierModals(
                     onFinishModifier(() => {
                         confirmRulesForSwapping();
                         endSwapRule();
+                        socketService.setAllPlayerModals(null);
                     });
                 }}
                 acceptButtonText="Ok"

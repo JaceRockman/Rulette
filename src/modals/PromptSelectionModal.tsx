@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, ScrollView, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import { Modal, View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
+import { showAlert } from '../shared/alert';
 import { Plaque, Prompt } from '../types/game';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
 
@@ -28,16 +29,8 @@ export default function PromptSelectionModal({
     // Error handler for empty content
     useEffect(() => {
         if (visible && (!prompts || prompts.length === 0)) {
-            Alert.alert(
-                'No Prompts Available',
-                'There are no prompts available for selection. This might be due to a game state error.',
-                [
-                    {
-                        text: 'OK',
-                        onPress: onClose
-                    }
-                ]
-            );
+            showAlert('No Prompts Available', 'There are no prompts available for selection. This might be due to a game state error.');
+            onClose();
         }
     }, [visible, prompts, onClose]);
 

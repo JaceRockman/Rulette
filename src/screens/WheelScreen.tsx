@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView, Platform } from 'react-native';
+import { showAlert } from '../shared/alert';
 import { useGame } from '../context/GameContext';
 import WheelSegment from '../components/WheelSegment';
 import socketService from '../services/socketService';
@@ -188,7 +189,7 @@ export default function WheelScreen() {
                 const nonHostPlayers = gameState.players.filter(p => !p.isHost);
                 const nonHostPlayersWithRules = nonHostPlayers.filter(player => gameState.rules.some(rule => rule.assignedTo === player.id));
                 if (nonHostPlayersWithRules.length === 0) {
-                    Alert.alert('Not Enough Players with rules', `Need at least 1 player with rules for up action.`);
+                    showAlert('Not Enough Players with rules', `Need at least 1 player with rules for up action.`);
                     finishWheelSpin();
                 } else {
                     initiateUpDown({ direction: 'up', triggerUpDownModifier: triggerUpDownModifier });
@@ -204,7 +205,7 @@ export default function WheelScreen() {
                 const nonHostPlayersDown = gameState.players.filter(p => !p.isHost);
                 const nonHostPlayersWithRulesDown = nonHostPlayersDown.filter(player => gameState.rules.some(rule => rule.assignedTo === player.id));
                 if (nonHostPlayersWithRulesDown.length < 1) {
-                    Alert.alert('Not Enough Players with rules', `Need at least 1 player with rules for down action.`);
+                    showAlert('Not Enough Players with rules', `Need at least 1 player with rules for down action.`);
                     finishWheelSpin();
                 } else {
                     initiateUpDown({ direction: 'down', triggerUpDownModifier: triggerUpDownModifier });
