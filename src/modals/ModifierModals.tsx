@@ -235,20 +235,22 @@ export default function ModifierModals(
 
         if (nonHostPlayers.length === 0) return player;
 
-        let targetIndex: number;
+        let targetOrderPosition: number;
         if (direction === 'up') {
-            targetIndex = player.playerOrderPosition! - 1;
-            if (targetIndex < 0) {
-                targetIndex = nonHostPlayers.length - 1;
+            targetOrderPosition = player.playerOrderPosition! - 1;
+            if (targetOrderPosition <= 0) {
+                targetOrderPosition = nonHostPlayers.length;
             }
         } else {
-            targetIndex = player.playerOrderPosition! + 1;
-            if (targetIndex >= nonHostPlayers.length) {
-                targetIndex = 0;
+            targetOrderPosition = player.playerOrderPosition! + 1;
+            if (targetOrderPosition > nonHostPlayers.length) {
+                targetOrderPosition = 1;
             }
         }
 
-        return nonHostPlayers[targetIndex];
+        const targetPlayer = nonHostPlayers.find(p => p.playerOrderPosition === targetOrderPosition);
+
+        return targetPlayer;
     }
 
     // Handle rule selection for up/down workflow
@@ -272,23 +274,30 @@ export default function ModifierModals(
     const handleUpDownConfirmation = () => {
         if (!gameState?.activeUpDownRuleDetails) return;
         const nonHostPlayers: Player[] = getNonHostPlayers() || [];
-        if (nonHostPlayers.length > 0) {
-            nonHostPlayers.forEach(player => {
-                const playerHasRules = gameState?.rules.some(rule => rule.assignedTo === player.id);
-                const selectedRule = gameState?.activeUpDownRuleDetails?.selectedRules[player.id];
-                const playerToPassTo = getPlayerToPassTo(player, gameState?.activeUpDownRuleDetails?.direction || 'up');
-                if (selectedRule === undefined) {
-                    if (playerHasRules) {
-                        Alert.alert('Not All Players Selected', `Player ${player.name} has not selected a rule to pass.`);
-                    } else {
-                        return;
-                    }
-                } else {
-                    assignRule(selectedRule!.id, playerToPassTo!.id);
-                }
-            });
-            endUpDownRule();
+        if (nonHostPlayers.length === 0) return;
+
+        const playersWithRulesToPass = nonHostPlayers.filter(player =>
+            gameState.rules.some(rule => rule.assignedTo === player.id)
+        );
+
+        // If any required selection is missing, alert and do nothing
+        const missing = playersWithRulesToPass.find(p => !gameState.activeUpDownRuleDetails?.selectedRules[p.id]);
+        if (missing) {
+            Alert.alert('Not All Players Selected', `Player ${missing.name} has not selected a rule to pass.`);
+            return;
         }
+
+        // Assign each selected rule to the proper neighbor
+        playersWithRulesToPass.forEach(player => {
+            const selectedRule = gameState.activeUpDownRuleDetails!.selectedRules[player.id];
+            const playerToPassTo = getPlayerToPassTo(player, gameState.activeUpDownRuleDetails!.direction);
+            if (selectedRule && playerToPassTo) {
+                assignRule(selectedRule.id, playerToPassTo.id);
+            }
+        });
+
+        // Clear modals and end the Up/Down action
+        endUpDownRule();
     };
 
     const allPlayersHaveSelectedRules = () => {
@@ -296,7 +305,7 @@ export default function ModifierModals(
         const playersWithRulesToPass = nonHostPlayers.filter(player => {
             return gameState?.rules.some(rule => rule.assignedTo === player.id)
         }) || [];
-        return Object.values(gameState?.activeUpDownRuleDetails?.selectedRules || {}).length !== playersWithRulesToPass.length;
+        return Object.values(gameState?.activeUpDownRuleDetails?.selectedRules || {}).length === playersWithRulesToPass.length;
     }
 
     return (
@@ -463,7 +472,7 @@ export default function ModifierModals(
                     onFinishModifier(handleUpDownConfirmation);
                 }}
                 acceptButtonDisplayed={currentUser?.isHost}
-                acceptButtonDisabled={allPlayersHaveSelectedRules()}
+                acceptButtonDisabled={!allPlayersHaveSelectedRules()}
             />
 
 
