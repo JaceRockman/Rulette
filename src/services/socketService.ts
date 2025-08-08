@@ -1,4 +1,5 @@
 import io, { Socket } from 'socket.io-client';
+import { Platform } from 'react-native';
 import { ActiveAccusationDetails, ActiveCloneRuleDetails, ActiveFlipRuleDetails, ActivePromptDetails, ActiveSwapRuleDetails, ActiveUpDownRuleDetails, GameState, Plaque, Player, Prompt, Rule, WheelSegment, WheelSpinDetails } from '../types/game';
 import { SERVER_CONFIG } from '../config/server';
 
@@ -39,21 +40,32 @@ class SocketService {
                 reject(new Error('Connection to the server timed out. Please try again later.'));
             });
             this.socket.once('connect', () => {
-                // Establish a stable currentUserId as early as possible
-                try {
-                    // Prefer socket.id; fallback to existing id
-                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                    // @ts-ignore - socket.id is available at runtime
-                    const socketId = (this.socket as any)?.id as string | undefined;
-                    if (socketId) {
-                        this.currentUserId = socketId;
-                    }
-                } catch { /* noop */ }
+                // Establish a stable app-level user id independent of socket reconnections
+                const persistedId = this.getOrCreatePersistentUserId();
+                this.currentUserId = persistedId;
                 resolve();
             });
 
             this.setupEventListeners();
         });
+    }
+
+    private getOrCreatePersistentUserId(): string {
+        // Try localStorage on web; fall back to in-memory for native
+        try {
+            if (typeof window !== 'undefined' && (window as any).localStorage) {
+                const existing = window.localStorage.getItem('stw_user_id');
+                if (existing) return existing;
+                const generated = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+                window.localStorage.setItem('stw_user_id', generated);
+                return generated;
+            }
+        } catch { /* ignore */ }
+        // Native fallback: keep a session-stable id
+        if (!this.currentUserId) {
+            this.currentUserId = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+        }
+        return this.currentUserId as string;
     }
 
     // Event callbacks
