@@ -100,6 +100,8 @@ class SocketService {
             this.currentUserId = data.playerId;
             this.gameState = data.game;
             this.onJoinedLobby?.(data);
+            // Ensure the joining client navigates to Lobby even if a specific handler isn't set
+            this.onNavigateToScreen?.({ screen: 'Lobby', params: { lobbyCode: data.game.lobbyCode } });
         });
 
         this.socket.on('lobby_created', (data: { playerId: string; game: GameState }) => {

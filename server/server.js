@@ -297,7 +297,7 @@ io.on('connection', (socket) => {
         // Ensure the joining player also receives the latest game state immediately
         socket.emit('game_updated', updatedGame);
         io.to(game.id).emit('game_updated', updatedGame);
-        socket.emit('navigate_player_to_screen', { screen: 'Lobby', playerId: playerId });
+        socket.emit('navigate_player_to_screen', { screen: 'Lobby', playerId: playerId, params: { lobbyCode: updatedGame.lobbyCode } });
     });
 
     // Update game settings
