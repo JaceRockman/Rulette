@@ -86,34 +86,41 @@ export default function PromptWritingScreen() {
     return (
         <StripedBackground>
             <SafeAreaView style={shared.container}>
-                <ScrollView
-                    style={{ width: '100%' }}
-                    contentContainerStyle={{ paddingTop: 120, alignItems: 'center', paddingBottom: 50, flexGrow: 1 }}
-                    showsVerticalScrollIndicator={false}>
-                    <PrimaryButton
-                        title={canAddPrompt ? "Add Prompt" : `Max Prompts (${numPromptsPerPlayer})`}
-                        onPress={handleAddPrompt}
-                        disabled={!canAddPrompt}
-                        buttonStyle={{ width: '40%', height: "10%", opacity: canAddPrompt ? 1 : 0.5 }}
-                    />
-
-                    <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20, flex: 1 }}>
-                        {render2ColumnPlaqueList({
-                            plaques: promptsToDisplay || [],
-                            onPress: handleEditPrompt,
-                        })}
+                <View style={{ flex: 1, width: '100%' }}>
+                    {/* Top fixed actions */}
+                    <View style={{ paddingTop: 120, alignItems: 'center' }}>
+                        <PrimaryButton
+                            title={canAddPrompt ? "Add Prompt" : `Max Prompts (${numPromptsPerPlayer})`}
+                            onPress={handleAddPrompt}
+                            disabled={!canAddPrompt}
+                            buttonStyle={{ width: '40%', opacity: canAddPrompt ? 1 : 0.5 }}
+                        />
                     </View>
 
-                    {/* Spacer to push Done button to bottom */}
-                    <View style={{ flex: 1 }} />
+                    {/* Scrollable list only */}
+                    <ScrollView
+                        style={{ flex: 1, width: '100%' }}
+                        contentContainerStyle={{ alignItems: 'center', paddingBottom: 16 }}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        <View style={{ marginVertical: 16, width: '100%', paddingHorizontal: 20 }}>
+                            {render2ColumnPlaqueList({
+                                plaques: promptsToDisplay || [],
+                                onPress: handleEditPrompt,
+                            })}
+                        </View>
+                    </ScrollView>
 
-                    <PrimaryButton
-                        title="Done"
-                        onPress={handleDone}
-                        disabled={!canContinue}
-                        buttonStyle={{ width: '40%', height: "10%", opacity: canContinue ? 1 : 0.5 }}
-                    />
-                </ScrollView>
+                    {/* Bottom fixed action */}
+                    <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                        <PrimaryButton
+                            title={canContinue ? "Done" : "Done"}
+                            onPress={handleDone}
+                            disabled={!canContinue}
+                            buttonStyle={{ width: '40%', opacity: canContinue ? 1 : 0.5 }}
+                        />
+                    </View>
+                </View>
 
                 <InputPlaque
                     visible={showInputPlaque}

@@ -103,7 +103,7 @@ export default function LobbyScreen() {
 
                     {/* Host Settings Section */}
                     {isHost && (
-                        <View style={shared.section}>
+                        <View style={{ padding: 16 }}>
                             <OutlinedText>Game Settings</OutlinedText>
 
                             <View style={styles.settingContainer}>
@@ -174,7 +174,6 @@ const styles = StyleSheet.create({
     },
     settingContainer: {
         alignItems: 'center',
-        marginBottom: 20,
     },
     settingLabel: {
         fontSize: 20,
