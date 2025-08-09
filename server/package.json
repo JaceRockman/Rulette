@@ -1,5 +1,5 @@
 {
-    "name": "spin-that-wheel-server",
+    "name": "rulette-server",
     "version": "1.0.0",
     "description": "Backend server for Spin That Wheel multiplayer game",
     "main": "server.js",
