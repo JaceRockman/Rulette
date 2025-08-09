@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "A multiplayer wheel-spinning game with prompts and rules",
   "main": "node_modules/expo/AppEntry.js",
-  "homepage": "https://jacerockman.github.io/rulette/",
+  "homepage": "https://jacerockman.github.io/Rulette/",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
