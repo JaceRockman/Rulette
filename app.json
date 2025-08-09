@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Spin That Wheel",
-    "slug": "spin-that-wheel",
+    "name": "Rulette",
+    "slug": "rulette",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -14,10 +14,10 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.spinthatwheel"
+      "bundleIdentifier": "com.avisindustries.rulette"
     },
     "android": {
-      "package": "com.yourcompany.spinthatwheel"
+      "package": "com.avisindustries.rulette"
     },
     "web": {},
     "plugins": [],
