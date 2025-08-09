@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView, Platform, Modal } from 'react-native';
+import { View, Text, Animated, FlatList, SafeAreaView, StyleSheet, ScrollView, Platform } from 'react-native';
 import { showAlert } from '../shared/alert';
 import { useGame } from '../context/GameContext';
 import WheelSegment from '../components/WheelSegment';
@@ -286,12 +286,6 @@ export default function WheelScreen() {
     // Only allow spin if current user is host or active player
     const canSpin = currentUser && (currentUser.isHost || gameState?.activePlayer === currentUser.id);
 
-    const handleScroll = () => {
-        if (Platform.OS !== 'web') return;
-        if (!canSpin || gameState?.wheelSpinDetails !== null) return;
-        initiateSpin();
-    };
-
     if (!gameState || !currentUser) {
         return (
             <Backdrop>
@@ -340,26 +334,6 @@ export default function WheelScreen() {
                         />
                     </View>
                 )}
-
-                {/* Host override: allow host to force-complete the spin at any time during a spin */}
-                {/* Floating modal so it sits above all overlays */}
-                <Modal
-                    visible={!!(currentUser?.isHost && gameState?.wheelSpinDetails !== null)}
-                    transparent
-                    animationType="none"
-                    onRequestClose={() => { }}
-                >
-                    <SafeAreaView pointerEvents="box-none" style={{ flex: 1 }}>
-                        <View pointerEvents="box-none" style={{ flex: 1 }}>
-                            <View style={{ position: 'absolute', bottom: 12, right: 12 }}>
-                                <PrimaryButton
-                                    title="Complete Spin (Host)"
-                                    onPress={() => finishWheelSpin()}
-                                />
-                            </View>
-                        </View>
-                    </SafeAreaView>
-                </Modal>
 
                 <SimpleModal
                     visible={currentModal === 'RuleModal'}
