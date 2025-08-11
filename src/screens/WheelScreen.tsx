@@ -63,7 +63,7 @@ export default function WheelScreen() {
         // Generate random final index
         const randomSpins = 40 + Math.floor(Math.random() * 10);
         const scrollAmount = (randomSpins * ITEM_HEIGHT);
-        const finalIndex = ((currentWheelIndex - randomSpins) * -1) % segments.length;
+        const finalIndex = ((currentWheelIndex - randomSpins) % segments.length) + segments.length;
         const duration = 3000 + Math.random() * 2000; // 3-5 seconds
 
         const newWheelSpinDetails: WheelSpinDetails = {
