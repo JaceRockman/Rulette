@@ -98,7 +98,6 @@ export interface LobbySettings {
 export interface WheelSpinDetails {
     spinningPlayerId: string;
     finalIndex: number;
-    scrollAmount: number;
     duration: number;
     spunSegmentId?: string;
     spinCompleted?: boolean;

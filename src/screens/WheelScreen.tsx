@@ -61,15 +61,12 @@ export default function WheelScreen() {
         if (!segments.length) return;
 
         // Generate random final index
-        const randomSpins = 40 + Math.floor(Math.random() * 10);
-        const scrollAmount = (randomSpins * ITEM_HEIGHT);
-        const finalIndex = ((currentWheelIndex - randomSpins) % segments.length) + segments.length;
+        const finalIndex = Math.floor(Math.random() * (segments.length + 1));
         const duration = 3000 + Math.random() * 2000; // 3-5 seconds
 
         const newWheelSpinDetails: WheelSpinDetails = {
             spinningPlayerId: gameState?.activePlayer || '',
             finalIndex,
-            scrollAmount,
             duration,
             spunSegmentId: segments[finalIndex]?.id,
             spinCompleted: false,
@@ -91,11 +88,14 @@ export default function WheelScreen() {
     const performSynchronizedSpin = () => {
         if (!gameState || gameState.wheelSpinDetails === null || gameState.wheelSpinDetails?.spinCompleted === true) return;
 
-        const { finalIndex, scrollAmount, duration } = gameState.wheelSpinDetails as WheelSpinDetails;
+        const { finalIndex, duration } = gameState.wheelSpinDetails as WheelSpinDetails;
 
-        // Animate the scroll with a "spin" effect - go bottom to top (visually downwards)
+        const extraWheelSpins = ITEM_HEIGHT * segments.length * 4;
+        const scrollPosition = finalIndex * ITEM_HEIGHT - extraWheelSpins;
+
+        // Animate the scroll with a "spin" effect
         Animated.timing(scrollY, {
-            toValue: currentScrollOffset.current - scrollAmount,
+            toValue: scrollPosition,
             duration: duration,
             // Must be false on web because we read the value in JS to drive scroll
             useNativeDriver: Platform.OS !== 'web' ? true : false,
