@@ -64,7 +64,7 @@ export default function WheelScreen() {
         const randomSpins = 40 + Math.floor(Math.random() * 10);
         const scrollAmount = (randomSpins * ITEM_HEIGHT);
         const finalIndex = (currentWheelIndex + randomSpins) % segments.length;
-        const duration = 300 + Math.random() * 200; // 3-5 seconds
+        const duration = 3000 + Math.random() * 2000; // 3-5 seconds
 
         const newWheelSpinDetails: WheelSpinDetails = {
             spinningPlayerId: gameState?.activePlayer || '',
@@ -93,9 +93,9 @@ export default function WheelScreen() {
 
         const { finalIndex, scrollAmount, duration } = gameState.wheelSpinDetails as WheelSpinDetails;
 
-        // Animate the scroll with a "spin" effect - always go top to bottom
+        // Animate the scroll with a "spin" effect - go bottom to top (visually downwards)
         Animated.timing(scrollY, {
-            toValue: currentScrollOffset.current + scrollAmount,
+            toValue: currentScrollOffset.current - scrollAmount,
             duration: duration,
             // Must be false on web because we read the value in JS to drive scroll
             useNativeDriver: Platform.OS !== 'web' ? true : false,
