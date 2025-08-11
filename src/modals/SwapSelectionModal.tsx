@@ -6,6 +6,7 @@ import { PrimaryButton } from '../components/Buttons';
 import { useGame } from '../context/GameContext';
 import { Plaque as PlaqueType, Player, Rule } from '../types/game';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
+import ExitModalButton from '../components/ExitModalButton';
 
 
 interface SwapSelectionModalProps {
@@ -64,6 +65,7 @@ export default function SwapSelectionModal({
         >
             <SafeAreaView style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
+                    <ExitModalButton />
                     <Text style={shared.modalTitle}>SWAP</Text>
                     <Text style={shared.modalDescription}>Choose a player's rule to swap with one of your own:</Text>
 

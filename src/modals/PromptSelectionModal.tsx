@@ -6,6 +6,7 @@ import { render2ColumnPlaqueList } from '../components/PlaqueList';
 
 import { colors, shared } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
+import ExitModalButton from '../components/ExitModalButton';
 
 interface PromptSelectionModalProps {
     visible: boolean;
@@ -54,6 +55,7 @@ export default function PromptSelectionModal({
         >
             <SafeAreaView style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
+                    <ExitModalButton />
                     <Text style={shared.modalTitle}>{title}</Text>
                     <Text style={shared.modalDescription}>{description}</Text>
 

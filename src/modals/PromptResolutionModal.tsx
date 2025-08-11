@@ -7,6 +7,7 @@ import { useGame } from '../context/GameContext';
 import { socketService } from '../services/socketService';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
+import ExitModalButton from '../components/ExitModalButton';
 
 interface PromptResolutionModalProps {
     visible: boolean;
@@ -48,6 +49,7 @@ export default function PromptResolutionModal({
         >
             <View style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
+                    <ExitModalButton />
                     <Text style={shared.modalTitle}>Prompt Succeeded!</Text>
                     <Plaque plaque={selectedPrompt as PlaqueType} />
 

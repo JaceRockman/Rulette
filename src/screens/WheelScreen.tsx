@@ -325,15 +325,14 @@ export default function WheelScreen() {
                     />
                 </View>
 
-                {canSpin && gameState?.wheelSpinDetails === null && (
-                    <View style={{ marginTop: 16, alignItems: 'center' }}>
-                        <PrimaryButton
-                            title="Spin"
-                            onPress={initiateSpin}
-                            buttonStyle={{ width: '150%' }}
-                        />
-                    </View>
-                )}
+                <View style={{ marginTop: 16, alignItems: 'center' }}>
+                    <PrimaryButton
+                        title="Spin"
+                        onPress={initiateSpin}
+                        buttonStyle={{ width: '150%' }}
+                        disabled={!canSpin || gameState?.wheelSpinDetails !== null}
+                    />
+                </View>
 
                 <SimpleModal
                     visible={currentModal === 'RuleModal'}

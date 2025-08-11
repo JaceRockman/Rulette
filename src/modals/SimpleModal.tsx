@@ -3,6 +3,7 @@ import { Modal, View, Text, SafeAreaView } from 'react-native';
 
 import { shared } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
+import ExitModalButton from '../components/ExitModalButton';
 
 interface SimpleModalProps {
     visible: boolean;
@@ -46,6 +47,9 @@ export default function SimpleModal({
         >
             <SafeAreaView style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
+
+                    <ExitModalButton />
+
                     <Text style={shared.modalTitle}>{title}</Text>
                     <Text style={shared.modalDescription}>{description}</Text>
 

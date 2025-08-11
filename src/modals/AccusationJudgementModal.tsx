@@ -1,9 +1,10 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
-import { Rule, Player, ActiveAccusationDetails } from '../types/game';
+import { Modal, View, Text, SafeAreaView } from 'react-native';
+import { Player, ActiveAccusationDetails } from '../types/game';
 import Plaque from '../components/Plaque';
-import { colors, shared } from '../shared/styles';
+import { shared } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
+import ExitModalButton from '../components/ExitModalButton';
 
 interface AccusationJudgementModalProps {
     visible: boolean;
@@ -31,6 +32,7 @@ export default function AccusationJudgementModal({
         >
             <SafeAreaView style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
+                    <ExitModalButton />
                     <Text style={shared.modalTitle}>Rule Violation</Text>
                     <Text style={shared.modalDescription}>
                         {activeAccusationDetails.accuser.name} has accused {activeAccusationDetails.accused?.name} of breaking rule:

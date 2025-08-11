@@ -6,6 +6,7 @@ import { Plaque } from '../types/game';
 import styles, { colors, shared } from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
+import ExitModalButton from '../components/ExitModalButton';
 
 interface RuleSelectionModalProps {
     visible: boolean;
@@ -63,6 +64,7 @@ export default function RuleSelectionModal({
         >
             <SafeAreaView style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
+                    <ExitModalButton />
                     <Text style={shared.modalTitle}>{title}</Text>
                     <Text style={shared.modalDescription}>{description}</Text>
 

@@ -1,12 +1,13 @@
 import React from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
-import { Player, Prompt, Plaque as PlaqueType, Rule } from '../types/game';
-import { colors, shared } from '../shared/styles';
+import { Modal, View, Text, StyleSheet } from 'react-native';
+import { Plaque as PlaqueType, Rule } from '../types/game';
+import { shared } from '../shared/styles';
 import Plaque from '../components/Plaque';
 import { useGame } from '../context/GameContext';
 import { socketService } from '../services/socketService';
 import { render2ColumnPlaqueList } from '../components/PlaqueList';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
+import ExitModalButton from '../components/ExitModalButton';
 
 interface PromptPerformanceModalProps {
     visible: boolean;
@@ -38,6 +39,7 @@ export default function PromptPerformanceModal({
         >
             <View style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
+                    <ExitModalButton />
                     <Text style={shared.modalTitle}>Prompt for {selectedPlayer?.name}</Text>
                     <Plaque plaque={selectedPrompt as PlaqueType} />
 

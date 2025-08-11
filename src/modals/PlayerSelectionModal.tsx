@@ -3,6 +3,7 @@ import { Modal, View, Text, TouchableOpacity, ScrollView, StyleSheet, SafeAreaVi
 import { showAlert } from '../shared/alert';
 import { Player } from '../types/game';
 import { shared } from '../shared/styles';
+import ExitModalButton from '../components/ExitModalButton';
 
 interface PlayerSelectionModalProps {
     visible: boolean;
@@ -41,6 +42,7 @@ export default function PlayerSelectionModal({
         >
             <SafeAreaView style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
+                    <ExitModalButton />
                     <Text style={shared.modalTitle}>{title}</Text>
                     <Text style={shared.modalDescription}>{description}</Text>
 

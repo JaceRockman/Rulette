@@ -11,6 +11,7 @@ import { Rule } from '../types/game';
 import shared from '../shared/styles';
 import { PrimaryButton, SecondaryButton } from '../components/Buttons';
 import Plaque from '../components/Plaque';
+import ExitModalButton from '../components/ExitModalButton';
 
 interface FlipTextInputModalProps {
     visible: boolean;
@@ -51,6 +52,7 @@ export default function FlipTextInputModal({
         >
             <SafeAreaView style={shared.modalOverlay}>
                 <View style={shared.modalContent}>
+                    <ExitModalButton />
                     <Text style={shared.modalTitle}>FLIP</Text>
                     <Text style={shared.modalDescription}>
                         Enter the flipped/negated version of this rule:
